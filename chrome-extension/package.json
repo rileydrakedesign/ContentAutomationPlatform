@@ -1,0 +1,10 @@
+{
+  "name": "content-pipeline-extension",
+  "version": "1.0.0",
+  "description": "Chrome extension to save X posts to Content Pipeline",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch"
+  },
+  "devDependencies": {}
+}

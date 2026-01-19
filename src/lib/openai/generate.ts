@@ -1,0 +1,260 @@
+/**
+ * Content Generation Module
+ *
+ * This module provides two generation paths:
+ * 1. Legacy: generateContent() - Simple generation for any source type
+ * 2. Enhanced: generateFromVoiceMemo() - Smart pipeline with analysis + routing
+ */
+
+import { openai } from "./client";
+import type { DraftType, SourceType } from "../db/schema";
+import { analyzeVoiceMemo, type AnalysisResult } from "./analyzer";
+import { routeToFramework, routeWithOverride } from "./router";
+import type { FrameworkType } from "./prompts/frameworks";
+import { getCopywritingEssentials } from "./prompts/knowledge-base";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface XPostContent {
+  text: string;
+}
+
+export interface XThreadContent {
+  tweets: string[];
+}
+
+export interface ReelScriptContent {
+  hook: string;
+  body: string;
+  callToAction: string;
+  estimatedDuration: string;
+}
+
+export type GeneratedContent =
+  | XPostContent
+  | XThreadContent
+  | ReelScriptContent;
+
+// Enhanced generation result includes analysis metadata
+export interface EnhancedGenerationResult {
+  content: XPostContent | XThreadContent;
+  analysis: AnalysisResult;
+  format: "X_POST" | "X_THREAD";
+  frameworkUsed: FrameworkType;
+}
+
+// ============================================================================
+// Legacy Generation (backward compatible)
+// ============================================================================
+
+// Get copywriting knowledge from knowledge base
+const COPYWRITING_KNOWLEDGE = getCopywritingEssentials();
+
+const LEGACY_BRAND_VOICE_PROMPT = `You are a content writer for a personal brand focused on software development, AI, and building in public.
+
+${COPYWRITING_KNOWLEDGE}
+
+VOICE PRINCIPLES:
+- Write as a builder, not a marketer
+- Be curious, practical, slightly opinionated
+- Prefer concrete examples over abstract concepts
+- Use short sentences over long explanations
+
+TONE CONSTRAINTS:
+- No hype language
+- No emojis unless explicitly requested
+- No generic motivational fluff
+- Avoid clichés (e.g., "game-changer", "revolutionary")
+
+CONTENT HEURISTICS:
+- Prefer "what I learned" over "what you should do"
+- If referencing tools, mention why they matter in practice
+- If referencing news, always explain the impact`;
+
+interface LegacyGenerateInput {
+  sources: Array<{
+    type: SourceType;
+    content: string;
+    metadata?: Record<string, unknown>;
+  }>;
+  draftType: DraftType;
+}
+
+/**
+ * Legacy generation function - maintains backward compatibility
+ * Use generateFromVoiceMemo() for enhanced voice memo processing
+ */
+export async function generateContent(
+  input: LegacyGenerateInput
+): Promise<GeneratedContent> {
+  const { sources, draftType } = input;
+
+  const sourceContext = sources
+    .map((s, i) => `Source ${i + 1} (${s.type}):\n${s.content}`)
+    .join("\n\n");
+
+  let formatInstructions: string;
+
+  switch (draftType) {
+    case "X_POST":
+      formatInstructions = `Generate a single X post. Length should match content depth (can be up to 25,000 chars).
+Use line breaks for scannability. Every sentence must add value.
+Return JSON: { "text": "your post here with \\n for line breaks" }`;
+      break;
+    case "X_THREAD":
+      formatInstructions = `Generate a thread of 2-6 posts. Each post can be up to 25,000 chars.
+Use line breaks within posts for scannability. Each post should deliver clear value.
+Return JSON: { "tweets": ["post 1", "post 2", ...] }`;
+      break;
+    case "REEL_SCRIPT":
+      formatInstructions = `Generate a 25-40 second Instagram Reel script.
+Return JSON: {
+  "hook": "attention-grabbing opening (3-5 seconds)",
+  "body": "main content with clear points",
+  "callToAction": "what viewers should do next",
+  "estimatedDuration": "estimated duration in seconds"
+}`;
+      break;
+  }
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4-turbo-preview",
+    messages: [
+      { role: "system", content: LEGACY_BRAND_VOICE_PROMPT },
+      {
+        role: "user",
+        content: `Based on the following source material, create content.
+
+${sourceContext}
+
+${formatInstructions}`,
+      },
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0.7,
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("No content generated");
+  }
+
+  return JSON.parse(content) as GeneratedContent;
+}
+
+// ============================================================================
+// Enhanced Voice Memo Generation Pipeline
+// ============================================================================
+
+export interface VoiceMemoGenerateOptions {
+  /** Override the auto-detected framework */
+  overrideFramework?: FrameworkType;
+  /** Override the auto-detected format (X_POST or X_THREAD) */
+  overrideFormat?: "X_POST" | "X_THREAD";
+  /** Skip analysis and use provided analysis result */
+  precomputedAnalysis?: AnalysisResult;
+  /** Style prompt built from inspiration posts */
+  stylePrompt?: string;
+}
+
+/**
+ * Enhanced generation pipeline for voice memos.
+ *
+ * This function:
+ * 1. Analyzes the transcript to understand content type and density
+ * 2. Routes to the appropriate framework based on analysis
+ * 3. Generates content using the selected framework + base principles
+ *
+ * @param transcript - The voice memo transcript text
+ * @param options - Optional overrides for framework/format selection
+ * @returns Generated content with analysis metadata
+ */
+export async function generateFromVoiceMemo(
+  transcript: string,
+  options: VoiceMemoGenerateOptions = {}
+): Promise<EnhancedGenerationResult> {
+  // Step 1: Analyze the transcript (or use precomputed)
+  const analysis =
+    options.precomputedAnalysis ?? (await analyzeVoiceMemo(transcript));
+
+  // Check if content is a fragment (not ready for posting)
+  if (
+    analysis.suggestedFormat === "FRAGMENT" &&
+    !options.overrideFormat
+  ) {
+    throw new FragmentContentError(
+      "Content classified as fragment - not ready for posting",
+      analysis
+    );
+  }
+
+  // Step 2: Route to the appropriate framework
+  const routedPrompt = options.overrideFramework || options.overrideFormat
+    ? routeWithOverride(
+        transcript,
+        analysis,
+        options.overrideFramework,
+        options.overrideFormat,
+        options.stylePrompt
+      )
+    : routeToFramework(transcript, analysis, options.stylePrompt);
+
+  // Step 3: Generate content
+  const response = await openai.chat.completions.create({
+    model: "gpt-4-turbo-preview",
+    messages: [
+      { role: "system", content: routedPrompt.systemPrompt },
+      { role: "user", content: routedPrompt.userPrompt },
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0.7,
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("No content generated");
+  }
+
+  const generatedContent = JSON.parse(content) as
+    | XPostContent
+    | XThreadContent;
+
+  return {
+    content: generatedContent,
+    analysis,
+    format: routedPrompt.outputFormat,
+    frameworkUsed: options.overrideFramework ?? analysis.suggestedFramework,
+  };
+}
+
+/**
+ * Analyze a voice memo without generating content.
+ * Useful for previewing what the system would do before committing.
+ */
+export async function analyzeOnly(transcript: string): Promise<AnalysisResult> {
+  return analyzeVoiceMemo(transcript);
+}
+
+// ============================================================================
+// Custom Errors
+// ============================================================================
+
+export class FragmentContentError extends Error {
+  public analysis: AnalysisResult;
+
+  constructor(message: string, analysis: AnalysisResult) {
+    super(message);
+    this.name = "FragmentContentError";
+    this.analysis = analysis;
+  }
+}
+
+// ============================================================================
+// Re-exports for convenience
+// ============================================================================
+
+export type { AnalysisResult } from "./analyzer";
+export type { FrameworkType } from "./prompts/frameworks";
+export { extractSearchKeywords } from "./analyzer";
