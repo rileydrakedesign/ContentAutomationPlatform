@@ -3,52 +3,13 @@ import { createClient } from "@supabase/supabase-js";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { openai } from "@/lib/openai/client";
-import { getReplyGenerationContext } from "@/lib/openai/prompts/reply-guidelines";
+import { REPLY_SYSTEM_PROMPT } from "@/lib/openai/prompts/reply-prompt";
+import { getAssembledPromptForUser } from "@/lib/openai/prompts/prompt-assembler";
 
 // Handle CORS preflight
 export async function OPTIONS() {
   return handleCors();
 }
-
-// Load full guidelines context (cached after first load)
-const GUIDELINES_CONTEXT = getReplyGenerationContext();
-
-// Focused instruction prompt that references the loaded guidelines
-const INSTRUCTION_PROMPT = `You are writing replies to social media posts. You have been given extensive guidelines above on writing principles, copywriting tactics, and real high-performing examples.
-
-## YOUR TASK
-
-Write replies that add something NEW - information, perspective, or insight not already in the original post.
-
-## HARD RULES
-
-NEVER:
-- Restate or rephrase what the post says
-- Give generic agreement ("So true!", "This is the way")
-- Ask obvious questions
-- Use filler phrases ("I think", "In my opinion", "Honestly")
-- Sound like AI (no perfect grammar, no corporate tone)
-
-ALWAYS:
-- Add a fact, example, or angle the post doesn't have
-- Take a clear stance (even if controversial)
-- Sound like a real person texting a friend
-- Be specific (names, numbers, examples)
-
-## THE TEST
-
-Ask yourself: "Could someone figure this out just by reading the original post?"
-If YES → don't say it
-If NO → good, it adds value
-
-## OUTPUT FORMAT
-
-Return exactly 3 replies as JSON:
-- One MUST be a punchy one-liner (under 50 chars)
-- The other two should be ONE short sentence each (under 120 chars)
-- No dense paragraphs. No multiple points. Just one quick, sharp thought per reply.
-
-{"replies":[{"text":"...","approach":"2-3 words"},{"text":"...","approach":"2-3 words"},{"text":"...","approach":"2-3 words"}]}`;
 
 // Helper to get user from either cookie or Bearer token
 async function getAuthenticatedUser(request: NextRequest) {
@@ -86,18 +47,107 @@ async function getAuthenticatedUser(request: NextRequest) {
   return { user, supabase };
 }
 
+interface MediaItem {
+  type: 'image' | 'gif' | 'video';
+  alt: string | null;
+  hasAlt: boolean;
+}
+
+interface PostContext {
+  parent?: {
+    text: string;
+    author: string;
+    isThreaded?: boolean;
+  } | null;
+  quoted?: {
+    text: string;
+    author: string;
+  } | null;
+  link?: {
+    url: string;
+    title: string;
+    description: string;
+    domain: string;
+  } | null;
+  media?: MediaItem[] | null;
+}
+
 interface GenerateReplyRequest {
   post_text: string;
   author_handle?: string;
-}
-
-interface ReplyOption {
-  text: string;
-  approach: string;
+  context?: PostContext;
+  tone?: string;  // Optional tone for reply generation
 }
 
 interface GenerateReplyResponse {
-  replies: ReplyOption[];
+  replies: string[];
+}
+
+/**
+ * Get tone instruction based on selected tone
+ */
+function getToneInstruction(tone: string | undefined): string {
+  if (!tone) return '';
+
+  const toneInstructions: Record<string, string> = {
+    controversial: 'Write a CONTROVERSIAL reply that challenges conventional thinking, presents an unpopular opinion, or takes a bold contrarian stance. Be provocative but not offensive.',
+    sarcastic: 'Write a SARCASTIC reply with witty, ironic humor. Use dry wit and clever wordplay. Be playfully cutting without being mean-spirited.',
+    helpful: 'Write a HELPFUL reply that adds genuine value, offers useful advice, or shares practical information. Be constructive and supportive.',
+    insight: 'Write an INSIGHTFUL reply that offers a unique perspective, connects unexpected dots, or reveals a deeper truth. Make them think.',
+    enthusiastic: 'Write an ENTHUSIASTIC reply with genuine excitement and positive energy. Be energetic and uplifting but stay authentic - avoid being cheesy.',
+  };
+
+  return toneInstructions[tone.toLowerCase()] || '';
+}
+
+/**
+ * Build a rich context string from extracted post data
+ */
+function buildContextPrompt(context: PostContext | undefined): string {
+  if (!context) return '';
+
+  const parts: string[] = [];
+
+  // Parent post (if replying to a reply)
+  if (context.parent && (context.parent.text || context.parent.author)) {
+    const parentInfo = context.parent.text
+      ? `Parent post from @${context.parent.author || 'unknown'}:\n"${context.parent.text}"`
+      : `Replying to @${context.parent.author}`;
+    parts.push(parentInfo);
+  }
+
+  // Quoted tweet
+  if (context.quoted && (context.quoted.text || context.quoted.author)) {
+    const quoteInfo = `Quoted post from @${context.quoted.author || 'unknown'}:\n"${context.quoted.text}"`;
+    parts.push(quoteInfo);
+  }
+
+  // Link preview
+  if (context.link && (context.link.title || context.link.url)) {
+    let linkInfo = `Link shared: ${context.link.title || context.link.url}`;
+    if (context.link.description) {
+      linkInfo += `\nPreview: "${context.link.description}"`;
+    }
+    if (context.link.domain) {
+      linkInfo += ` (${context.link.domain})`;
+    }
+    parts.push(linkInfo);
+  }
+
+  // Media context
+  if (context.media && context.media.length > 0) {
+    const mediaDescriptions = context.media.map((m, i) => {
+      if (m.hasAlt && m.alt) {
+        return `${m.type} ${i + 1}: "${m.alt}"`;
+      }
+      return `${m.type} ${i + 1}: [no description]`;
+    });
+
+    const mediaInfo = `Media attached:\n${mediaDescriptions.join('\n')}`;
+    parts.push(mediaInfo);
+  }
+
+  return parts.length > 0 ? '\n\n---\nADDITIONAL CONTEXT:\n' + parts.join('\n\n') : '';
 }
 
 // POST /api/generate-reply - Generate AI reply options to a post
@@ -122,28 +172,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userPrompt = `Reply to this post from @${body.author_handle || 'someone'}:
+    // Build context string from rich context data
+    const contextStr = buildContextPrompt(body.context);
 
-"${body.post_text}"
+    // Build tone instruction if specified
+    const toneInstruction = getToneInstruction(body.tone);
 
-Give me 3 different reply options. Keep each under 280 characters.`;
+    const userPrompt = `${toneInstruction ? toneInstruction + '\n\n' : ''}Reply to this post from @${body.author_handle || 'someone'}:
 
-    // Combine guidelines + instructions as system prompt
-    const fullSystemPrompt = `${GUIDELINES_CONTEXT}\n\n---\n\n${INSTRUCTION_PROMPT}`;
+"${body.post_text}"${contextStr}`;
+
+    // Get personalized system prompt with user's voice examples and settings
+    let systemPrompt: string;
+    try {
+      systemPrompt = await getAssembledPromptForUser(supabase, user.id);
+      console.log("[generate-reply] Using personalized prompt with user settings");
+    } catch (assemblyError) {
+      console.log("[generate-reply] Falling back to base prompt:", assemblyError);
+      systemPrompt = REPLY_SYSTEM_PROMPT;
+    }
 
     console.log("[generate-reply] Starting OpenAI call...");
-    console.log("[generate-reply] System prompt length:", fullSystemPrompt.length);
+    console.log("[generate-reply] System prompt length:", systemPrompt.length);
     console.log("[generate-reply] User prompt:", userPrompt);
 
     let completion;
     try {
       completion = await openai.chat.completions.create({
-        model: "gpt-5-mini",
+        model: "gpt-4o-mini",
         messages: [
-          { role: "system", content: fullSystemPrompt },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_completion_tokens: 4000,
+        temperature: 0.7,
+        max_tokens: 400,
         response_format: { type: "json_object" },
       });
       console.log("[generate-reply] OpenAI call succeeded");
@@ -181,11 +243,33 @@ Give me 3 different reply options. Keep each under 280 characters.`;
       );
     }
 
-    // Validate and truncate replies
-    const replies = (parsed.replies || []).slice(0, 3).map((reply) => ({
-      text: reply.text?.length > 280 ? reply.text.substring(0, 277) + "..." : reply.text,
-      approach: reply.approach || "Reply",
-    }));
+    // Validate and truncate replies - convert string array to object array for frontend compatibility
+    const repliesArray = parsed.replies || [];
+    const labels = ["Punchy", "Insight", "Spicy"];
+
+    // Clean up any meta-text that might have leaked into replies
+    function cleanReplyText(text: string): string {
+      if (typeof text !== 'string') return '';
+
+      // Remove common meta-text patterns that LLMs sometimes include
+      let cleaned = text
+        .replace(/^(punchy|one-liner|short|medium|detailed|reply\s*\d*)\s*[:>\-]\s*/i, '')
+        .replace(/^\[.*?\]\s*/i, '')
+        .replace(/^\(.*?\)\s*/i, '')
+        .trim();
+
+      // Truncate if needed
+      if (cleaned.length > 280) {
+        cleaned = cleaned.substring(0, 277) + "...";
+      }
+
+      return cleaned;
+    }
+
+    const replies = repliesArray.slice(0, 3).map((reply: string, index: number) => ({
+      text: cleanReplyText(typeof reply === 'string' ? reply : (reply as any).text || ""),
+      approach: labels[index] || "Reply",
+    })).filter(r => r.text.length > 0);
 
     if (replies.length === 0) {
       return NextResponse.json(

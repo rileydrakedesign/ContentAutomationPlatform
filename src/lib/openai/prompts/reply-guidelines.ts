@@ -17,6 +17,7 @@ export function loadReplyGuidelines(): string {
     'writing-principles.md',
     'copywriting-principles.md',
     'feedback-examples.md',
+    'algo-principles.md',
   ];
 
   const sections: string[] = [];

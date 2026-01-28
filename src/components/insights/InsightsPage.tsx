@@ -1,0 +1,47 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
+import { PerformanceTab } from "./PerformanceTab";
+import { PatternsTab } from "./PatternsTab";
+import { SuggestionsTab } from "./SuggestionsTab";
+import { BestTimesSection } from "./BestTimesSection";
+
+export function InsightsPage() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") || "performance";
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-white">Insights</h1>
+        <p className="text-slate-500 mt-1">
+          Analytics, patterns, and actionable suggestions
+        </p>
+      </div>
+
+      <Tabs defaultValue={initialTab}>
+        <TabsList className="mb-6">
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="patterns">Patterns</TabsTrigger>
+          <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="performance">
+          <div className="space-y-6">
+            <BestTimesSection />
+            <PerformanceTab />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="patterns">
+          <PatternsTab />
+        </TabsContent>
+
+        <TabsContent value="suggestions">
+          <SuggestionsTab />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

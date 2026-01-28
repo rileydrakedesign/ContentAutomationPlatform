@@ -41,6 +41,7 @@ export function getFullKnowledgeBase(): string {
   const copywritingPrinciples = loadFile('copywriting-principles.md');
   const engagementTemplates = loadFile('engagement-templates.md');
   const highPerformingExamples = loadFile('high-performing-examples.md');
+  const algoPrinciples = loadFile('algo-principles.md');
 
   cachedKnowledgeBase = `
 ## CONTENT WRITING KNOWLEDGE BASE
@@ -53,6 +54,9 @@ ${writingPrinciples}
 
 ### TWITTER/X COPYWRITING TACTICS
 ${copywritingPrinciples}
+
+### X ALGORITHM PRINCIPLES
+${algoPrinciples}
 
 ### ENGAGEMENT PATTERNS & TEMPLATES
 ${engagementTemplates}
@@ -76,11 +80,15 @@ export function getReplyGuidelines(): string {
 
   const writingPrinciples = loadFile('writing-principles.md');
   const copywritingPrinciples = loadFile('copywriting-principles.md');
+  const algoPrinciples = loadFile('algo-principles.md');
 
   cachedReplyGuidelines = `
 ## REPLY WRITING GUIDELINES
 
 You are generating a reply to a social media post. Apply these principles:
+
+### X ALGORITHM PRINCIPLES (REPLY-FOCUSED)
+${algoPrinciples}
 
 ### CORE WRITING PRINCIPLES
 - Write conversationally, like talking to a friend

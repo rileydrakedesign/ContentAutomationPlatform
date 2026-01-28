@@ -72,15 +72,15 @@ export default function SignupPage() {
     return (
       <div className="min-h-[80vh] flex items-center justify-center">
         <div className="w-full max-w-md">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center">
-            <h1 className="text-2xl font-semibold text-white mb-4">Check your email</h1>
-            <p className="text-zinc-400 mb-6">
+          <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 text-center">
+            <h1 className="text-xl font-semibold text-white mb-4">Check your email</h1>
+            <p className="text-slate-400 mb-4">
               We&apos;ve sent a confirmation link to <strong className="text-white">{email}</strong>.
               Click the link to activate your account.
             </p>
             <Link
               href="/login"
-              className="inline-block px-4 py-2 bg-zinc-800 border border-zinc-700 text-white rounded hover:bg-zinc-700 transition"
+              className="inline-block px-4 py-2 bg-slate-800 border border-slate-700 text-white rounded hover:bg-slate-700 transition"
             >
               Back to login
             </Link>
@@ -93,18 +93,18 @@ export default function SignupPage() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center">
       <div className="w-full max-w-md">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8">
-          <h1 className="text-2xl font-semibold text-white mb-6">Create account</h1>
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+          <h1 className="text-xl font-semibold text-white mb-4">Create account</h1>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded mb-6">
+            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded mb-4">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm text-zinc-400 mb-1">
+              <label htmlFor="email" className="block text-sm text-slate-400 mb-1">
                 Email
               </label>
               <input
@@ -113,13 +113,13 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white placeholder-slate-500 focus:outline-none focus:border-slate-500"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm text-zinc-400 mb-1">
+              <label htmlFor="password" className="block text-sm text-slate-400 mb-1">
                 Password
               </label>
               <input
@@ -128,13 +128,13 @@ export default function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white placeholder-slate-500 focus:outline-none focus:border-slate-500"
                 placeholder="At least 6 characters"
               />
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm text-zinc-400 mb-1">
+              <label htmlFor="confirmPassword" className="block text-sm text-slate-400 mb-1">
                 Confirm password
               </label>
               <input
@@ -143,7 +143,7 @@ export default function SignupPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white placeholder-slate-500 focus:outline-none focus:border-slate-500"
                 placeholder="Confirm your password"
               />
             </div>
@@ -151,7 +151,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 bg-white text-zinc-900 font-medium rounded hover:bg-zinc-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2 bg-white text-slate-900 font-medium rounded hover:bg-slate-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Creating account..." : "Create account"}
             </button>
@@ -159,16 +159,16 @@ export default function SignupPage() {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-zinc-700"></div>
+              <div className="w-full border-t border-slate-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-zinc-900 text-zinc-500">or</span>
+              <span className="px-2 bg-slate-900 text-slate-500">or</span>
             </div>
           </div>
 
           <button
             onClick={handleGoogleSignup}
-            className="w-full py-2 bg-zinc-800 border border-zinc-700 text-white font-medium rounded hover:bg-zinc-700 transition flex items-center justify-center gap-2"
+            className="w-full py-2 bg-slate-800 border border-slate-700 text-white font-medium rounded hover:bg-slate-700 transition flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -191,7 +191,7 @@ export default function SignupPage() {
             Continue with Google
           </button>
 
-          <p className="mt-6 text-center text-sm text-zinc-500">
+          <p className="mt-6 text-center text-sm text-slate-500">
             Already have an account?{" "}
             <Link href="/login" className="text-white hover:underline">
               Log in

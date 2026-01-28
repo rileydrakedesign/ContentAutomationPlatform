@@ -29,6 +29,20 @@ export const generationQueue = new Queue("generation", {
   },
 });
 
+// Queue for voice example refresh
+export const voiceRefreshQueue = new Queue("voice-refresh", {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 1000,
+    },
+    removeOnComplete: 100,
+    removeOnFail: 50,
+  },
+});
+
 // Job data types
 export interface TranscriptionJobData {
   sourceId: string;
@@ -38,4 +52,9 @@ export interface TranscriptionJobData {
 export interface GenerationJobData {
   sourceIds: string[];
   draftType: "X_POST" | "X_THREAD" | "REEL_SCRIPT";
+}
+
+export interface VoiceRefreshJobData {
+  userId: string;
+  isManual: boolean;
 }

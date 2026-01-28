@@ -77,10 +77,6 @@ export async function PATCH(
       }
     }
 
-    if (body.collection_id !== undefined) {
-      updateData.collection_id = body.collection_id;
-    }
-
     const { data, error } = await supabase
       .from("captured_posts")
       .update(updateData)

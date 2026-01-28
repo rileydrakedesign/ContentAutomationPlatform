@@ -10,6 +10,7 @@ export interface PostMetrics {
 export interface CapturedPost {
   id: string;
   user_id: string;
+  x_post_id: string | null;
   post_url: string;
   author_handle: string;
   author_name: string | null;
@@ -20,16 +21,16 @@ export interface CapturedPost {
   post_timestamp: string | null;
   inbox_status: "inbox" | "triaged";
   triaged_as: "my_post" | "inspiration" | null;
-  collection_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface Collection {
+export interface XConnection {
   id: string;
   user_id: string;
-  name: string;
-  description: string | null;
+  x_user_id: string;
+  x_username: string;
+  last_sync_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,17 +56,6 @@ export interface CaptureRequest {
 export interface TriageRequest {
   inbox_status?: "inbox" | "triaged";
   triaged_as?: "my_post" | "inspiration" | null;
-  collection_id?: string | null;
-}
-
-export interface CreateCollectionRequest {
-  name: string;
-  description?: string;
-}
-
-export interface UpdateCollectionRequest {
-  name?: string;
-  description?: string;
 }
 
 export interface UpdateSettingsRequest {

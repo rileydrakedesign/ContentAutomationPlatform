@@ -9,7 +9,8 @@
   ],
   "host_permissions": [
     "https://x.com/*",
-    "https://twitter.com/*"
+    "https://twitter.com/*",
+    "http://localhost:3000/*"
   ],
   "background": {
     "service_worker": "background.js"

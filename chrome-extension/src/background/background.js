@@ -139,7 +139,12 @@ async function generateReply(payload) {
   try {
     const response = await apiRequest('/api/generate-reply', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        post_text: payload.post_text,
+        author_handle: payload.author_handle,
+        context: payload.context,
+        tone: payload.tone || null,  // Pass tone through to API
+      }),
     });
 
     const data = await response.json();
@@ -151,6 +156,73 @@ async function generateReply(payload) {
     }
   } catch (error) {
     console.error('Generate reply failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Watch a niche account for pattern tracking
+async function watchAccount(accountData) {
+  try {
+    const response = await apiRequest('/api/niche-accounts', {
+      method: 'POST',
+      body: JSON.stringify(accountData),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      return { success: true, data };
+    } else if (response.status === 409) {
+      return { success: false, error: 'DUPLICATE' };
+    } else {
+      return { success: false, error: data.error || 'Failed to watch account' };
+    }
+  } catch (error) {
+    console.error('Watch account failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Save a niche post for pattern reference
+async function saveNichePost(postData) {
+  try {
+    const response = await apiRequest('/api/niche-posts', {
+      method: 'POST',
+      body: JSON.stringify(postData),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      return { success: true, data };
+    } else if (response.status === 409) {
+      return { success: false, error: 'DUPLICATE' };
+    } else {
+      return { success: false, error: data.error || 'Failed to save niche post' };
+    }
+  } catch (error) {
+    console.error('Save niche post failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Sync analytics data (top posts and replies by impressions)
+async function syncAnalyticsData(analyticsData) {
+  try {
+    const response = await apiRequest('/api/x/analytics-sync', {
+      method: 'POST',
+      body: JSON.stringify(analyticsData),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      return { success: true, data };
+    } else {
+      return { success: false, error: data.error || 'Failed to sync analytics data' };
+    }
+  } catch (error) {
+    console.error('Sync analytics data failed:', error);
     return { success: false, error: error.message };
   }
 }
@@ -168,6 +240,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'GENERATE_REPLY') {
     generateReply(message.payload)
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
+  if (message.type === 'WATCH_ACCOUNT') {
+    watchAccount(message.payload)
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
+  if (message.type === 'SAVE_NICHE_POST') {
+    saveNichePost(message.payload)
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
+  if (message.type === 'SYNC_ANALYTICS_DATA') {
+    syncAnalyticsData(message.payload)
       .then(sendResponse)
       .catch((error) => {
         sendResponse({ success: false, error: error.message });

@@ -57,6 +57,16 @@
         <a href="#" id="open-dashboard" class="btn btn-secondary">Open Dashboard</a>
         <button id="logout-btn" class="btn btn-ghost">Log out</button>
       </div>
+
+      <div class="analytics-section">
+        <h3>Analytics Sync</h3>
+        <p class="description-small">Sync your top performing posts and replies from X Analytics.</p>
+        <button id="sync-analytics-btn" class="btn btn-primary">
+          <span class="btn-text">Sync Top Posts</span>
+          <span class="btn-loading hidden">Syncing...</span>
+        </button>
+        <div id="sync-status" class="sync-status hidden"></div>
+      </div>
     </div>
 
     <!-- Settings -->
@@ -68,6 +78,52 @@
           <label for="api-url">Dashboard URL</label>
           <input type="url" id="api-url" required placeholder="http://localhost:3000">
           <small>The URL where your Content Pipeline is running</small>
+        </div>
+
+        <div class="settings-divider"></div>
+        <h3>Opportunity Scoring</h3>
+
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="opp-enabled" checked>
+            <span>Enable opportunity scoring</span>
+          </label>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="opp-show-explanation">
+            <span>Show score explanations</span>
+          </label>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="opp-use-proxy" checked>
+            <span>Score posts without views (uses engagement)</span>
+          </label>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group half">
+            <label for="opp-green-threshold">Green threshold</label>
+            <input type="number" id="opp-green-threshold" value="75" min="0" max="100">
+          </div>
+          <div class="form-group half">
+            <label for="opp-yellow-threshold">Yellow threshold</label>
+            <input type="number" id="opp-yellow-threshold" value="60" min="0" max="100">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group half">
+            <label for="opp-max-replies">Max replies</label>
+            <input type="number" id="opp-max-replies" value="200" min="0">
+          </div>
+          <div class="form-group half">
+            <label for="opp-max-age">Max age (hours)</label>
+            <input type="number" id="opp-max-age" value="24" min="1">
+          </div>
         </div>
 
         <div class="button-group">

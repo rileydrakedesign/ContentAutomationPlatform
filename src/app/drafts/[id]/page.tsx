@@ -33,9 +33,9 @@ function XPostEditor({
       <textarea
         value={text}
         onChange={(e) => onChange({ text: e.target.value })}
-        className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-zinc-600 min-h-[200px]"
+        className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-slate-600 min-h-[200px]"
       />
-      <div className={`text-sm ${isOverLimit ? "text-red-400" : "text-zinc-400"}`}>
+      <div className={`text-sm ${isOverLimit ? "text-red-400" : "text-slate-400"}`}>
         {charCount.toLocaleString()}/{maxChars.toLocaleString()} characters
       </div>
     </div>
@@ -72,7 +72,7 @@ function XThreadEditor({
       {tweets.map((tweet, index) => (
         <div key={index} className="space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-zinc-400">Tweet {index + 1}</span>
+            <span className="text-sm text-slate-400">Tweet {index + 1}</span>
             {tweets.length > 1 && (
               <button
                 onClick={() => removeTweet(index)}
@@ -85,10 +85,10 @@ function XThreadEditor({
           <textarea
             value={tweet}
             onChange={(e) => updateTweet(index, e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-zinc-600"
+            className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-slate-600"
             rows={3}
           />
-          <div className={`text-xs ${tweet.length > 25000 ? "text-red-400" : "text-zinc-500"}`}>
+          <div className={`text-xs ${tweet.length > 25000 ? "text-red-400" : "text-slate-500"}`}>
             {tweet.length.toLocaleString()}/25,000
           </div>
         </div>
@@ -96,7 +96,7 @@ function XThreadEditor({
       {tweets.length < 6 && (
         <button
           onClick={addTweet}
-          className="text-sm text-blue-400 hover:text-blue-300"
+          className="text-sm text-amber-400 hover:text-amber-300"
         >
           + Add Tweet
         </button>
@@ -122,39 +122,39 @@ function ReelScriptEditor({
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm text-zinc-400 mb-1">Hook (3-5 seconds)</label>
+        <label className="block text-sm text-slate-400 mb-1">Hook (3-5 seconds)</label>
         <textarea
           value={content.hook}
           onChange={(e) => onChange({ ...content, hook: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-zinc-600"
+          className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-slate-600"
           rows={2}
         />
       </div>
       <div>
-        <label className="block text-sm text-zinc-400 mb-1">Body</label>
+        <label className="block text-sm text-slate-400 mb-1">Body</label>
         <textarea
           value={content.body}
           onChange={(e) => onChange({ ...content, body: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-zinc-600"
+          className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-slate-600"
           rows={4}
         />
       </div>
       <div>
-        <label className="block text-sm text-zinc-400 mb-1">Call to Action</label>
+        <label className="block text-sm text-slate-400 mb-1">Call to Action</label>
         <textarea
           value={content.callToAction}
           onChange={(e) => onChange({ ...content, callToAction: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-zinc-600"
+          className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-slate-600"
           rows={2}
         />
       </div>
       <div>
-        <label className="block text-sm text-zinc-400 mb-1">Estimated Duration</label>
+        <label className="block text-sm text-slate-400 mb-1">Estimated Duration</label>
         <input
           type="text"
           value={content.estimatedDuration}
           onChange={(e) => onChange({ ...content, estimatedDuration: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-zinc-600"
+          className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-slate-600"
         />
       </div>
     </div>
@@ -219,11 +219,11 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
   }
 
   if (loading) {
-    return <div className="text-center py-12 text-zinc-400">Loading draft...</div>;
+    return <div className="text-center py-12 text-slate-400">Loading draft...</div>;
   }
 
   if (!draft) {
-    return <div className="text-center py-12 text-zinc-400">Draft not found</div>;
+    return <div className="text-center py-12 text-slate-400">Draft not found</div>;
   }
 
   const typeLabels = {
@@ -234,20 +234,20 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
 
   const statusColors = {
     PENDING: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-    GENERATED: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    APPROVED: "bg-green-500/10 text-green-400 border-green-500/20",
+    GENERATED: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    APPROVED: "bg-teal-500/10 text-teal-400 border-teal-500/20",
     REJECTED: "bg-red-500/10 text-red-400 border-red-500/20",
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/drafts" className="text-zinc-400 hover:text-white">
+          <Link href="/drafts" className="text-slate-400 hover:text-white">
             &larr; Back
           </Link>
           <div className="flex items-center gap-2">
-            <span className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-300">
+            <span className="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300">
               {typeLabels[draft.type]}
             </span>
             <span
@@ -257,13 +257,13 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
             </span>
           </div>
         </div>
-        <div className="text-sm text-zinc-400">
+        <div className="text-sm text-slate-400">
           Created {new Date(draft.created_at).toLocaleString()}
         </div>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">Edit Content</h2>
+      <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+        <h2 className="text-sm font-semibold mb-4">Edit Content</h2>
 
         {draft.type === "X_POST" && editedContent && (
           <XPostEditor
@@ -291,7 +291,7 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
         <button
           onClick={saveEdits}
           disabled={saving}
-          className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 rounded-md text-sm transition"
+          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 rounded-md text-sm transition"
         >
           {saving ? "Saving..." : "Save Edits"}
         </button>
@@ -307,7 +307,7 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
           <button
             onClick={() => updateStatus("APPROVED")}
             disabled={saving}
-            className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-md text-sm transition"
+            className="px-4 py-2 bg-teal-600 hover:bg-teal-500 rounded-md text-sm transition"
           >
             Approve
           </button>
