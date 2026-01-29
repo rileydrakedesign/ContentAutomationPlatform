@@ -185,6 +185,14 @@ export async function PATCH(request: NextRequest) {
     if (body.special_notes !== undefined) {
       updateData.special_notes = body.special_notes;
     }
+    // AI model selection
+    if (body.ai_model !== undefined) {
+      const validAIModels = ['openai', 'claude', 'grok'];
+      if (!validAIModels.includes(body.ai_model)) {
+        return NextResponse.json({ error: "Invalid ai_model. Must be 'openai', 'claude', or 'grok'" }, { status: 400 });
+      }
+      updateData.ai_model = body.ai_model;
+    }
 
     // Try upsert with new schema (compound key: user_id + voice_type)
     let { data, error } = await supabase

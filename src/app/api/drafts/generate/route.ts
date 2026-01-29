@@ -9,6 +9,7 @@ import {
   type TranscriptSegment,
 } from "@/lib/openai";
 import type { StyleReference, InspirationPost } from "@/types/inspiration";
+import type { AIProvider } from "@/lib/ai";
 
 type DraftType = "X_POST" | "X_THREAD" | "REEL_SCRIPT";
 type SourceType = "VOICE_MEMO" | "INSPIRATION" | "NEWS";
@@ -72,6 +73,19 @@ export async function POST(request: NextRequest) {
 
     const sources = sourceMaterials as SourceMaterial[];
 
+    // Fetch user's AI model preference
+    let aiProvider: AIProvider = "openai";
+    const { data: voiceSettings } = await supabase
+      .from("user_voice_settings")
+      .select("ai_model")
+      .eq("user_id", user.id)
+      .eq("voice_type", "post")
+      .single();
+
+    if (voiceSettings?.ai_model) {
+      aiProvider = voiceSettings.ai_model as AIProvider;
+    }
+
     // Fetch inspiration posts for style reference if provided
     let stylePrompt: string | undefined;
     let inspirationPosts: InspirationPost[] = [];
@@ -117,6 +131,7 @@ export async function POST(request: NextRequest) {
           overrideFramework,
           overrideFormat: draftType as "X_POST" | "X_THREAD",
           stylePrompt,
+          aiProvider,
         });
 
         generatedContent = result.content;
@@ -159,6 +174,7 @@ export async function POST(request: NextRequest) {
           generatedContent = await generateContent({
             sources: preparedSources,
             draftType,
+            aiProvider,
           });
 
           metadata = {
@@ -184,6 +200,7 @@ export async function POST(request: NextRequest) {
       generatedContent = await generateContent({
         sources: preparedSources,
         draftType,
+        aiProvider,
       });
 
       metadata = {

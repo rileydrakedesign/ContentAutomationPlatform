@@ -6,6 +6,7 @@ import {
   FragmentContentError,
   type FrameworkType,
 } from "@/lib/openai";
+import type { AIProvider } from "@/lib/ai";
 
 type RequestMode = "generate" | "analyze";
 
@@ -60,9 +61,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch user's AI model preference
+    let aiProvider: AIProvider = "openai";
+    const { data: voiceSettings } = await supabase
+      .from("user_voice_settings")
+      .select("ai_model")
+      .eq("user_id", user.id)
+      .eq("voice_type", "post")
+      .single();
+
+    if (voiceSettings?.ai_model) {
+      aiProvider = voiceSettings.ai_model as AIProvider;
+    }
+
     // Analyze-only mode - just return the analysis
     if (mode === "analyze") {
-      const analysis = await analyzeOnly(transcript);
+      const analysis = await analyzeOnly(transcript, aiProvider);
       return NextResponse.json({
         mode: "analyze",
         analysis,
@@ -78,6 +92,7 @@ export async function POST(request: NextRequest) {
       const result = await generateFromVoiceMemo(transcript, {
         overrideFramework,
         overrideFormat,
+        aiProvider,
       });
 
       // If no sourceId provided, create a source entry for the transcript

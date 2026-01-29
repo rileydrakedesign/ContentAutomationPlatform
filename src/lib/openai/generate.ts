@@ -6,7 +6,7 @@
  * 2. Enhanced: generateFromVoiceMemo() - Smart pipeline with analysis + routing
  */
 
-import { openai } from "./client";
+import { createChatCompletion, AIProvider } from "@/lib/ai";
 import type { DraftType, SourceType } from "../db/schema";
 import { analyzeVoiceMemo, type AnalysisResult } from "./analyzer";
 import { routeToFramework, routeWithOverride } from "./router";
@@ -80,6 +80,7 @@ interface LegacyGenerateInput {
     metadata?: Record<string, unknown>;
   }>;
   draftType: DraftType;
+  aiProvider?: AIProvider;
 }
 
 /**
@@ -89,7 +90,7 @@ interface LegacyGenerateInput {
 export async function generateContent(
   input: LegacyGenerateInput
 ): Promise<GeneratedContent> {
-  const { sources, draftType } = input;
+  const { sources, draftType, aiProvider = "openai" } = input;
 
   const sourceContext = sources
     .map((s, i) => `Source ${i + 1} (${s.type}):\n${s.content}`)
@@ -119,8 +120,9 @@ Return JSON: {
       break;
   }
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4-turbo-preview",
+  const result = await createChatCompletion({
+    provider: aiProvider,
+    modelTier: "standard",
     messages: [
       { role: "system", content: LEGACY_BRAND_VOICE_PROMPT },
       {
@@ -132,11 +134,11 @@ ${sourceContext}
 ${formatInstructions}`,
       },
     ],
-    response_format: { type: "json_object" },
     temperature: 0.7,
+    jsonResponse: true,
   });
 
-  const content = response.choices[0]?.message?.content;
+  const content = result.content;
   if (!content) {
     throw new Error("No content generated");
   }
@@ -157,6 +159,8 @@ export interface VoiceMemoGenerateOptions {
   precomputedAnalysis?: AnalysisResult;
   /** Style prompt built from inspiration posts */
   stylePrompt?: string;
+  /** AI provider to use (openai or claude) */
+  aiProvider?: AIProvider;
 }
 
 /**
@@ -175,9 +179,11 @@ export async function generateFromVoiceMemo(
   transcript: string,
   options: VoiceMemoGenerateOptions = {}
 ): Promise<EnhancedGenerationResult> {
+  const aiProvider = options.aiProvider ?? "openai";
+
   // Step 1: Analyze the transcript (or use precomputed)
   const analysis =
-    options.precomputedAnalysis ?? (await analyzeVoiceMemo(transcript));
+    options.precomputedAnalysis ?? (await analyzeVoiceMemo(transcript, aiProvider));
 
   // Check if content is a fragment (not ready for posting)
   if (
@@ -202,17 +208,18 @@ export async function generateFromVoiceMemo(
     : routeToFramework(transcript, analysis, options.stylePrompt);
 
   // Step 3: Generate content
-  const response = await openai.chat.completions.create({
-    model: "gpt-4-turbo-preview",
+  const result = await createChatCompletion({
+    provider: aiProvider,
+    modelTier: "standard",
     messages: [
       { role: "system", content: routedPrompt.systemPrompt },
       { role: "user", content: routedPrompt.userPrompt },
     ],
-    response_format: { type: "json_object" },
     temperature: 0.7,
+    jsonResponse: true,
   });
 
-  const content = response.choices[0]?.message?.content;
+  const content = result.content;
   if (!content) {
     throw new Error("No content generated");
   }
@@ -233,8 +240,8 @@ export async function generateFromVoiceMemo(
  * Analyze a voice memo without generating content.
  * Useful for previewing what the system would do before committing.
  */
-export async function analyzeOnly(transcript: string): Promise<AnalysisResult> {
-  return analyzeVoiceMemo(transcript);
+export async function analyzeOnly(transcript: string, aiProvider: AIProvider = "openai"): Promise<AnalysisResult> {
+  return analyzeVoiceMemo(transcript, aiProvider);
 }
 
 // ============================================================================

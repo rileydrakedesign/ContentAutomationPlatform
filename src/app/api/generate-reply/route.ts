@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
-import { openai } from "@/lib/openai/client";
+import { createChatCompletion, AIProvider } from "@/lib/ai";
 import { REPLY_SYSTEM_PROMPT } from "@/lib/openai/prompts/reply-prompt";
 import { getAssembledPromptForUser } from "@/lib/openai/prompts/prompt-assembler";
 
@@ -192,34 +192,51 @@ export async function POST(request: NextRequest) {
       systemPrompt = REPLY_SYSTEM_PROMPT;
     }
 
-    console.log("[generate-reply] Starting OpenAI call...");
+    // Get user's AI model preference
+    let aiProvider: AIProvider = "openai";
+    try {
+      const { data: settings } = await supabase
+        .from("user_voice_settings")
+        .select("ai_model")
+        .eq("user_id", user.id)
+        .eq("voice_type", "reply")
+        .single();
+
+      if (settings?.ai_model) {
+        aiProvider = settings.ai_model as AIProvider;
+      }
+    } catch (settingsError) {
+      console.log("[generate-reply] Could not fetch AI model preference, using default:", settingsError);
+    }
+
+    console.log("[generate-reply] Starting AI call with provider:", aiProvider);
     console.log("[generate-reply] System prompt length:", systemPrompt.length);
     console.log("[generate-reply] User prompt:", userPrompt);
 
-    let completion;
+    let result;
     try {
-      completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+      result = await createChatCompletion({
+        provider: aiProvider,
+        modelTier: "fast",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
         temperature: 0.7,
-        max_tokens: 400,
-        response_format: { type: "json_object" },
+        maxTokens: 400,
+        jsonResponse: true,
       });
-      console.log("[generate-reply] OpenAI call succeeded");
-      console.log("[generate-reply] Full response:", JSON.stringify(completion, null, 2));
-    } catch (openaiError: any) {
-      console.error("[generate-reply] OpenAI API error:", openaiError?.message);
-      console.error("[generate-reply] OpenAI error details:", JSON.stringify(openaiError, null, 2));
+      console.log("[generate-reply] AI call succeeded with provider:", result.provider, "model:", result.model);
+    } catch (aiError: any) {
+      console.error("[generate-reply] AI API error:", aiError?.message);
+      console.error("[generate-reply] AI error details:", JSON.stringify(aiError, null, 2));
       return NextResponse.json(
-        { error: `OpenAI error: ${openaiError?.message || 'Unknown'}` },
+        { error: `AI error: ${aiError?.message || 'Unknown'}` },
         { status: 500, headers: corsHeaders }
       );
     }
 
-    const content = completion.choices[0]?.message?.content?.trim() || "";
+    const content = result.content;
     console.log("[generate-reply] Response content:", content.substring(0, 200));
 
     if (!content) {

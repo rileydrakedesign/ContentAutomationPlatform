@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
-import { openai } from "@/lib/openai/client";
+import { createChatCompletion, AIProvider } from "@/lib/ai";
 import { corsHeaders, handleCors } from "@/lib/cors";
 
 // Handle CORS preflight
@@ -88,12 +88,15 @@ export async function POST(request: NextRequest) {
       patterns = defaultPatterns || [];
     }
 
-    // Fetch user's voice settings
+    // Fetch user's voice settings including AI model preference
     const { data: voiceSettings } = await supabase
       .from("user_voice_settings")
-      .select("optimization_authenticity, tone_formal_casual, energy_calm_punchy, stance_neutral_opinionated, guardrails")
+      .select("optimization_authenticity, tone_formal_casual, energy_calm_punchy, stance_neutral_opinionated, guardrails, ai_model")
       .eq("user_id", user.id)
+      .eq("voice_type", "post")
       .single();
+
+    const aiProvider: AIProvider = (voiceSettings?.ai_model as AIProvider) || "openai";
 
     // Fetch user's voice examples for style reference
     const { data: voiceExamples } = await supabase
@@ -144,8 +147,9 @@ Return a JSON array with ${generateCount} options. Each option should have:
 
 Return ONLY the JSON array, no other text.`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+    const result = await createChatCompletion({
+      provider: aiProvider,
+      modelTier: "fast",
       messages: [
         {
           role: "system",
@@ -157,10 +161,11 @@ Return ONLY the JSON array, no other text.`;
         },
       ],
       temperature: 0.8,
-      max_tokens: 2000,
+      maxTokens: 2000,
+      jsonResponse: false, // We parse JSON manually from the response
     });
 
-    const responseText = completion.choices[0]?.message?.content || "[]";
+    const responseText = result.content || "[]";
 
     let generatedOptions = [];
     try {

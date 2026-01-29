@@ -9,6 +9,9 @@ export type DisagreementMode = 'avoid' | 'allow_nuance';
 // Voice type discriminator for post vs reply voice
 export type VoiceType = 'post' | 'reply';
 
+// AI model provider selection
+export type AIModelProvider = 'openai' | 'claude' | 'grok';
+
 // Voice dial settings (0-100 sliders)
 export interface VoiceDials {
   optimization_authenticity: number; // 0 = authentic, 100 = optimized
@@ -46,6 +49,8 @@ export interface UserVoiceSettings {
   stance_neutral_opinionated: number;
   guardrails: VoiceGuardrails;
   special_notes: string | null;
+  // AI model selection
+  ai_model: AIModelProvider;
   created_at: string;
   updated_at: string;
 }
@@ -74,6 +79,8 @@ export const DEFAULT_VOICE_SETTINGS: Omit<UserVoiceSettings, 'id' | 'user_id' | 
     custom_rules: [],
   },
   special_notes: null,
+  // AI model default (OpenAI for backward compatibility)
+  ai_model: 'openai',
 };
 
 export type VoiceExampleSource = 'auto' | 'pinned';
@@ -171,6 +178,8 @@ export interface UpdateVoiceSettingsRequest {
   stance_neutral_opinionated?: number;
   guardrails?: VoiceGuardrails;
   special_notes?: string | null;
+  // AI model selection
+  ai_model?: AIModelProvider;
 }
 
 export interface PinExampleRequest {

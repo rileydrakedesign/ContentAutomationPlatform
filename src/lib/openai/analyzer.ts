@@ -3,7 +3,7 @@
  * the best output format and framework to use.
  */
 
-import { openai } from "./client";
+import { createChatCompletion, AIProvider } from "@/lib/ai";
 import type { FrameworkType } from "./prompts/frameworks";
 
 export type ContentDensity = "lean" | "rich";
@@ -102,10 +102,12 @@ Return valid JSON matching this exact structure:
 }`;
 
 export async function analyzeVoiceMemo(
-  transcript: string
+  transcript: string,
+  aiProvider: AIProvider = "openai"
 ): Promise<AnalysisResult> {
-  const response = await openai.chat.completions.create({
-    model: "gpt-4-turbo-preview",
+  const result = await createChatCompletion({
+    provider: aiProvider,
+    modelTier: "standard",
     messages: [
       { role: "system", content: ANALYZER_PROMPT },
       {
@@ -113,23 +115,23 @@ export async function analyzeVoiceMemo(
         content: `Analyze this voice memo transcript:\n\n${transcript}`,
       },
     ],
-    response_format: { type: "json_object" },
     temperature: 0.3, // Lower temperature for more consistent classification
+    jsonResponse: true,
   });
 
-  const content = response.choices[0]?.message?.content;
+  const content = result.content;
   if (!content) {
     throw new Error("No analysis generated");
   }
 
-  const result = JSON.parse(content) as AnalysisResult;
+  const analysisResult = JSON.parse(content) as AnalysisResult;
 
   // Validate the result has required fields
-  if (!result.contentDensity || !result.suggestedFormat || !result.coreIdea) {
+  if (!analysisResult.contentDensity || !analysisResult.suggestedFormat || !analysisResult.coreIdea) {
     throw new Error("Invalid analysis result: missing required fields");
   }
 
-  return result;
+  return analysisResult;
 }
 
 /**
