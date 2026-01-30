@@ -5,7 +5,9 @@ import { UserVoiceSettings, VoiceType, ChatMessage as ChatMessageType } from "@/
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { SettingsPreview } from "./SettingsPreview";
-import { Trash2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Trash2, MessageCircle, Sparkles } from "lucide-react";
 
 interface VoiceEditorViewProps {
   settings: UserVoiceSettings;
@@ -92,58 +94,69 @@ export function VoiceEditorView({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[650px]">
       {/* Chat area - 2/3 width */}
-      <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-lg flex flex-col">
+      <Card className="lg:col-span-2 flex flex-col overflow-hidden">
         {/* Chat header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-          <div>
-            <h3 className="text-sm font-medium text-white">Voice Editor</h3>
-            <p className="text-xs text-slate-500">
-              Describe your voice style in natural language
-            </p>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border-default)]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--color-primary-500)]/10 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-[var(--color-primary-400)]" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                AI Voice Editor
+              </h3>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Describe your voice style in natural language
+              </p>
+            </div>
           </div>
           {messages.length > 0 && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleClearHistory}
-              className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
-              title="Clear chat history"
+              aria-label="Clear chat history"
             >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              <Trash2 className="w-4 h-4 text-[var(--color-text-muted)] hover:text-[var(--color-danger-400)]" />
+            </Button>
           )}
         </div>
 
         {/* Messages area */}
-        <div className="flex-1 overflow-auto p-4 space-y-4">
+        <div className="flex-1 overflow-auto p-5 space-y-4">
           {loading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-[var(--color-primary-500)] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
-                <svg
-                  className="w-8 h-8 text-slate-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
+            <div className="flex flex-col items-center justify-center h-full text-center px-8">
+              <div className="w-20 h-20 rounded-2xl bg-[var(--color-bg-elevated)] flex items-center justify-center mb-6">
+                <MessageCircle className="w-10 h-10 text-[var(--color-text-muted)]" />
               </div>
-              <h4 className="text-sm font-medium text-slate-300 mb-2">
+              <h4 className="text-base font-semibold text-[var(--color-text-primary)] mb-2">
                 Configure your {voiceType} voice
               </h4>
-              <p className="text-xs text-slate-500 max-w-sm">
-                Try saying things like "make it more casual" or "I want to sound
-                confident but not arrogant"
+              <p className="text-sm text-[var(--color-text-muted)] max-w-md mb-6">
+                Describe how you want your content to sound. The AI will suggest changes to your voice settings.
               </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {[
+                  "Make it more casual",
+                  "Sound more confident",
+                  "Be less formal",
+                  "Add more energy",
+                ].map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => handleSendMessage(suggestion)}
+                    className="px-3 py-1.5 text-xs font-medium text-[var(--color-primary-400)] bg-[var(--color-primary-500)]/10 rounded-full border border-[var(--color-primary-500)]/20 hover:bg-[var(--color-primary-500)]/20 transition-colors cursor-pointer"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <>
@@ -174,7 +187,7 @@ export function VoiceEditorView({
               : `Describe how you want your ${voiceType === "reply" ? "replies" : "posts"} to sound...`
           }
         />
-      </div>
+      </Card>
 
       {/* Settings preview - 1/3 width */}
       <div className="lg:col-span-1">

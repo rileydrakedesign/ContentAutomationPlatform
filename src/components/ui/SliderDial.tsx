@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface SliderDialProps {
   label: string;
@@ -9,6 +9,7 @@ interface SliderDialProps {
   value: number;
   onChange: (value: number) => void;
   description?: string;
+  showValue?: boolean;
 }
 
 export function SliderDial({
@@ -18,6 +19,7 @@ export function SliderDial({
   value,
   onChange,
   description,
+  showValue = false,
 }: SliderDialProps) {
   const [localValue, setLocalValue] = useState(value);
   const [isDragging, setIsDragging] = useState(false);
@@ -31,47 +33,88 @@ export function SliderDial({
     setLocalValue(newValue);
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     if (localValue !== value) {
       onChange(localValue);
     }
-  };
+  }, [localValue, value, onChange]);
 
   const handleMouseDown = () => {
     setIsDragging(true);
   };
 
-  // Calculate the position indicator color based on value
-  const getIndicatorStyle = () => {
-    const position = (localValue / 100) * 100;
-    return {
-      left: `${position}%`,
-      transform: "translateX(-50%)",
-    };
+  // Get the current state label
+  const getCurrentLabel = () => {
+    if (localValue < 30) return leftLabel;
+    if (localValue > 70) return rightLabel;
+    return "Balanced";
+  };
+
+  // Calculate gradient color based on value
+  const getTrackGradient = () => {
+    return `linear-gradient(90deg,
+      var(--color-primary-600) 0%,
+      var(--color-primary-500) ${localValue}%,
+      var(--color-bg-elevated) ${localValue}%,
+      var(--color-bg-elevated) 100%
+    )`;
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-slate-200">{label}</label>
-        <span className="text-xs text-slate-400">
-          {localValue < 30
-            ? leftLabel
-            : localValue > 70
-            ? rightLabel
-            : "Balanced"}
-        </span>
-      </div>
-      {description && (
-        <p className="text-xs text-slate-500">{description}</p>
-      )}
-      <div className="relative pt-1">
-        <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-          <span>{leftLabel}</span>
-          <span>{rightLabel}</span>
+        <label className="text-sm font-medium text-[var(--color-text-primary)] text-heading">
+          {label}
+        </label>
+        <div className="flex items-center gap-2">
+          {showValue && (
+            <span className="text-xs font-mono text-[var(--color-text-muted)] bg-[var(--color-bg-elevated)] px-2 py-0.5 rounded">
+              {localValue}
+            </span>
+          )}
+          <span
+            className={`
+              text-xs font-medium px-2 py-0.5 rounded-full
+              transition-all duration-200
+              ${isDragging
+                ? "bg-[var(--color-primary-500)]/20 text-[var(--color-primary-400)]"
+                : "bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]"
+              }
+            `}
+          >
+            {getCurrentLabel()}
+          </span>
         </div>
-        <div className="relative">
+      </div>
+
+      {/* Description */}
+      {description && (
+        <p className="text-xs text-[var(--color-text-muted)]">{description}</p>
+      )}
+
+      {/* Slider */}
+      <div className="relative">
+        {/* Labels */}
+        <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)] mb-2">
+          <span className={localValue < 30 ? "text-[var(--color-primary-400)]" : ""}>
+            {leftLabel}
+          </span>
+          <span className={localValue > 70 ? "text-[var(--color-primary-400)]" : ""}>
+            {rightLabel}
+          </span>
+        </div>
+
+        {/* Custom Slider Track */}
+        <div className="relative h-2 w-full">
+          {/* Background Track */}
+          <div
+            className="absolute inset-0 rounded-full transition-all duration-100"
+            style={{ background: getTrackGradient() }}
+          />
+
+          {/* Input Range */}
           <input
             type="range"
             min="0"
@@ -82,28 +125,51 @@ export function SliderDial({
             onMouseUp={handleMouseUp}
             onTouchStart={handleMouseDown}
             onTouchEnd={handleMouseUp}
-            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer
-                       [&::-webkit-slider-thumb]:appearance-none
-                       [&::-webkit-slider-thumb]:w-4
-                       [&::-webkit-slider-thumb]:h-4
-                       [&::-webkit-slider-thumb]:bg-white
-                       [&::-webkit-slider-thumb]:rounded-full
-                       [&::-webkit-slider-thumb]:cursor-pointer
-                       [&::-webkit-slider-thumb]:shadow-md
-                       [&::-webkit-slider-thumb]:transition-transform
-                       [&::-webkit-slider-thumb]:hover:scale-110
-                       [&::-moz-range-thumb]:w-4
-                       [&::-moz-range-thumb]:h-4
-                       [&::-moz-range-thumb]:bg-white
-                       [&::-moz-range-thumb]:rounded-full
-                       [&::-moz-range-thumb]:cursor-pointer
-                       [&::-moz-range-thumb]:border-0"
+            className="
+              absolute inset-0 w-full h-full
+              appearance-none bg-transparent cursor-pointer z-10
+              [&::-webkit-slider-thumb]:appearance-none
+              [&::-webkit-slider-thumb]:w-5
+              [&::-webkit-slider-thumb]:h-5
+              [&::-webkit-slider-thumb]:bg-white
+              [&::-webkit-slider-thumb]:rounded-full
+              [&::-webkit-slider-thumb]:cursor-pointer
+              [&::-webkit-slider-thumb]:shadow-lg
+              [&::-webkit-slider-thumb]:shadow-black/30
+              [&::-webkit-slider-thumb]:transition-all
+              [&::-webkit-slider-thumb]:duration-150
+              [&::-webkit-slider-thumb]:hover:scale-110
+              [&::-webkit-slider-thumb]:active:scale-95
+              [&::-webkit-slider-thumb]:border-2
+              [&::-webkit-slider-thumb]:border-[var(--color-primary-500)]
+              [&::-moz-range-thumb]:w-5
+              [&::-moz-range-thumb]:h-5
+              [&::-moz-range-thumb]:bg-white
+              [&::-moz-range-thumb]:rounded-full
+              [&::-moz-range-thumb]:cursor-pointer
+              [&::-moz-range-thumb]:border-2
+              [&::-moz-range-thumb]:border-[var(--color-primary-500)]
+              [&::-moz-range-thumb]:shadow-lg
+            "
           />
-          {/* Track fill */}
-          <div
-            className="absolute top-0 left-0 h-2 bg-gradient-to-r from-violet-600 to-violet-400 rounded-l-lg pointer-events-none"
-            style={{ width: `${localValue}%` }}
-          />
+        </div>
+
+        {/* Value Indicator Dots */}
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex gap-1">
+            {[0, 25, 50, 75, 100].map((mark) => (
+              <div
+                key={mark}
+                className={`
+                  w-1 h-1 rounded-full transition-all duration-200
+                  ${localValue >= mark
+                    ? "bg-[var(--color-primary-500)]"
+                    : "bg-[var(--color-bg-hover)]"
+                  }
+                `}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>

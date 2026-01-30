@@ -5,53 +5,47 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { PatternControlsTab } from "./PatternControlsTab";
 import { NicheAccountsTab } from "./NicheAccountsTab";
 import { VoiceSection } from "./VoiceSection";
-import { VoiceTypeSelector } from "./shared/VoiceTypeSelector";
-import { VoiceType } from "@/types/voice";
+import { Mic2, Layers, Users } from "lucide-react";
 
 export function VoicePage() {
   const [activeTab, setActiveTab] = useState<string>("voice");
-  const [voiceType, setVoiceType] = useState<VoiceType>("reply");
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-white">Voice & Patterns</h1>
-        <p className="text-slate-500 mt-1">
-          Control how generated content sounds and which patterns to apply.
-        </p>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        {/* Main navigation */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
-            {/* Voice type selector - only visible on voice tab */}
-            {activeTab === "voice" && (
-              <VoiceTypeSelector value={voiceType} onChange={setVoiceType} />
-            )}
-
-            {/* Tab navigation */}
+    <div className="animate-fade-in">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-heading text-2xl font-semibold text-[var(--color-text-primary)]">
+                Voice & Patterns
+              </h1>
+              <p className="text-[var(--color-text-secondary)] text-sm mt-1">
+                Configure how AI generates content in your unique voice
+              </p>
+            </div>
             <TabsList>
-              <TabsTrigger value="voice">
-                {voiceType === "post" ? "Post Voice" : "Reply Voice"}
+              <TabsTrigger value="voice" icon={<Mic2 className="w-4 h-4" />}>
+                Voice
               </TabsTrigger>
-              <TabsTrigger value="patterns">Patterns</TabsTrigger>
-              <TabsTrigger value="niche">Niche Accounts</TabsTrigger>
+              <TabsTrigger value="patterns" icon={<Layers className="w-4 h-4" />}>
+                Patterns
+              </TabsTrigger>
+              <TabsTrigger value="niche" icon={<Users className="w-4 h-4" />}>
+                Niche Accounts
+              </TabsTrigger>
             </TabsList>
           </div>
         </div>
 
-        {/* Voice tab content */}
         <TabsContent value="voice">
-          <VoiceSection voiceType={voiceType} />
+          <VoiceSection />
         </TabsContent>
 
-        {/* Patterns tab content */}
         <TabsContent value="patterns">
           <PatternControlsTab />
         </TabsContent>
 
-        {/* Niche accounts tab content */}
         <TabsContent value="niche">
           <NicheAccountsTab />
         </TabsContent>

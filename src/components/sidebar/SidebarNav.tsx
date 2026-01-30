@@ -24,7 +24,7 @@ export function SidebarNav() {
   }
 
   return (
-    <nav className="flex-1 overflow-y-auto py-4 px-3">
+    <nav className="flex-1 overflow-y-auto py-4 px-2">
       <ul className="space-y-1">
         {navLinks.map((link) => {
           const Icon = link.icon;
@@ -34,19 +34,28 @@ export function SidebarNav() {
             <li key={link.href}>
               <Link
                 href={link.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                  active
-                    ? "bg-slate-800 text-white"
-                    : "text-slate-400 hover:bg-slate-900 hover:text-white"
-                }`}
+                className={`
+                  flex items-center gap-3 px-3 py-2.5 rounded-xl
+                  transition-all duration-200
+                  cursor-pointer
+                  ${active
+                    ? "bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] shadow-[var(--shadow-glow-primary)]"
+                    : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-text-primary)]"
+                  }
+                  ${isCollapsed ? "justify-center" : ""}
+                `}
                 title={isCollapsed ? link.label : undefined}
               >
                 <Icon
                   size={20}
-                  className={`flex-shrink-0 ${active ? "text-violet-500" : ""}`}
+                  className={`flex-shrink-0 transition-colors duration-200 ${
+                    active ? "text-[var(--color-primary-400)]" : ""
+                  }`}
                 />
                 {!isCollapsed && (
-                  <span className="whitespace-nowrap">{link.label}</span>
+                  <span className="whitespace-nowrap text-sm font-medium">
+                    {link.label}
+                  </span>
                 )}
               </Link>
             </li>

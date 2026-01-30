@@ -24,38 +24,40 @@ export function TopicInput({ value, onChange, suggestions = [] }: TopicInputProp
 
   return (
     <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-slate-200 mb-2">
-          What do you want to write about?
-        </label>
-        <div className="relative">
-          <textarea
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            placeholder="Enter your topic or idea..."
-            rows={3}
-            className={`w-full px-4 py-3 bg-slate-800 border rounded-lg text-white placeholder-slate-500 resize-none transition-all focus:outline-none focus:ring-2 focus:ring-violet-500 ${
-              isFocused ? "border-violet-500" : "border-slate-700"
-            }`}
-          />
-          <div className="absolute bottom-3 right-3 flex items-center gap-1 text-xs text-slate-500">
-            <Sparkles className="w-3 h-3" />
-            <span>AI-powered</span>
-          </div>
+      <div className="relative">
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          placeholder="Enter your topic or idea..."
+          rows={3}
+          className={`
+            w-full px-4 py-3 text-sm resize-none transition-all duration-200
+            ${isFocused ? "ring-2 ring-[var(--color-primary-500)]/20" : ""}
+          `}
+        />
+        <div className="absolute bottom-3 right-3 flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+          <Sparkles className="w-3 h-3" />
+          <span>AI-powered</span>
         </div>
       </div>
 
       {!value && (
         <div>
-          <p className="text-xs text-slate-500 mb-2">Suggested topics:</p>
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">Quick suggestions:</p>
           <div className="flex flex-wrap gap-2">
             {displaySuggestions.map((suggestion, index) => (
               <button
                 key={index}
                 onClick={() => onChange(suggestion)}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-full text-sm text-slate-300 transition-colors"
+                className="
+                  px-3 py-1.5 text-xs font-medium rounded-full
+                  bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]
+                  border border-[var(--color-border-default)]
+                  hover:border-[var(--color-primary-500)]/50 hover:text-[var(--color-primary-400)]
+                  transition-all duration-200 cursor-pointer
+                "
               >
                 {suggestion}
               </button>

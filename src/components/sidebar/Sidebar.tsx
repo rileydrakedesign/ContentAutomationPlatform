@@ -20,15 +20,19 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`flex flex-col bg-slate-950 border-r border-slate-800 transition-all duration-300 ease-in-out ${
-        isCollapsed ? "w-16" : "w-56"
-      }`}
+      className={`
+        flex flex-col
+        bg-[var(--color-bg-base)]
+        border-r border-[var(--color-border-subtle)]
+        transition-all duration-300 ease-in-out
+        ${isCollapsed ? "w-16" : "w-60"}
+      `}
     >
       <SidebarLogo />
 
       {user && <SidebarNav />}
 
-      <div className="border-t border-slate-800 pt-2">
+      <div className="border-t border-[var(--color-border-subtle)] p-2">
         <SidebarToggle />
         {!loading && user && <SidebarUserMenu />}
       </div>

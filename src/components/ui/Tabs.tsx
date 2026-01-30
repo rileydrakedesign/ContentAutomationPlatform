@@ -53,11 +53,18 @@ export function Tabs({
 interface TabsListProps {
   children: ReactNode;
   className?: string;
+  variant?: "default" | "pills" | "underline";
 }
 
-export function TabsList({ children, className = "" }: TabsListProps) {
+export function TabsList({ children, className = "", variant = "default" }: TabsListProps) {
+  const variantStyles = {
+    default: "inline-flex gap-1 bg-[var(--color-bg-surface)] p-1 rounded-xl border border-[var(--color-border-subtle)]",
+    pills: "inline-flex gap-2",
+    underline: "inline-flex gap-6 border-b border-[var(--color-border-default)]",
+  };
+
   return (
-    <div className={`flex gap-1 bg-slate-800/50 p-1 rounded-lg ${className}`}>
+    <div className={`${variantStyles[variant]} ${className}`}>
       {children}
     </div>
   );
@@ -68,27 +75,37 @@ interface TabsTriggerProps {
   children: ReactNode;
   className?: string;
   count?: number;
+  icon?: ReactNode;
 }
 
-export function TabsTrigger({ value, children, className = "", count }: TabsTriggerProps) {
+export function TabsTrigger({ value, children, className = "", count, icon }: TabsTriggerProps) {
   const { activeTab, setActiveTab } = useTabs();
   const isActive = activeTab === value;
 
   return (
     <button
       onClick={() => setActiveTab(value)}
-      className={`px-3 py-1 rounded-md text-sm transition flex items-center gap-2 ${
-        isActive
-          ? "bg-slate-700 text-white"
-          : "text-slate-400 hover:text-white hover:bg-slate-700/50"
-      } ${className}`}
+      className={`
+        px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+        flex items-center gap-2 cursor-pointer
+        ${isActive
+          ? "bg-[var(--color-primary-500)] text-white shadow-[var(--shadow-glow-primary)]"
+          : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]"
+        }
+        ${className}
+      `}
     >
+      {icon && <span className="w-4 h-4">{icon}</span>}
       {children}
       {count !== undefined && (
         <span
-          className={`text-xs px-1.5 py-0.5 rounded ${
-            isActive ? "bg-slate-600" : "bg-slate-700"
-          }`}
+          className={`
+            text-xs px-2 py-0.5 rounded-full font-medium
+            ${isActive
+              ? "bg-white/20 text-white"
+              : "bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]"
+            }
+          `}
         >
           {count}
         </span>
@@ -110,5 +127,9 @@ export function TabsContent({ value, children, className = "" }: TabsContentProp
     return null;
   }
 
-  return <div className={className}>{children}</div>;
+  return (
+    <div className={`animate-fade-in ${className}`}>
+      {children}
+    </div>
+  );
 }

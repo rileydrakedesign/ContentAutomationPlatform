@@ -7,31 +7,60 @@ type BadgeVariant =
   | "success"
   | "warning"
   | "danger"
-  | "purple"
+  | "accent"
   | "outline";
+
+type BadgeSize = "sm" | "md";
 
 interface BadgeProps {
   children: ReactNode;
   variant?: BadgeVariant;
+  size?: BadgeSize;
+  dot?: boolean;
   className?: string;
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
-  default: "bg-slate-800 text-slate-300 border-slate-700",
-  primary: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  secondary: "bg-slate-700 text-slate-300 border-slate-600",
-  success: "bg-teal-500/10 text-teal-400 border-teal-500/20",
-  warning: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  danger: "bg-red-500/10 text-red-400 border-red-500/20",
-  purple: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  outline: "bg-transparent text-slate-400 border-slate-700",
+  default: "bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] border-[var(--color-border-default)]",
+  primary: "bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] border-[var(--color-primary-500)]/20",
+  secondary: "bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] border-[var(--color-border-strong)]",
+  success: "bg-[var(--color-success-500)]/10 text-[var(--color-success-400)] border-[var(--color-success-500)]/20",
+  warning: "bg-[var(--color-warning-500)]/10 text-[var(--color-warning-400)] border-[var(--color-warning-500)]/20",
+  danger: "bg-[var(--color-danger-500)]/10 text-[var(--color-danger-400)] border-[var(--color-danger-500)]/20",
+  accent: "bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border-[var(--color-accent-500)]/20",
+  outline: "bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border-default)]",
 };
 
-export function Badge({ children, variant = "default", className = "" }: BadgeProps) {
+const sizeStyles: Record<BadgeSize, string> = {
+  sm: "px-1.5 py-0.5 text-xs",
+  md: "px-2.5 py-1 text-sm",
+};
+
+const dotColors: Record<BadgeVariant, string> = {
+  default: "bg-[var(--color-text-muted)]",
+  primary: "bg-[var(--color-primary-400)]",
+  secondary: "bg-[var(--color-text-secondary)]",
+  success: "bg-[var(--color-success-400)]",
+  warning: "bg-[var(--color-warning-400)]",
+  danger: "bg-[var(--color-danger-400)]",
+  accent: "bg-[var(--color-accent-400)]",
+  outline: "bg-[var(--color-text-secondary)]",
+};
+
+export function Badge({
+  children,
+  variant = "default",
+  size = "sm",
+  dot = false,
+  className = "",
+}: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 text-xs rounded border ${variantStyles[variant]} ${className}`}
+      className={`inline-flex items-center gap-1.5 font-medium rounded-full border ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
     >
+      {dot && (
+        <span className={`w-1.5 h-1.5 rounded-full ${dotColors[variant]}`} />
+      )}
       {children}
     </span>
   );
@@ -46,6 +75,9 @@ export function StatusBadge({ status }: { status: string }) {
     REJECTED: "danger",
     inbox: "warning",
     triaged: "success",
+    active: "success",
+    paused: "warning",
+    draft: "default",
   };
 
   const labels: Record<string, string> = {
@@ -55,10 +87,13 @@ export function StatusBadge({ status }: { status: string }) {
     REJECTED: "Rejected",
     inbox: "Inbox",
     triaged: "Triaged",
+    active: "Active",
+    paused: "Paused",
+    draft: "Draft",
   };
 
   return (
-    <Badge variant={statusVariants[status] || "default"}>
+    <Badge variant={statusVariants[status] || "default"} dot>
       {labels[status] || status}
     </Badge>
   );
@@ -70,11 +105,11 @@ export function TypeBadge({ type }: { type: string }) {
     X_POST: "default",
     X_THREAD: "default",
     REEL_SCRIPT: "default",
-    VOICE_MEMO: "purple",
+    VOICE_MEMO: "accent",
     NEWS: "success",
-    INSPIRATION: "purple",
+    INSPIRATION: "primary",
     my_post: "primary",
-    inspiration: "purple",
+    inspiration: "accent",
   };
 
   const labels: Record<string, string> = {

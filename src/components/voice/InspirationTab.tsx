@@ -183,7 +183,7 @@ export function InspirationTab({ inspirations, onInspirationUpdate, onRefresh }:
               {groups.map((group) => (
                 <div key={group.keyword}>
                   <div className="flex items-center gap-2 mb-3">
-                    <Badge variant="purple">{group.keyword}</Badge>
+                    <Badge variant="accent">{group.keyword}</Badge>
                     <span className="text-xs text-slate-500">{group.items.length} items</span>
                   </div>
                   <div className="space-y-2 ml-2">
@@ -318,7 +318,7 @@ function InspirationCard({
         <p className="text-white text-sm leading-relaxed mb-3">{item.content_text}</p>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Badge variant="purple">{item.keyword}</Badge>
+            <Badge variant="accent">{item.keyword}</Badge>
             {item.source_author && (
               <span className="text-xs text-slate-500">@{item.source_author}</span>
             )}

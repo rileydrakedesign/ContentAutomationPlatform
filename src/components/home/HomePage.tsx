@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Card } from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { PatternInsightsSection } from "./PatternInsightsSection";
 import { CapturedPost } from "@/types/captured";
 import { formatNumber, formatRelativeTime } from "@/lib/utils/formatting";
-import { TrendingUp, TrendingDown, Minus, Plus, ArrowRight, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Plus, ArrowRight, RefreshCw, Eye, Heart, Users } from "lucide-react";
 
 type Draft = {
   id: string;
@@ -29,9 +30,10 @@ interface MetricCardProps {
   value: string | number;
   trend?: number;
   trendLabel?: string;
+  icon?: React.ReactNode;
 }
 
-function MetricCard({ label, value, trend, trendLabel }: MetricCardProps) {
+function MetricCard({ label, value, trend, trendLabel, icon }: MetricCardProps) {
   const getTrendIcon = () => {
     if (!trend) return <Minus className="w-3 h-3" />;
     if (trend > 0) return <TrendingUp className="w-3 h-3" />;
@@ -39,17 +41,28 @@ function MetricCard({ label, value, trend, trendLabel }: MetricCardProps) {
   };
 
   const getTrendColor = () => {
-    if (!trend) return "text-slate-500";
-    if (trend > 0) return "text-green-400";
-    return "text-red-400";
+    if (!trend) return "text-[var(--color-text-muted)]";
+    if (trend > 0) return "text-[var(--color-success-400)]";
+    return "text-[var(--color-danger-400)]";
   };
 
   return (
-    <Card className="p-4">
-      <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">{label}</p>
-      <p className="text-2xl font-semibold text-white font-mono tabular-nums">{value}</p>
+    <Card className="p-4 hover:border-[var(--color-border-strong)] transition-all duration-200">
+      <div className="flex items-start justify-between mb-3">
+        <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+          {label}
+        </p>
+        {icon && (
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
+            <span className="text-[var(--color-primary-400)]">{icon}</span>
+          </div>
+        )}
+      </div>
+      <p className="text-2xl font-semibold text-[var(--color-text-primary)] font-mono tabular-nums">
+        {value}
+      </p>
       {(trend !== undefined || trendLabel) && (
-        <div className={`flex items-center gap-1 mt-1 text-xs ${getTrendColor()}`}>
+        <div className={`flex items-center gap-1.5 mt-2 text-xs ${getTrendColor()}`}>
           {getTrendIcon()}
           <span>{trendLabel || `${(trend ?? 0) > 0 ? "+" : ""}${trend ?? 0}%`}</span>
         </div>
@@ -129,169 +142,220 @@ export function HomePage() {
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-8 bg-slate-800 rounded w-48"></div>
-        <div className="grid grid-cols-4 gap-3">
-          <div className="h-24 bg-slate-800 rounded-lg"></div>
-          <div className="h-24 bg-slate-800 rounded-lg"></div>
-          <div className="h-24 bg-slate-800 rounded-lg"></div>
-          <div className="h-24 bg-slate-800 rounded-lg"></div>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <div className="h-8 skeleton w-48"></div>
+          <div className="h-4 skeleton w-72"></div>
         </div>
+        <div className="grid grid-cols-4 gap-4">
+          <div className="h-28 skeleton"></div>
+          <div className="h-28 skeleton"></div>
+          <div className="h-28 skeleton"></div>
+          <div className="h-28 skeleton"></div>
+        </div>
+        <div className="h-48 skeleton"></div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-white">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-0.5">
+    <div className="animate-fade-in">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-heading text-2xl font-semibold text-[var(--color-text-primary)]">
+          Dashboard
+        </h1>
+        <p className="text-[var(--color-text-secondary)] text-sm mt-1">
           Performance snapshot and pattern insights
         </p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Performance Snapshot */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-white">Performance Snapshot</h2>
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-heading text-base font-semibold text-[var(--color-text-primary)]">
+              Performance Snapshot
+            </h2>
             {xStatus?.connected && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={handleSync}
-                disabled={syncing}
-                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition disabled:opacity-50"
+                loading={syncing}
+                icon={<RefreshCw className="w-3.5 h-3.5" />}
               >
-                <RefreshCw className={`w-3 h-3 ${syncing ? "animate-spin" : ""}`} />
-                <span>{syncing ? "Syncing..." : "Sync"}</span>
-              </button>
+                {syncing ? "Syncing..." : "Sync"}
+              </Button>
             )}
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
-            <MetricCard label="Posts" value={posts.length} trendLabel="last 7d" />
-            <MetricCard label="Views" value={formatNumber(totalViews)} trend={8} />
-            <MetricCard label="Eng Rate" value={`${engagementRate}%`} trend={2} />
-            <MetricCard label="Followers" value="+142" trendLabel="this week" />
+          <div className="grid grid-cols-4 gap-4">
+            <MetricCard
+              label="Posts"
+              value={posts.length}
+              trendLabel="last 7d"
+              icon={<Eye className="w-4 h-4" />}
+            />
+            <MetricCard
+              label="Views"
+              value={formatNumber(totalViews)}
+              trend={8}
+              icon={<Eye className="w-4 h-4" />}
+            />
+            <MetricCard
+              label="Engagement"
+              value={`${engagementRate}%`}
+              trend={2}
+              icon={<Heart className="w-4 h-4" />}
+            />
+            <MetricCard
+              label="Followers"
+              value="+142"
+              trendLabel="this week"
+              icon={<Users className="w-4 h-4" />}
+            />
           </div>
-        </div>
+        </section>
 
         {/* Pattern Insights */}
         <PatternInsightsSection />
 
         {/* Quick Actions */}
-        <div className="flex gap-3">
-          <Link
-            href="/create"
-            className="flex-1 flex items-center justify-center gap-2 p-4 bg-violet-500 hover:bg-violet-600 rounded-lg transition text-center"
-          >
-            <Plus className="w-5 h-5 text-white" />
-            <span className="font-semibold text-white">Create Post</span>
+        <section className="grid grid-cols-2 gap-4">
+          <Link href="/create">
+            <Button
+              variant="primary"
+              fullWidth
+              glow
+              icon={<Plus className="w-5 h-5" />}
+              className="h-14 text-base"
+            >
+              Create Post
+            </Button>
           </Link>
-          <Link
-            href="/insights"
-            className="flex-1 flex items-center justify-center gap-2 p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition text-center"
-          >
-            <span className="font-medium text-white">View Insights</span>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
+          <Link href="/insights">
+            <Button
+              variant="secondary"
+              fullWidth
+              icon={<ArrowRight className="w-4 h-4" />}
+              iconPosition="right"
+              className="h-14 text-base"
+            >
+              View Insights
+            </Button>
           </Link>
-        </div>
+        </section>
 
         {/* Connect X prompt */}
         {!xStatus?.connected && (
-          <Card className="p-4 border-amber-500/30">
-            <div className="flex items-center justify-between">
+          <Card className="border-[var(--color-accent-500)]/30 bg-[var(--color-accent-500)]/5">
+            <CardContent className="flex items-center justify-between py-5">
               <div>
-                <h2 className="text-base font-medium text-white mb-1">
+                <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
                   Connect Your X Account
                 </h2>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-[var(--color-text-secondary)]">
                   Sync your posts to track performance and extract patterns
                 </p>
               </div>
-              <Link
-                href="/settings"
-                className="px-4 py-2 bg-amber-500 text-slate-900 font-medium rounded-lg hover:bg-amber-400 transition"
-              >
-                Connect
+              <Link href="/settings">
+                <Button variant="primary" glow>
+                  Connect
+                </Button>
               </Link>
-            </div>
+            </CardContent>
           </Card>
         )}
 
         {/* Recent Posts */}
         {recentPosts.length > 0 && (
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-white">Recent Posts</h2>
-              <Link
-                href="/insights"
-                className="text-sm text-violet-400 hover:text-violet-300 transition"
-              >
-                View All
-              </Link>
-            </div>
-
-            <div className="space-y-2">
-              {recentPosts.map((post) => (
-                <div
-                  key={post.id}
-                  className="p-3 bg-slate-800/50 hover:bg-slate-800 rounded-lg transition"
+          <Card>
+            <CardContent>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-heading text-base font-semibold text-[var(--color-text-primary)]">
+                  Recent Posts
+                </h2>
+                <Link
+                  href="/insights"
+                  className="text-sm text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors"
                 >
-                  <p className="text-sm text-slate-300 line-clamp-2 mb-2">
-                    {post.text_content}
-                  </p>
-                  <div className="flex items-center gap-4 text-xs text-slate-500 font-mono">
-                    {post.metrics.views && (
-                      <span>{formatNumber(post.metrics.views)} views</span>
-                    )}
-                    {post.metrics.likes && (
-                      <span>{formatNumber(post.metrics.likes)} likes</span>
-                    )}
-                    <span>{formatRelativeTime(post.captured_at)}</span>
+                  View All
+                </Link>
+              </div>
+
+              <div className="space-y-2">
+                {recentPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="p-3 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] rounded-lg transition-colors cursor-pointer"
+                  >
+                    <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2 mb-2">
+                      {post.text_content}
+                    </p>
+                    <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)] font-mono">
+                      {post.metrics.views && (
+                        <span className="flex items-center gap-1">
+                          <Eye className="w-3 h-3" />
+                          {formatNumber(post.metrics.views)}
+                        </span>
+                      )}
+                      {post.metrics.likes && (
+                        <span className="flex items-center gap-1">
+                          <Heart className="w-3 h-3" />
+                          {formatNumber(post.metrics.likes)}
+                        </span>
+                      )}
+                      <span>{formatRelativeTime(post.captured_at)}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </CardContent>
           </Card>
         )}
 
         {/* Drafts to Review */}
         {generatedDrafts.length > 0 && (
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-white">Drafts to Review</h2>
-                <Badge variant="primary">{generatedDrafts.length}</Badge>
-              </div>
-              <Link
-                href="/create?tab=drafts"
-                className="text-sm text-violet-400 hover:text-violet-300 transition"
-              >
-                View All
-              </Link>
-            </div>
-
-            <div className="space-y-2">
-              {generatedDrafts.slice(0, 2).map((draft) => (
+          <Card>
+            <CardContent>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-heading text-base font-semibold text-[var(--color-text-primary)]">
+                    Drafts to Review
+                  </h2>
+                  <Badge variant="primary">{generatedDrafts.length}</Badge>
+                </div>
                 <Link
-                  key={draft.id}
-                  href={`/drafts/${draft.id}`}
-                  className="block p-3 bg-slate-800/50 hover:bg-slate-800 rounded-lg transition"
+                  href="/create?tab=drafts"
+                  className="text-sm text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors"
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs px-2 py-0.5 bg-slate-700 rounded">
-                      {draft.type === "X_POST" ? "Post" : "Thread"}
-                    </span>
-                    <span className="text-xs text-slate-500 font-mono">
-                      {formatRelativeTime(draft.created_at)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-300 line-clamp-2">
-                    {getPreview(draft)}
-                  </p>
+                  View All
                 </Link>
-              ))}
-            </div>
+              </div>
+
+              <div className="space-y-2">
+                {generatedDrafts.slice(0, 2).map((draft) => (
+                  <Link
+                    key={draft.id}
+                    href={`/drafts/${draft.id}`}
+                    className="block p-3 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] rounded-lg transition-colors"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="default">
+                        {draft.type === "X_POST" ? "Post" : "Thread"}
+                      </Badge>
+                      <span className="text-xs text-[var(--color-text-muted)] font-mono">
+                        {formatRelativeTime(draft.created_at)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">
+                      {getPreview(draft)}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
           </Card>
         )}
       </div>

@@ -68,12 +68,11 @@ export function PatternSelector({
 
   if (loading) {
     return (
-      <div className="animate-pulse">
-        <div className="h-4 bg-slate-800 rounded w-32 mb-3"></div>
-        <div className="flex gap-2">
-          <div className="h-8 bg-slate-800 rounded-full w-24"></div>
-          <div className="h-8 bg-slate-800 rounded-full w-28"></div>
-          <div className="h-8 bg-slate-800 rounded-full w-20"></div>
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-8 skeleton rounded-full w-24" />
+          ))}
         </div>
       </div>
     );
@@ -81,8 +80,8 @@ export function PatternSelector({
 
   if (patterns.length === 0) {
     return (
-      <div className="p-4 bg-slate-800/50 border border-slate-700 rounded-lg">
-        <p className="text-sm text-slate-400">
+      <div className="p-4 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg">
+        <p className="text-sm text-[var(--color-text-muted)]">
           No patterns available yet. Save posts and extract patterns on the Insights page.
         </p>
       </div>
@@ -90,10 +89,7 @@ export function PatternSelector({
   }
 
   return (
-    <div>
-      <label className="block text-sm font-medium text-slate-200 mb-2">
-        Apply patterns:
-      </label>
+    <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
         {patterns.map((pattern) => {
           const isSelected = selectedPatterns.includes(pattern.id);
@@ -101,24 +97,25 @@ export function PatternSelector({
             <button
               key={pattern.id}
               onClick={() => togglePattern(pattern.id)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                isSelected
-                  ? "bg-violet-500 text-white"
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
-              }`}
+              className={`
+                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+                transition-all duration-200 cursor-pointer
+                ${isSelected
+                  ? "bg-[var(--color-primary-500)] text-white shadow-[var(--shadow-glow-primary)]"
+                  : "bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] hover:border-[var(--color-border-strong)]"
+                }
+              `}
             >
               {isSelected ? (
                 <Check className="w-3 h-3" />
               ) : (
-                PATTERN_TYPE_ICONS[pattern.pattern_type] || (
-                  <Sparkles className="w-3 h-3" />
-                )
+                PATTERN_TYPE_ICONS[pattern.pattern_type] || <Sparkles className="w-3 h-3" />
               )}
               <span>{pattern.pattern_name}</span>
               {pattern.multiplier > 1.2 && (
                 <span
                   className={`text-xs ${
-                    isSelected ? "text-violet-200" : "text-green-400"
+                    isSelected ? "text-white/80" : "text-[var(--color-success-400)]"
                   }`}
                 >
                   {pattern.multiplier.toFixed(1)}x
@@ -128,8 +125,9 @@ export function PatternSelector({
           );
         })}
       </div>
+
       {selectedPatterns.length > 0 && (
-        <p className="text-xs text-slate-500 mt-2">
+        <p className="text-xs text-[var(--color-text-muted)]">
           {selectedPatterns.length} pattern{selectedPatterns.length !== 1 ? "s" : ""} selected
         </p>
       )}
