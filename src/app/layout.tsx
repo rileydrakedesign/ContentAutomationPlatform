@@ -30,6 +30,10 @@ export const metadata: Metadata = {
   description: "Content automation for X and Instagram",
 };
 
+// Force all pages to render per-request so the runtime env vars
+// are always available in the injected script tag
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
