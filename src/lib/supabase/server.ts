@@ -1,15 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 // Server client with cookie-based auth for API routes and server components
 export async function createAuthClient() {
   const cookieStore = await cookies();
 
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -30,7 +29,10 @@ export async function createAuthClient() {
 
 // Server client with service role key for admin operations (bypasses RLS)
 export function createAdminClient() {
-  return createServerClient(supabaseUrl, supabaseServiceKey, {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
     cookies: {
       getAll() {
         return [];
