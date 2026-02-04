@@ -96,11 +96,11 @@ export function ExamplesSection({ voiceType, onExamplesChange }: ExamplesSection
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-      <div className="flex items-start justify-between mb-4">
+    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <div className="flex items-start justify-between mb-3">
         <div>
-          <h3 className="text-lg font-medium text-white">Voice Examples</h3>
-          <p className="text-sm text-slate-400 mt-1">
+          <h3 className="text-sm font-semibold text-white">Voice Examples</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
             {voiceType === "reply" ? "Replies" : "Posts"} that demonstrate your voice style.
           </p>
         </div>
@@ -114,7 +114,7 @@ export function ExamplesSection({ voiceType, onExamplesChange }: ExamplesSection
       </div>
 
       {/* Examples list */}
-      <div className="space-y-2 mb-4 max-h-64 overflow-auto">
+      <div className="space-y-2 mb-3 max-h-56 overflow-auto">
         {loading ? (
           <div className="animate-pulse space-y-2">
             <div className="h-16 bg-slate-800 rounded-lg" />
@@ -151,7 +151,7 @@ export function ExamplesSection({ voiceType, onExamplesChange }: ExamplesSection
           value={newExample}
           onChange={(e) => setNewExample(e.target.value)}
           placeholder={`Add a ${voiceType === "reply" ? "reply" : "post"} example...`}
-          className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 resize-none focus:outline-none focus:ring-1 focus:ring-violet-500"
+          className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 resize-none focus:outline-none focus:border-slate-500"
           rows={2}
         />
         <button

@@ -93,8 +93,8 @@ export function AIModelToggle({
         {(settings.ai_model || "openai") === "openai"
           ? "Using GPT-4o-mini for replies and GPT-4 Turbo for posts"
           : settings.ai_model === "claude"
-          ? "Using Claude 3 Haiku for replies and Claude 3.5 Sonnet for posts"
-          : "Using Grok 3 Fast for replies and Grok 3 for posts"}
+          ? "Using Claude Sonnet 4 for all generation"
+          : "Using Grok 3 for all generation"}
       </p>
     </div>
   );

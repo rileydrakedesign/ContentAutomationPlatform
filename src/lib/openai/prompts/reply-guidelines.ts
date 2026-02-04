@@ -14,6 +14,7 @@ export function loadReplyGuidelines(): string {
   const guidelinesDir = path.join(process.cwd(), 'LLM-post-guidelines');
 
   const filesToLoad = [
+    'human-writing-guidelines.md',
     'writing-principles.md',
     'copywriting-principles.md',
     'feedback-examples.md',

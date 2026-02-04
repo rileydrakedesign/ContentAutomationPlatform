@@ -102,10 +102,21 @@ Remember:
 - Preserve the natural voice from the transcript
 - Surface specific details (numbers, tools, timeframes)
 - Format for scannability (line breaks, short paragraphs)
-- No em dashes, no AI phrases, no hashtags, no filler
+- Use active voice at all times
+- Write in a spartan and informative tone
+- Address the reader directly using "you" and "your"
+- Maintain smooth sentence flow. No abrupt stop-start patterns
+- No em dashes, no en dashes, no asterisks, no semicolons
+- No AI phrases, no hashtags, no filler
+- No metaphors, no clichés, no generalizations
+- No rhetorical questions
+- No warnings, notes, or meta commentary
+- No setup phrases (in conclusion, in closing)
+- No comparative constructions (not just X but also Y)
 - NO MARKDOWN: no **bold**, no *italics*, no numbered lists (1. 2. 3.)
 - Plain text only - X does not render markdown
-- Sound human, not polished`;
+- Sound human, not polished
+- PROHIBITED WORDS: can, may, just, that, very, really, literally, actually, certainly, probably, basically, could, maybe, delve, embark, shed light, crafting, imagine, realm, game changer, unlock, discover, skyrocket, revolutionize, disruptive, utilize, dive deep, unveil, pivotal, intricate, hence, furthermore, however, harness, exciting, groundbreaking, cutting edge, remarkable, it, remains to be seen, navigating, landscape, testament, moreover, boost, powerful, ever evolving`;
 }
 
 /**

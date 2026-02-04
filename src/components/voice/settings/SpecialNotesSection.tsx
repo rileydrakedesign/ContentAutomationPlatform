@@ -28,18 +28,18 @@ export function SpecialNotesSection({ settings, onSettingsUpdate }: SpecialNotes
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <h3 className="text-lg font-medium text-white">Special Notes</h3>
-          <p className="text-sm text-slate-400 mt-1">
+          <h3 className="text-sm font-semibold text-white">Special Notes</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
             Custom instructions for the AI to follow when generating content.
           </p>
         </div>
         {isDirty && (
           <button
             onClick={handleSave}
-            className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg transition-colors"
+            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-900 text-sm font-medium rounded-md transition"
           >
             Save
           </button>
@@ -51,10 +51,10 @@ export function SpecialNotesSection({ settings, onSettingsUpdate }: SpecialNotes
         onChange={(e) => handleChange(e.target.value)}
         onBlur={() => isDirty && handleSave()}
         placeholder="e.g., Always mention our product when relevant. Never use first person plural. Reference industry trends when possible."
-        className="w-full h-32 px-3 py-2 mt-3 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
+        className="w-full h-28 px-3 py-2 mt-2 bg-slate-800 border border-slate-700 rounded-md text-white text-sm placeholder-slate-500 resize-none focus:outline-none focus:border-slate-500"
       />
 
-      <p className="text-xs text-slate-500 mt-2">
+      <p className="text-xs text-slate-500 mt-1.5">
         These notes are included in every content generation prompt.
       </p>
     </div>

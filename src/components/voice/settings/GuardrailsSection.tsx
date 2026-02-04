@@ -63,10 +63,10 @@ export function GuardrailsSection({ settings, onSettingsUpdate }: GuardrailsSect
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-6">
+    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-4">
       <div>
-        <h3 className="text-lg font-medium text-white mb-2">Guardrails</h3>
-        <p className="text-sm text-slate-400">
+        <h3 className="text-sm font-semibold text-white mb-1">Guardrails</h3>
+        <p className="text-xs text-slate-500">
           Set boundaries for AI-generated content.
         </p>
       </div>
@@ -100,7 +100,7 @@ export function GuardrailsSection({ settings, onSettingsUpdate }: GuardrailsSect
             onChange={(e) => setNewWord(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addWord()}
             placeholder="Add word..."
-            className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+            className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:outline-none focus:border-slate-500"
           />
           <button
             onClick={addWord}
@@ -141,7 +141,7 @@ export function GuardrailsSection({ settings, onSettingsUpdate }: GuardrailsSect
             onChange={(e) => setNewTopic(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addTopic()}
             placeholder="Add topic..."
-            className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+            className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:outline-none focus:border-slate-500"
           />
           <button
             onClick={addTopic}
@@ -182,7 +182,7 @@ export function GuardrailsSection({ settings, onSettingsUpdate }: GuardrailsSect
             onChange={(e) => setNewRule(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addRule()}
             placeholder="e.g., Always end with a call to action"
-            className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+            className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:outline-none focus:border-slate-500"
           />
           <button
             onClick={addRule}

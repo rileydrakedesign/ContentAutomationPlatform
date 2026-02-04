@@ -4,10 +4,10 @@ export const claude = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
 });
 
-// Model mapping for Claude equivalents
+// Model mapping for Claude - using most powerful models
 export const CLAUDE_MODELS = {
-  // Fast model (equivalent to gpt-4o-mini)
-  fast: "claude-3-haiku-20240307",
-  // Standard model (equivalent to gpt-4-turbo-preview)
-  standard: "claude-3-5-sonnet-20241022",
+  // Fast model - using Sonnet for better quality
+  fast: "claude-sonnet-4-20250514",
+  // Standard model - using latest Sonnet (most capable)
+  standard: "claude-sonnet-4-20250514",
 } as const;

@@ -45,3 +45,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# playwright mcp screenshots
+.playwright-mcp/
+
+# chrome extension build output
+chrome-extension/dist/

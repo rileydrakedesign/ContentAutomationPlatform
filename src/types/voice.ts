@@ -133,6 +133,21 @@ export interface UserInspiration {
   updated_at: string;
 }
 
+// Conversation stage tracking for multi-step voice editor flow
+export type ConversationStage =
+  | 'initial'              // Waiting for voice description
+  | 'review_changes'       // Showing proposed changes, waiting for accept/modify
+  | 'collect_guardrails'   // Asking for words to avoid (skippable)
+  | 'collect_sample_input' // Asking for topic (post) or post to reply to (reply)
+  | 'review_sample';       // Showing sample, asking for feedback (loops here)
+
+// Action required from user at each stage
+export type RequiredAction =
+  | 'accept_changes'
+  | 'provide_guardrails'
+  | 'provide_input'
+  | 'provide_feedback';
+
 // Chat message types for voice editor
 export interface ChatMessage {
   id: string;
@@ -141,6 +156,11 @@ export interface ChatMessage {
   timestamp: string;
   suggestedChanges?: Partial<UserVoiceSettings>;
   sampleContent?: string;
+  // Multi-step flow fields
+  stage?: ConversationStage;
+  pendingChanges?: Partial<UserVoiceSettings>; // Changes waiting for approval
+  sampleInput?: string; // The topic or post provided by user
+  requiresAction?: RequiredAction;
 }
 
 // Parsed CSV post from X Analytics export

@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { UserVoiceSettings, VoiceType, ChatMessage as ChatMessageType } from "@/types/voice";
+import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  UserVoiceSettings,
+  VoiceType,
+  ChatMessage as ChatMessageType,
+  ConversationStage,
+} from "@/types/voice";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { SettingsPreview } from "./SettingsPreview";
-import { Card, CardContent } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Trash2, MessageCircle, Sparkles } from "lucide-react";
 
@@ -23,8 +28,18 @@ export function VoiceEditorView({
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [acceptedMessageIds, setAcceptedMessageIds] = useState<Set<string>>(new Set());
+  const [acceptedMessageIds, setAcceptedMessageIds] = useState<Set<string>>(
+    new Set()
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Derive current stage from messages
+  const getCurrentStage = useCallback((): ConversationStage => {
+    const lastAssistant = messages.filter((m) => m.role === "assistant").pop();
+    return lastAssistant?.stage || "initial";
+  }, [messages]);
+
+  const currentStage = getCurrentStage();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -53,6 +68,7 @@ export function VoiceEditorView({
     scrollToBottom();
   }, [messages]);
 
+  // Regular message sending
   const handleSendMessage = async (message: string) => {
     setSending(true);
     try {
@@ -68,6 +84,11 @@ export function VoiceEditorView({
       if (res.ok) {
         const data = await res.json();
         setMessages((prev) => [...prev, data.userMessage, data.assistantMessage]);
+
+        // If settings were updated, notify parent
+        if (data.settingsUpdates) {
+          await onSettingsUpdate(data.settingsUpdates);
+        }
       }
     } catch (err) {
       console.error("Failed to send message:", err);
@@ -76,11 +97,120 @@ export function VoiceEditorView({
     }
   };
 
-  const handleAcceptChanges = async (changes: Partial<UserVoiceSettings>, messageId: string) => {
-    await onSettingsUpdate(changes);
-    setAcceptedMessageIds((prev) => new Set(prev).add(messageId));
+  // Accept proposed changes
+  const handleAcceptChanges = async (
+    changes: Partial<UserVoiceSettings>,
+    messageId: string
+  ) => {
+    setSending(true);
+    try {
+      const res = await fetch("/api/voice/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          voice_type: voiceType,
+          action: "accept_changes",
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setMessages((prev) => [...prev, data.assistantMessage]);
+        setAcceptedMessageIds((prev) => new Set(prev).add(messageId));
+
+        // Apply settings update
+        if (data.settingsUpdates) {
+          await onSettingsUpdate(data.settingsUpdates);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to accept changes:", err);
+    } finally {
+      setSending(false);
+    }
   };
 
+  // Modify proposed changes - just focuses the input
+  const handleModifyChanges = () => {
+    // The user can just type in the chat input to modify
+    // This is a no-op but keeps the interface consistent
+  };
+
+  // Submit guardrails
+  const handleGuardrailsSubmit = async (words: string[]) => {
+    setSending(true);
+    try {
+      const res = await fetch("/api/voice/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          voice_type: voiceType,
+          action: "submit_guardrails",
+          actionData: { words },
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setMessages((prev) => [...prev, data.assistantMessage]);
+      }
+    } catch (err) {
+      console.error("Failed to submit guardrails:", err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Skip guardrails
+  const handleGuardrailsSkip = async () => {
+    setSending(true);
+    try {
+      const res = await fetch("/api/voice/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          voice_type: voiceType,
+          action: "skip_guardrails",
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setMessages((prev) => [...prev, data.assistantMessage]);
+      }
+    } catch (err) {
+      console.error("Failed to skip guardrails:", err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Submit sample input (topic or post to reply to)
+  const handleSampleInputSubmit = async (input: string) => {
+    setSending(true);
+    try {
+      const res = await fetch("/api/voice/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          voice_type: voiceType,
+          action: "submit_sample_input",
+          actionData: { input },
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setMessages((prev) => [...prev, data.userMessage, data.assistantMessage]);
+      }
+    } catch (err) {
+      console.error("Failed to submit sample input:", err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Clear chat history
   const handleClearHistory = async () => {
     try {
       await fetch(`/api/voice/chat?type=${voiceType}`, {
@@ -91,6 +221,74 @@ export function VoiceEditorView({
     } catch (err) {
       console.error("Failed to clear history:", err);
     }
+  };
+
+  // Get placeholder text based on current stage
+  const getPlaceholder = (): string => {
+    if (sending) return "Thinking...";
+
+    switch (currentStage) {
+      case "initial":
+        return `Describe how you want your ${voiceType === "reply" ? "replies" : "posts"} to sound...`;
+      case "review_changes":
+        return "Type modifications or click Accept...";
+      case "collect_guardrails":
+        return "Use the form above or type words to avoid...";
+      case "collect_sample_input":
+        return voiceType === "post"
+          ? "Enter a topic above or type here..."
+          : "Paste a post above or type here...";
+      case "review_sample":
+        return "What would you like to change about this?";
+      default:
+        return "Type a message...";
+    }
+  };
+
+  // Check if the last message requires a specific action (not regular text input)
+  const lastMessageRequiresAction = (): boolean => {
+    const lastAssistant = messages.filter((m) => m.role === "assistant").pop();
+    if (!lastAssistant?.requiresAction) return false;
+
+    // These actions have their own UI components
+    return ["accept_changes", "provide_guardrails", "provide_input"].includes(
+      lastAssistant.requiresAction
+    );
+  };
+
+  // Check if the last action-requiring message has been handled
+  const isLastActionHandled = (): boolean => {
+    const lastAssistant = messages.filter((m) => m.role === "assistant").pop();
+    if (!lastAssistant) return true;
+
+    // If it required accept_changes and we've accepted it
+    if (
+      lastAssistant.requiresAction === "accept_changes" &&
+      acceptedMessageIds.has(lastAssistant.id)
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  // Determine if the chat input should be shown
+  const shouldShowChatInput = (): boolean => {
+    // Always show input for feedback stage
+    if (currentStage === "review_sample") return true;
+
+    // Show input in initial stage
+    if (currentStage === "initial") return true;
+
+    // Show input in review_changes for modifications (even if there's an action button)
+    if (currentStage === "review_changes") return true;
+
+    // Hide input when there's an unhandled action (guardrails, sample input)
+    if (lastMessageRequiresAction() && !isLastActionHandled()) {
+      return false;
+    }
+
+    return true;
   };
 
   return (
@@ -108,7 +306,11 @@ export function VoiceEditorView({
                 AI Voice Editor
               </h3>
               <p className="text-xs text-[var(--color-text-muted)]">
-                Describe your voice style in natural language
+                {currentStage === "initial" && "Describe your voice style"}
+                {currentStage === "review_changes" && "Review proposed settings"}
+                {currentStage === "collect_guardrails" && "Set up guardrails"}
+                {currentStage === "collect_sample_input" && "Provide sample input"}
+                {currentStage === "review_sample" && "Refine your voice"}
               </p>
             </div>
           </div>
@@ -139,14 +341,15 @@ export function VoiceEditorView({
                 Configure your {voiceType} voice
               </h4>
               <p className="text-sm text-[var(--color-text-muted)] max-w-md mb-6">
-                Describe how you want your content to sound. The AI will suggest changes to your voice settings.
+                Describe how you want your content to sound. I'll guide you
+                through setting up your voice step by step.
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {[
-                  "Make it more casual",
-                  "Sound more confident",
-                  "Be less formal",
-                  "Add more energy",
+                  "I want to sound confident and casual",
+                  "Professional but approachable",
+                  "Bold and opinionated",
+                  "Friendly and conversational",
                 ].map((suggestion) => (
                   <button
                     key={suggestion}
@@ -160,33 +363,66 @@ export function VoiceEditorView({
             </div>
           ) : (
             <>
-              {messages.map((message) => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  onAcceptChanges={
-                    message.suggestedChanges
-                      ? (changes) => handleAcceptChanges(changes, message.id)
-                      : undefined
-                  }
-                  changesAccepted={acceptedMessageIds.has(message.id)}
-                />
-              ))}
+              {messages.map((message, index) => {
+                // Check if this is the last assistant message
+                const isLastAssistantMessage =
+                  message.role === "assistant" &&
+                  index ===
+                    messages.length -
+                      1 -
+                      (messages[messages.length - 1]?.role === "user" ? 1 : 0);
+
+                return (
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                    voiceType={voiceType}
+                    onAcceptChanges={
+                      message.pendingChanges || message.suggestedChanges
+                        ? (changes) => handleAcceptChanges(changes, message.id)
+                        : undefined
+                    }
+                    onModifyChanges={
+                      message.requiresAction === "accept_changes"
+                        ? handleModifyChanges
+                        : undefined
+                    }
+                    onGuardrailsSubmit={
+                      isLastAssistantMessage &&
+                      message.requiresAction === "provide_guardrails"
+                        ? handleGuardrailsSubmit
+                        : undefined
+                    }
+                    onGuardrailsSkip={
+                      isLastAssistantMessage &&
+                      message.requiresAction === "provide_guardrails"
+                        ? handleGuardrailsSkip
+                        : undefined
+                    }
+                    onSampleInputSubmit={
+                      isLastAssistantMessage &&
+                      message.requiresAction === "provide_input"
+                        ? handleSampleInputSubmit
+                        : undefined
+                    }
+                    changesAccepted={acceptedMessageIds.has(message.id)}
+                    actionDisabled={sending}
+                  />
+                );
+              })}
               <div ref={messagesEndRef} />
             </>
           )}
         </div>
 
         {/* Input area */}
-        <ChatInput
-          onSend={handleSendMessage}
-          disabled={sending}
-          placeholder={
-            sending
-              ? "Thinking..."
-              : `Describe how you want your ${voiceType === "reply" ? "replies" : "posts"} to sound...`
-          }
-        />
+        {shouldShowChatInput() && (
+          <ChatInput
+            onSend={handleSendMessage}
+            disabled={sending}
+            placeholder={getPlaceholder()}
+          />
+        )}
       </Card>
 
       {/* Settings preview - 1/3 width */}

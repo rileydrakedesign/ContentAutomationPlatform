@@ -10,13 +10,13 @@ interface VoiceDialsSectionProps {
 
 export function VoiceDialsSection({ settings, onSettingsUpdate }: VoiceDialsSectionProps) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-      <h3 className="text-lg font-medium text-white mb-2">Voice Dials</h3>
-      <p className="text-sm text-slate-400 mb-6">
+    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <h3 className="text-sm font-semibold text-white mb-1">Voice Dials</h3>
+      <p className="text-xs text-slate-500 mb-4">
         Fine-tune how your generated content sounds.
       </p>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         <SliderDial
           label="Optimization vs. Authenticity"
           leftLabel="Authentic"

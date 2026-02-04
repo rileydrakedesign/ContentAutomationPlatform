@@ -38,6 +38,7 @@ export function getFullKnowledgeBase(): string {
   }
 
   const writingPrinciples = loadFile('writing-principles.md');
+  const humanWritingGuidelines = loadFile('human-writing-guidelines.md');
   const copywritingPrinciples = loadFile('copywriting-principles.md');
   const engagementTemplates = loadFile('engagement-templates.md');
   const highPerformingExamples = loadFile('high-performing-examples.md');
@@ -48,6 +49,9 @@ export function getFullKnowledgeBase(): string {
 
 The following guidelines represent proven strategies for creating high-engagement social media content.
 Apply these principles to all content you generate.
+
+### STRICT HUMAN WRITING RULES (enforced on all output, no exceptions)
+${humanWritingGuidelines}
 
 ### WRITING FUNDAMENTALS
 ${writingPrinciples}
@@ -79,6 +83,7 @@ export function getReplyGuidelines(): string {
   }
 
   const writingPrinciples = loadFile('writing-principles.md');
+  const humanWritingGuidelines = loadFile('human-writing-guidelines.md');
   const copywritingPrinciples = loadFile('copywriting-principles.md');
   const algoPrinciples = loadFile('algo-principles.md');
 
@@ -87,6 +92,9 @@ export function getReplyGuidelines(): string {
 
 You are generating a reply to a social media post. Apply these principles:
 
+### STRICT HUMAN WRITING RULES (enforced on all output, no exceptions)
+${humanWritingGuidelines}
+
 ### X ALGORITHM PRINCIPLES (REPLY-FOCUSED)
 ${algoPrinciples}
 
@@ -94,9 +102,12 @@ ${algoPrinciples}
 - Write conversationally, like talking to a friend
 - Keep it simple - the goal is frictionless idea transfer
 - Be concrete and specific, not abstract
-- Use active voice
+- Use active voice at all times
 - Write with confidence - skip disclaimers like "this might seem obvious"
 - Finish strong with a punch
+- Favor short and impactful sentences
+- Address the reader directly using "you" and "your"
+- Maintain smooth sentence flow
 
 ### REPLY-SPECIFIC TACTICS
 
