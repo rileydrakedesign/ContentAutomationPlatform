@@ -1,7 +1,9 @@
-export { connection } from "./connection";
+export { getConnection } from "./connection";
 export {
-  transcriptionQueue,
-  generationQueue,
+  getTranscriptionQueue,
+  getGenerationQueue,
+  getVoiceRefreshQueue,
   type TranscriptionJobData,
   type GenerationJobData,
+  type VoiceRefreshJobData,
 } from "./queues";

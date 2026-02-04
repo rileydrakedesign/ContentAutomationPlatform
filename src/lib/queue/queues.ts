@@ -1,47 +1,37 @@
 import { Queue } from "bullmq";
-import { connection } from "./connection";
+import { getConnection } from "./connection";
 
-// Queue for transcribing voice memos
-export const transcriptionQueue = new Queue("transcription", {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: "exponential",
-      delay: 1000,
-    },
-    removeOnComplete: 100,
-    removeOnFail: 50,
-  },
-});
+const defaultJobOptions = {
+  attempts: 3,
+  backoff: { type: "exponential" as const, delay: 1000 },
+  removeOnComplete: 100,
+  removeOnFail: 50,
+};
 
-// Queue for generating content drafts
-export const generationQueue = new Queue("generation", {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: "exponential",
-      delay: 1000,
-    },
-    removeOnComplete: 100,
-    removeOnFail: 50,
-  },
-});
+let _transcriptionQueue: Queue | null = null;
+let _generationQueue: Queue | null = null;
+let _voiceRefreshQueue: Queue | null = null;
 
-// Queue for voice example refresh
-export const voiceRefreshQueue = new Queue("voice-refresh", {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: "exponential",
-      delay: 1000,
-    },
-    removeOnComplete: 100,
-    removeOnFail: 50,
-  },
-});
+export function getTranscriptionQueue(): Queue {
+  if (!_transcriptionQueue) {
+    _transcriptionQueue = new Queue("transcription", { connection: getConnection(), defaultJobOptions });
+  }
+  return _transcriptionQueue;
+}
+
+export function getGenerationQueue(): Queue {
+  if (!_generationQueue) {
+    _generationQueue = new Queue("generation", { connection: getConnection(), defaultJobOptions });
+  }
+  return _generationQueue;
+}
+
+export function getVoiceRefreshQueue(): Queue {
+  if (!_voiceRefreshQueue) {
+    _voiceRefreshQueue = new Queue("voice-refresh", { connection: getConnection(), defaultJobOptions });
+  }
+  return _voiceRefreshQueue;
+}
 
 // Job data types
 export interface TranscriptionJobData {

@@ -1,7 +1,11 @@
 import IORedis from "ioredis";
 
-const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+let _connection: IORedis | null = null;
 
-export const connection = new IORedis(redisUrl, {
-  maxRetriesPerRequest: null,
-});
+export function getConnection(): IORedis {
+  if (!_connection) {
+    const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+    _connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
+  }
+  return _connection;
+}
