@@ -30,31 +30,13 @@ export const metadata: Metadata = {
   description: "Content automation for X and Instagram",
 };
 
-// Force all pages to render per-request so the runtime env vars
-// are always available in the injected script tag
-export const dynamic = "force-dynamic";
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Inject Supabase config at runtime so browser code gets the real values
-  // even when NEXT_PUBLIC_* vars weren't available at build time
-  const supabaseConfig = JSON.stringify({
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "",
-    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "",
-  });
-
   return (
     <html lang="en">
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `window.__SUPABASE_CONFIG__=${supabaseConfig};`,
-          }}
-        />
-      </head>
       <body
         className={`${dmSans.variable} ${spaceGrotesk.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
