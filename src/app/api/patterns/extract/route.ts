@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
-import { openai } from "@/lib/openai/client";
+import { getOpenAI } from "@/lib/openai/client";
 import { corsHeaders, handleCors } from "@/lib/cors";
 
 // Handle CORS preflight
@@ -107,7 +107,7 @@ Return a JSON array of patterns found. Each pattern should have:
 
 Return ONLY the JSON array, no other text.`;
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {

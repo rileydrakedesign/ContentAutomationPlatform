@@ -1,5 +1,5 @@
 // Client
-export { openai } from "./client";
+export { getOpenAI } from "./client";
 
 // Legacy transcription (unused but kept for reference)
 export { transcribeAudio } from "./transcribe";

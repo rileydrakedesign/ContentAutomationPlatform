@@ -3,7 +3,7 @@
  * Extracts voice characteristics and format patterns from posts
  */
 
-import { openai } from "./client";
+import { getOpenAI } from "./client";
 import type {
   VoiceAnalysis,
   FormatAnalysis,
@@ -55,7 +55,7 @@ Return valid JSON:
 export async function analyzeInspirationPost(
   content: string
 ): Promise<InspirationAnalysisResult> {
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4-turbo-preview",
     messages: [
       { role: "system", content: ANALYSIS_PROMPT },

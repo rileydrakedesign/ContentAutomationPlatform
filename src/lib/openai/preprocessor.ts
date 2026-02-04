@@ -6,7 +6,7 @@
  * into processable chunks.
  */
 
-import { openai } from "./client";
+import { getOpenAI } from "./client";
 
 /**
  * Types of transcript structures we can detect
@@ -124,7 +124,7 @@ export async function preprocessTranscript(
     return createSingleIdeaResult(transcript);
   }
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4-turbo-preview",
     messages: [
       { role: "system", content: PREPROCESSOR_PROMPT },

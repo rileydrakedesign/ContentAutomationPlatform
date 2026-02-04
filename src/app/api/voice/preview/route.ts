@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
-import { openai } from "@/lib/openai/client";
+import { getOpenAI } from "@/lib/openai/client";
 import { UserVoiceSettings, VoiceType, DEFAULT_VOICE_SETTINGS } from "@/types/voice";
 
 function buildPreviewPrompt(settings: UserVoiceSettings, voiceType: VoiceType): string {
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       prompt += `\n\nContext for the ${voiceType === "reply" ? "original tweet" : "post"}: ${context}`;
     }
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.8,

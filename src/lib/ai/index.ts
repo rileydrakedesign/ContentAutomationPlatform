@@ -5,9 +5,9 @@
  * abstracting the differences between OpenAI, Claude, and Grok APIs.
  */
 
-import { openai, OPENAI_MODELS } from "./providers/openai";
-import { claude, CLAUDE_MODELS } from "./providers/claude";
-import { grok, GROK_MODELS } from "./providers/grok";
+import { getOpenAI, OPENAI_MODELS } from "./providers/openai";
+import { getClaude, CLAUDE_MODELS } from "./providers/claude";
+import { getGrok, GROK_MODELS } from "./providers/grok";
 
 export type AIProvider = "openai" | "claude" | "grok";
 export type ModelTier = "fast" | "standard";
@@ -84,7 +84,7 @@ async function createOpenAICompletion(options: {
   const { modelTier, messages, temperature, maxTokens, jsonResponse } = options;
   const model = OPENAI_MODELS[modelTier];
 
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAI().chat.completions.create({
     model,
     messages,
     temperature,
@@ -124,7 +124,7 @@ async function createGrokCompletion(options: {
     }
   }
 
-  const completion = await grok.chat.completions.create({
+  const completion = await getGrok().chat.completions.create({
     model,
     messages: processedMessages,
     temperature,
@@ -180,7 +180,7 @@ async function createClaudeCompletion(options: {
     }
   }
 
-  const response = await claude.messages.create({
+  const response = await getClaude().messages.create({
     model,
     max_tokens: maxTokens,
     temperature,

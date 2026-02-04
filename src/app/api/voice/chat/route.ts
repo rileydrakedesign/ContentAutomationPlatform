@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
-import { openai } from "@/lib/openai/client";
+import { getOpenAI } from "@/lib/openai/client";
 import {
   ChatMessage,
   UserVoiceSettings,
@@ -496,7 +496,7 @@ async function handleVoiceDescription(
     content: msg.content,
   }));
 
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       { role: "system", content: PROPOSE_CHANGES_PROMPT },
@@ -534,7 +534,7 @@ async function handleChangesModification(
     content: msg.content,
   }));
 
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       { role: "system", content: PROCESS_MODIFICATION_PROMPT },
@@ -595,7 +595,7 @@ async function handleAcceptChanges(
     );
 
   // Create the transition message to guardrails stage
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       { role: "system", content: COLLECT_GUARDRAILS_PROMPT },
@@ -717,7 +717,7 @@ async function handleGuardrailsComplete(
       ? COLLECT_SAMPLE_INPUT_PROMPT_POST
       : COLLECT_SAMPLE_INPUT_PROMPT_REPLY;
 
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       { role: "system", content: prompt },
@@ -798,7 +798,7 @@ async function handleSubmitSampleInput(
     sampleInput: input,
   };
 
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       { role: "system", content: prompt },
@@ -872,7 +872,7 @@ async function handleSampleFeedback(
         : msg.content,
   }));
 
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       { role: "system", content: PROCESS_FEEDBACK_PROMPT },

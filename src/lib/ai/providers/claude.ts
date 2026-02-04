@@ -1,8 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-export const claude = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY,
-});
+let _claude: Anthropic | null = null;
+
+export function getClaude(): Anthropic {
+  if (!_claude) {
+    _claude = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
+  }
+  return _claude;
+}
 
 // Model mapping for Claude - using most powerful models
 export const CLAUDE_MODELS = {
