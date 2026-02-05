@@ -51,12 +51,12 @@ export default function AgentForXLanding() {
       <main className="mx-auto w-full max-w-6xl px-4 pb-14 pt-12 sm:px-6">
         <section className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-7">
-            <div className="text-heading text-base sm:text-lg font-semibold text-[var(--color-text-primary)]">
+            <h1 className="text-heading text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight leading-tight text-[var(--color-text-primary)]">
               agent for x
-            </div>
-            <h1 className="mt-3 text-heading text-4xl sm:text-5xl font-semibold tracking-tight leading-tight">
-              turn long-form ideas into x posts that actually sound like you.
             </h1>
+            <h2 className="mt-4 text-heading text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">
+              turn long-form ideas into x posts that actually sound like you.
+            </h2>
             <p className="mt-4 text-base text-[var(--color-text-secondary)] leading-relaxed max-w-xl">
               agent for x pulls out the real points, keeps your voice, and generates drafts you can ship.
               no fluff. no fake wisdom. just usable posts.
@@ -135,32 +135,81 @@ export default function AgentForXLanding() {
 
           <div className="lg:col-span-5">
             <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 sm:p-5">
-              <div className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">example draft</div>
-              <div className="mt-3 space-y-3 text-sm text-[var(--color-text-secondary)]">
-                <div className="rounded-lg border border-[var(--color-border-subtle)] bg-white/5 p-3">
-                  <div className="text-[var(--color-text-primary)] font-medium">post</div>
-                  <p className="mt-2 leading-relaxed">
+              <div className="flex items-baseline justify-between gap-4">
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+                    feature highlights
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-[var(--color-text-primary)]">
+                    what agent for x actually does
+                  </div>
+                </div>
+                <div className="text-xs text-[var(--color-text-muted)]">scroll →</div>
+              </div>
+
+              <div className="mt-4 flex gap-3 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch]">
+                {/* Draft samples */}
+                <div className="min-w-[280px] rounded-lg border border-[var(--color-border-subtle)] bg-white/5 p-4">
+                  <div className="text-[var(--color-text-primary)] font-medium">sample post</div>
+                  <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
                     the real skill isn’t writing more.
                     it’s keeping the sharp idea intact while making it readable.
                   </p>
-                  <p className="mt-2 leading-relaxed">
+                  <p className="mt-3 text-sm text-[var(--color-text-secondary)] leading-relaxed">
                     • cut the setup
                     • keep the point
                     • add a concrete next step
                   </p>
                 </div>
 
-                <div className="rounded-lg border border-[var(--color-border-subtle)] bg-white/5 p-3">
-                  <div className="text-[var(--color-text-primary)] font-medium">thread</div>
-                  <p className="mt-2 leading-relaxed">
+                <div className="min-w-[280px] rounded-lg border border-[var(--color-border-subtle)] bg-white/5 p-4">
+                  <div className="text-[var(--color-text-primary)] font-medium">sample thread</div>
+                  <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
                     1/ most people lose the reader before the idea shows up.
                   </p>
-                  <p className="mt-2 leading-relaxed">
+                  <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
                     2/ if your claim can’t survive one example, it’s not ready.
                   </p>
-                  <p className="mt-2 leading-relaxed">
+                  <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
                     3/ the draft isn’t the asset. the asset is the structure you reuse.
                   </p>
+                </div>
+
+                {/* Other features from repo */}
+                <div className="min-w-[280px] rounded-lg border border-[var(--color-border-subtle)] bg-white/5 p-4">
+                  <div className="text-[var(--color-text-primary)] font-medium">chrome extension reply agent</div>
+                  <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                    draft replies faster with your voice + saved examples.
+                  </p>
+                  <ul className="mt-3 space-y-1 text-sm text-[var(--color-text-secondary)]">
+                    <li>• one-click capture</li>
+                    <li>• guided reply structure</li>
+                    <li>• human approval</li>
+                  </ul>
+                </div>
+
+                <div className="min-w-[280px] rounded-lg border border-[var(--color-border-subtle)] bg-white/5 p-4">
+                  <div className="text-[var(--color-text-primary)] font-medium">insights + patterns</div>
+                  <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                    see what’s working and why — trend, not vanity metrics.
+                  </p>
+                  <ul className="mt-3 space-y-1 text-sm text-[var(--color-text-secondary)]">
+                    <li>• performance snapshot</li>
+                    <li>• pattern insights</li>
+                    <li>• best times</li>
+                  </ul>
+                </div>
+
+                <div className="min-w-[280px] rounded-lg border border-[var(--color-border-subtle)] bg-white/5 p-4">
+                  <div className="text-[var(--color-text-primary)] font-medium">voice memos → drafts</div>
+                  <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                    talk it out. we transcribe, extract the points, then draft.
+                  </p>
+                  <ul className="mt-3 space-y-1 text-sm text-[var(--color-text-secondary)]">
+                    <li>• fast capture</li>
+                    <li>• clean structure</li>
+                    <li>• edit + approve</li>
+                  </ul>
                 </div>
               </div>
             </div>
