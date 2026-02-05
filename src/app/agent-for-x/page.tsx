@@ -48,8 +48,18 @@ export default function AgentForXLanding() {
   return (
     // Render as a full-screen overlay so the landing does not inherit the app shell/sidebar visually.
     <div className="fixed inset-0 z-50 min-h-screen overflow-auto bg-[var(--color-bg-base)] text-[var(--color-text-primary)]">
-      <main className="mx-auto w-full max-w-6xl px-4 pb-14 pt-12 sm:px-6">
-        <section className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
+      <main className="relative mx-auto w-full max-w-6xl px-4 pb-14 pt-12 sm:px-6">
+        {/* Subtle personality: a single, controlled background accent (hero-only) */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-24 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full blur-3xl opacity-[0.14]"
+          style={{
+            background:
+              "radial-gradient(circle at 30% 30%, rgba(99,102,241,0.55), rgba(249,115,22,0.12), rgba(2,6,23,0) 70%)",
+          }}
+        />
+
+        <section className="relative grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-7">
             <h1 className="text-heading text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight leading-tight text-[var(--color-text-primary)]">
               agent for x
@@ -70,7 +80,7 @@ export default function AgentForXLanding() {
 
             <div className="mt-10">
               <div className="gradient-border">
-                <Card className="p-4 sm:p-5 glow-primary">
+                <Card className="p-4 sm:p-5 glow-primary transition-all duration-200 hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-elevated)]">
                   <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="text-sm font-semibold">join the waitlist</div>
