@@ -51,3 +51,6 @@ next-env.d.ts
 
 # chrome extension build output
 chrome-extension/dist/
+
+# debug files
+railway_error.md
