@@ -46,28 +46,15 @@ export default function AgentForXLanding() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-base)] text-[var(--color-text-primary)]">
-      <header className="mx-auto max-w-5xl px-6 pt-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-[var(--color-primary-500)]/15 border border-[var(--color-border-default)] flex items-center justify-center">
-              <span className="text-sm font-semibold text-[var(--color-primary-300)]">AX</span>
-            </div>
-            <div className="text-sm text-[var(--color-text-secondary)]">Agent for X</div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Link className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]" href="/login">
-              sign in
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-5xl px-6 pb-14 pt-12">
+    // Render as a full-screen overlay so the landing does not inherit the app shell/sidebar visually.
+    <div className="fixed inset-0 z-50 min-h-screen overflow-auto bg-[var(--color-bg-base)] text-[var(--color-text-primary)]">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-14 pt-12 sm:px-6">
         <section className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-7">
-            <h1 className="text-heading text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">
+            <div className="text-heading text-base sm:text-lg font-semibold text-[var(--color-text-primary)]">
+              agent for x
+            </div>
+            <h1 className="mt-3 text-heading text-4xl sm:text-5xl font-semibold tracking-tight leading-tight">
               turn long-form ideas into x posts that actually sound like you.
             </h1>
             <p className="mt-4 text-base text-[var(--color-text-secondary)] leading-relaxed max-w-xl">
@@ -181,14 +168,17 @@ export default function AgentForXLanding() {
         </section>
 
         <footer className="mt-14 border-t border-[var(--color-border-subtle)] pt-8 text-sm text-[var(--color-text-muted)]">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>© {new Date().getFullYear()} agent for x</div>
-            <div className="flex gap-4">
-              <Link className="hover:text-[var(--color-text-secondary)]" href="/agent-for-x/privacy">
+            <div className="flex flex-wrap gap-2">
+              <Link className="rounded-md px-3 py-2 hover:bg-white/5 hover:text-[var(--color-text-secondary)]" href="/agent-for-x/privacy">
                 privacy
               </Link>
-              <Link className="hover:text-[var(--color-text-secondary)]" href="/agent-for-x/terms">
+              <Link className="rounded-md px-3 py-2 hover:bg-white/5 hover:text-[var(--color-text-secondary)]" href="/agent-for-x/terms">
                 terms
+              </Link>
+              <Link className="rounded-md px-3 py-2 hover:bg-white/5 hover:text-[var(--color-text-secondary)]" href="/login">
+                sign in
               </Link>
             </div>
           </div>
