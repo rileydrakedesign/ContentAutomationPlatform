@@ -69,8 +69,9 @@ export default function AgentForXLanding() {
             </div>
 
             <div className="mt-10">
-              <Card className="p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-4">
+              <div className="gradient-border">
+                <Card className="p-4 sm:p-5 glow-primary">
+                  <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="text-sm font-semibold">join the waitlist</div>
                     <div className="mt-1 text-sm text-[var(--color-text-secondary)]">
@@ -103,6 +104,7 @@ export default function AgentForXLanding() {
                       type="submit"
                       size="lg"
                       glow
+                      className="sm:min-w-[160px]"
                       loading={status === "loading"}
                       disabled={!canSubmit || status === "loading"}
                     >
@@ -113,8 +115,13 @@ export default function AgentForXLanding() {
 
                 {error ? (
                   <div className="mt-2 text-xs text-[var(--color-danger-400)]">{error}</div>
-                ) : null}
+                ) : (
+                  <div className="mt-3 text-xs text-[var(--color-text-muted)]">
+                    private. no spam. easy unsubscribe.
+                  </div>
+                )}
               </Card>
+              </div>
             </div>
 
             <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
