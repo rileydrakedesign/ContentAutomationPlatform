@@ -2,13 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
-
-  // Public marketing pages should not require auth and should not require Supabase env vars.
-  if (pathname === "/agent-for-x" || pathname.startsWith("/agent-for-x/")) {
-    return NextResponse.next();
-  }
-
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -53,11 +46,13 @@ export async function middleware(request: NextRequest) {
   ];
 
   const isProtectedPath = protectedPaths.some(
-    (path) => pathname === path || pathname.startsWith(path + "/")
+    (path) =>
+      request.nextUrl.pathname === path ||
+      request.nextUrl.pathname.startsWith(path + "/")
   );
 
   // Also protect the dashboard (home page)
-  const isDashboard = pathname === "/";
+  const isDashboard = request.nextUrl.pathname === "/";
 
   if ((isProtectedPath || isDashboard) && !user) {
     const url = request.nextUrl.clone();

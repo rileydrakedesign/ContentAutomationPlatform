@@ -109,11 +109,13 @@ export default function AgentForXLanding() {
                       placeholder="you@domain.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="flex-1"
+                      className="flex-1 h-12"
                       aria-invalid={!!error}
                     />
                     <Button
                       type="submit"
+                      size="lg"
+                      glow
                       loading={status === "loading"}
                       disabled={!canSubmit || status === "loading"}
                     >

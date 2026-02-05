@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Space_Grotesk, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
-import { AppShell } from "@/components/shell/AppShell";
+import { SidebarProvider, Sidebar } from "@/components/sidebar";
 
 // Primary body font
 const dmSans = DM_Sans({
@@ -41,7 +41,14 @@ export default function RootLayout({
         className={`${dmSans.variable} ${spaceGrotesk.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
         <AuthProvider>
-          <AppShell>{children}</AppShell>
+          <SidebarProvider>
+            <div className="flex min-h-screen">
+              <Sidebar />
+              <main className="flex-1 px-6 py-8 overflow-auto">
+                <div className="max-w-5xl mx-auto">{children}</div>
+              </main>
+            </div>
+          </SidebarProvider>
         </AuthProvider>
       </body>
     </html>
