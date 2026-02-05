@@ -134,7 +134,7 @@ export default function AgentForXLanding() {
           </div>
 
           <div className="lg:col-span-5">
-            <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 sm:p-5">
+            <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 sm:p-5 h-full flex flex-col">
               <div className="flex items-baseline justify-between gap-4">
                 <div>
                   <div className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -147,7 +147,7 @@ export default function AgentForXLanding() {
                 <div className="text-xs text-[var(--color-text-muted)]">scroll →</div>
               </div>
 
-              <div className="mt-4 flex gap-3 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch]">
+              <div className="mt-4 flex-1 flex gap-3 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch]">
                 {/* Draft samples */}
                 <div className="min-w-[280px] rounded-lg border border-[var(--color-border-subtle)] bg-white/5 p-4">
                   <div className="text-[var(--color-text-primary)] font-medium">sample post</div>
