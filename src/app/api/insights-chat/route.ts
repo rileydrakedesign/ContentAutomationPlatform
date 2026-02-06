@@ -54,6 +54,29 @@ export async function POST(request: NextRequest) {
         .limit(30),
     ]);
 
+    // If any tables are missing (e.g. migrations not applied yet), respond gracefully.
+    const missingTables: string[] = [];
+    const errs = [
+      { name: "captured_posts", err: (bestTimesRes as any)?.error },
+      { name: "extracted_patterns", err: (patternsRes as any)?.error },
+      { name: "inspiration_posts", err: (inspirationsRes as any)?.error },
+    ];
+    for (const e of errs) {
+      const msg = String(e.err?.message || "");
+      if (msg.includes("Could not find the table") || e.err?.code === "PGRST205") {
+        missingTables.push(e.name);
+      }
+    }
+
+    if (missingTables.length > 0) {
+      return NextResponse.json({
+        answer:
+          `I can’t answer yet because your database is missing required tables: ${missingTables.join(", ")}.\n\n` +
+          `Next step: apply the Supabase migrations for this app, then retry.`,
+        sources_used: ["db: schema missing (apply migrations)"]
+      });
+    }
+
     // Build a compact “knowledge bundle” as markdown
     const sourcesMd: string[] = [];
 
