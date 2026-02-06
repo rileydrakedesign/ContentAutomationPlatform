@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BarChart2, PenSquare, Sliders } from "lucide-react";
+import { LayoutDashboard, BarChart2, PenSquare, Sliders, CalendarClock } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 
 const navLinks = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/insights", label: "Insights", icon: BarChart2 },
   { href: "/create", label: "Create", icon: PenSquare },
+  { href: "/queue", label: "Queue", icon: CalendarClock },
   { href: "/voice", label: "Voice", icon: Sliders },
 ];
 

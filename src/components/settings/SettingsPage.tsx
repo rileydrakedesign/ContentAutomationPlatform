@@ -20,6 +20,14 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [savingKeys, setSavingKeys] = useState(false);
+  const [byoConfigured, setByoConfigured] = useState<{
+    configured: boolean;
+    consumerKeyMasked?: string;
+    updatedAt?: string;
+  } | null>(null);
+  const [consumerKey, setConsumerKey] = useState("");
+  const [consumerSecret, setConsumerSecret] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Check for OAuth callback messages
@@ -36,6 +44,7 @@ export function SettingsPage() {
         invalid_state: "Invalid OAuth state - please try again",
         save_failed: "Failed to save connection",
         callback_failed: "OAuth callback failed",
+        missing_byo_keys: "Add your X API key + secret first",
       };
       setMessage({ type: "error", text: errorMessages[error] || "Connection failed" });
     }
@@ -43,9 +52,13 @@ export function SettingsPage() {
 
   async function fetchXStatus() {
     try {
-      const res = await fetch("/api/x/status");
-      const data = await res.json();
-      setXStatus(data);
+      const [xRes, byoRes] = await Promise.all([
+        fetch("/api/x/status"),
+        fetch("/api/x/byo/credentials"),
+      ]);
+      const [xData, byoData] = await Promise.all([xRes.json(), byoRes.json()]);
+      setXStatus(xData);
+      setByoConfigured(byoData);
     } catch (error) {
       console.error("Failed to fetch X status:", error);
     } finally {
@@ -62,13 +75,13 @@ export function SettingsPage() {
     setMessage(null);
 
     try {
-      const res = await fetch("/api/x/connect");
+      const res = await fetch("/api/x/byo/connect");
       const data = await res.json();
 
       if (data.url) {
         window.location.href = data.url;
       } else {
-        setMessage({ type: "error", text: "Failed to initiate connection" });
+        setMessage({ type: "error", text: data.error || "Failed to initiate connection" });
         setConnecting(false);
       }
     } catch (error) {
@@ -138,6 +151,79 @@ export function SettingsPage() {
       )}
 
       <div className="max-w-xl space-y-4">
+        {/* X API (BYO) */}
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-white">X API (Bring your own)</h2>
+            {byoConfigured?.configured && <Badge variant="success">Saved</Badge>}
+          </div>
+
+          <p className="text-sm text-slate-500 mb-4">
+            Paste your X app key + secret so publishing uses your own limits.
+          </p>
+
+          {byoConfigured?.configured && byoConfigured.consumerKeyMasked && (
+            <div className="text-xs text-slate-500 mb-3">
+              Current key: <span className="font-mono">{byoConfigured.consumerKeyMasked}</span>
+              {byoConfigured.updatedAt && (
+                <> · updated {formatRelativeTime(byoConfigured.updatedAt)}</>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">API key</label>
+              <input
+                value={consumerKey}
+                onChange={(e) => setConsumerKey(e.target.value)}
+                placeholder="Paste your X API key"
+                className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-700"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">API secret</label>
+              <input
+                value={consumerSecret}
+                onChange={(e) => setConsumerSecret(e.target.value)}
+                placeholder="Paste your X API secret"
+                type="password"
+                className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-700"
+              />
+            </div>
+            <button
+              onClick={async () => {
+                setSavingKeys(true);
+                setMessage(null);
+                try {
+                  const res = await fetch("/api/x/byo/credentials", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ consumerKey, consumerSecret }),
+                  });
+                  const data = await res.json();
+                  if (res.ok) {
+                    setConsumerKey("");
+                    setConsumerSecret("");
+                    setMessage({ type: "success", text: "X API credentials saved" });
+                    await fetchXStatus();
+                  } else {
+                    setMessage({ type: "error", text: data.error || "Failed to save" });
+                  }
+                } catch {
+                  setMessage({ type: "error", text: "Failed to save" });
+                } finally {
+                  setSavingKeys(false);
+                }
+              }}
+              disabled={savingKeys || !consumerKey.trim() || !consumerSecret.trim()}
+              className="w-full py-2.5 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-500 rounded text-sm transition"
+            >
+              {savingKeys ? "Saving..." : "Save API credentials"}
+            </button>
+          </div>
+        </Card>
+
         {/* X Connection */}
         <Card className="p-4">
           <div className="flex items-center justify-between mb-4">
@@ -186,12 +272,17 @@ export function SettingsPage() {
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-slate-500">
-                Connect your X account to automatically sync your posts and track their performance.
+                Connect your X account so we can publish and schedule posts on your behalf.
               </p>
+              {!byoConfigured?.configured && (
+                <p className="text-xs text-amber-400">
+                  Add your X API key + secret above first.
+                </p>
+              )}
 
               <button
                 onClick={connectX}
-                disabled={connecting}
+                disabled={connecting || !byoConfigured?.configured}
                 className="w-full py-3 bg-white text-slate-900 font-medium rounded-lg hover:bg-slate-200 disabled:opacity-50 transition flex items-center justify-center gap-2"
               >
                 {connecting ? (

@@ -89,12 +89,15 @@ function generateNonce(): string {
 }
 
 // Step 1: Get request token
-export async function getRequestToken(callbackUrl: string): Promise<{
+export async function getRequestToken(
+  callbackUrl: string,
+  overrides?: { apiKey?: string; apiSecret?: string }
+): Promise<{
   oauth_token: string;
   oauth_token_secret: string;
 }> {
-  const apiKey = process.env.X_API_KEY!;
-  const apiSecret = process.env.X_API_SECRET!;
+  const apiKey = overrides?.apiKey || process.env.X_API_KEY!;
+  const apiSecret = overrides?.apiSecret || process.env.X_API_SECRET!;
   const url = `${X_API_BASE}/oauth/request_token`;
 
   const oauthParams: Record<string, string> = {
@@ -144,15 +147,16 @@ export function getAuthorizationUrl(oauthToken: string): string {
 export async function getAccessToken(
   oauthToken: string,
   oauthTokenSecret: string,
-  oauthVerifier: string
+  oauthVerifier: string,
+  overrides?: { apiKey?: string; apiSecret?: string }
 ): Promise<{
   oauth_token: string;
   oauth_token_secret: string;
   user_id: string;
   screen_name: string;
 }> {
-  const apiKey = process.env.X_API_KEY!;
-  const apiSecret = process.env.X_API_SECRET!;
+  const apiKey = overrides?.apiKey || process.env.X_API_KEY!;
+  const apiSecret = overrides?.apiSecret || process.env.X_API_SECRET!;
   const url = `${X_API_BASE}/oauth/access_token`;
 
   const oauthParams: Record<string, string> = {
@@ -203,10 +207,11 @@ async function makeAuthenticatedRequest(
   url: string,
   accessToken: string,
   accessTokenSecret: string,
-  queryParams: Record<string, string> = {}
+  queryParams: Record<string, string> = {},
+  overrides?: { apiKey?: string; apiSecret?: string }
 ): Promise<Response> {
-  const apiKey = process.env.X_API_KEY!;
-  const apiSecret = process.env.X_API_SECRET!;
+  const apiKey = overrides?.apiKey || process.env.X_API_KEY!;
+  const apiSecret = overrides?.apiSecret || process.env.X_API_SECRET!;
 
   const oauthParams: Record<string, string> = {
     oauth_consumer_key: apiKey,
@@ -323,6 +328,45 @@ export async function getTweet(
   if (!response.ok) {
     const text = await response.text();
     throw new Error(`Failed to get tweet: ${text}`);
+  }
+
+  return response.json();
+}
+
+// Post a tweet (or reply) using OAuth 1.0a (v1.1)
+export async function postTweet(
+  accessToken: string,
+  accessTokenSecret: string,
+  status: string,
+  options?: {
+    inReplyToStatusId?: string;
+    apiKey?: string;
+    apiSecret?: string;
+  }
+): Promise<{ id_str: string }> {
+  const url = `${X_API_BASE}/1.1/statuses/update.json`;
+
+  const queryParams: Record<string, string> = {
+    status,
+  };
+
+  if (options?.inReplyToStatusId) {
+    queryParams.in_reply_to_status_id = options.inReplyToStatusId;
+    queryParams.auto_populate_reply_metadata = "true";
+  }
+
+  const response = await makeAuthenticatedRequest(
+    "POST",
+    url,
+    accessToken,
+    accessTokenSecret,
+    queryParams,
+    { apiKey: options?.apiKey, apiSecret: options?.apiSecret }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to post tweet: ${text}`);
   }
 
   return response.json();

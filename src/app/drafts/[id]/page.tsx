@@ -168,6 +168,9 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
   const [editedContent, setEditedContent] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState<string>("");
+  const [publishMessage, setPublishMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchDraft() {
@@ -215,6 +218,74 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
       }
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function publishNow() {
+    if (!draft || !editedContent) return;
+    if (draft.type !== "X_POST" && draft.type !== "X_THREAD") return;
+
+    setPublishing(true);
+    setPublishMessage(null);
+
+    try {
+      const res = await fetch("/api/publish/now", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contentType: draft.type,
+          payload: editedContent,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setPublishMessage(`Posted (${(data.postedIds || []).length} item${(data.postedIds || []).length === 1 ? "" : "s"}).`);
+      } else {
+        setPublishMessage(data.error || "Failed to publish");
+      }
+    } catch {
+      setPublishMessage("Failed to publish");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  async function schedulePublish() {
+    if (!draft || !editedContent) return;
+    if (draft.type !== "X_POST" && draft.type !== "X_THREAD") return;
+
+    if (!scheduleAt) {
+      setPublishMessage("Pick a schedule time");
+      return;
+    }
+
+    setPublishing(true);
+    setPublishMessage(null);
+
+    try {
+      const res = await fetch("/api/publish/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftId: draft.id,
+          contentType: draft.type,
+          payload: editedContent,
+          scheduledFor: new Date(scheduleAt).toISOString(),
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setPublishMessage("Scheduled.");
+        setScheduleAt("");
+      } else {
+        setPublishMessage(data.error || "Failed to schedule");
+      }
+    } catch {
+      setPublishMessage("Failed to schedule");
+    } finally {
+      setPublishing(false);
     }
   }
 
@@ -313,6 +384,51 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
           </button>
         </div>
       </div>
+
+      {(draft.type === "X_POST" || draft.type === "X_THREAD") && (
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <h2 className="text-sm font-semibold mb-3">Publish</h2>
+
+          {publishMessage && (
+            <div className="mb-3 text-sm text-slate-300">
+              {publishMessage}
+            </div>
+          )}
+
+          <div className="flex flex-col md:flex-row gap-3 md:items-end md:justify-between">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-slate-400">Schedule time</label>
+              <input
+                type="datetime-local"
+                value={scheduleAt}
+                onChange={(e) => setScheduleAt(e.target.value)}
+                className="bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-white"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={publishNow}
+                disabled={publishing}
+                className="px-4 py-2 bg-white text-slate-900 rounded-md text-sm font-medium hover:bg-slate-200 disabled:opacity-60"
+              >
+                {publishing ? "Working..." : "Post now"}
+              </button>
+              <button
+                onClick={schedulePublish}
+                disabled={publishing || !scheduleAt}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 disabled:text-slate-500 rounded-md text-sm font-medium transition"
+              >
+                Schedule
+              </button>
+            </div>
+          </div>
+
+          <p className="mt-3 text-xs text-slate-500">
+            Requires: X connected + BYO X API credentials saved.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
