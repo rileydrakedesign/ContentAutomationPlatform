@@ -6,6 +6,7 @@ import { PerformanceTab } from "./PerformanceTab";
 import { PatternsTab } from "./PatternsTab";
 import { SuggestionsTab } from "./SuggestionsTab";
 import { BestTimesSection } from "./BestTimesSection";
+import { AssistantTab } from "./AssistantTab";
 
 export function InsightsPage() {
   const searchParams = useSearchParams();
@@ -25,6 +26,7 @@ export function InsightsPage() {
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="patterns">Patterns</TabsTrigger>
           <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
+          <TabsTrigger value="assistant">Assistant</TabsTrigger>
         </TabsList>
 
         <TabsContent value="performance">
@@ -40,6 +42,10 @@ export function InsightsPage() {
 
         <TabsContent value="suggestions">
           <SuggestionsTab />
+        </TabsContent>
+
+        <TabsContent value="assistant">
+          <AssistantTab />
         </TabsContent>
       </Tabs>
     </div>
