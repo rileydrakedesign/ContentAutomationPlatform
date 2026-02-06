@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("scheduled_posts")
-      .select("id, content_type, scheduled_for, status, posted_post_ids, error, created_at")
+      .select("id, content_type, scheduled_for, status, posted_post_ids, error, job_id, created_at")
       .eq("user_id", user.id)
       .order("scheduled_for", { ascending: true })
       .limit(Math.min(200, Math.max(1, limit)));
