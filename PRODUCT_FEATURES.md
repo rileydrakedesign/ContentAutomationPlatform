@@ -1,273 +1,229 @@
-# Product Features (Current) — ContentAutomationPlatform ("Agent for X")
+# Product Features (Current) — ContentAutomationPlatform (Agent for X)
 
-> Goal of this document: **document every currently-implemented feature**, why it exists, and **rank it by importance to our Ideal Customer Profile (ICP)**.
->
-> Source of truth: the repo’s code + `project.md` (MVP rules) + `IMPLEMENTATION.md`.
+This is an **implementation-based** feature inventory.
 
----
-
-## 0) Ideal Customer Profile (ICP) used for ranking
-
-**ICP (current, per `project.md`):** a **single creator / indie builder** who posts on **X** (and optionally IG Reels) about **software dev / AI / building in public**, wants a repeatable workflow for:
-
-- turning raw inputs (voice memos, notes, inspirations) into **drafts that sound like them**
-- improving quality/consistency using **patterns from their own winners**
-- staying **human-in-the-loop** (review + approve), not autoposting
-
-If you want a different ICP (e.g., ghostwriters, agencies, B2B founders), tell me—this ranking will change.
+- I derived this from the **actual code paths** in `src/` and `chrome-extension/`.
+- I am *not* using repo docs as the source of truth for what’s “in” or “out” (except to clarify naming).
 
 ---
 
-## 1) Ranking scale
+## ICP assumption used for ranking (you can override)
 
-- **P0 (must-have):** core “idea → draft” loop; without it the product fails.
-- **P1 (high):** strong leverage for quality/speed/consistency; major retention driver.
-- **P2 (medium):** helpful support features; not a primary purchase driver.
-- **P3 (low):** nice-to-have / admin / future wedge.
+**ICP (as you just clarified):** an X power-user who spends most of their time **inside X**, wants to:
+
+- save inspiration posts *in the moment* (browser → one click)
+- generate high-quality, on-voice **replies** quickly (reply agent)
+- maintain a **voice system** (examples + settings) so outputs stay consistent
 
 ---
 
-## 2) Feature inventory (ranked, most → least important)
+## Ranking scale
 
-### 1) Voice memo / raw idea ingestion (text transcript) — **P0**
-**What:** paste a transcript/idea and save it as a `source`.
+- **P0:** the product’s core wedge / daily driver
+- **P1:** major leverage; strong retention driver
+- **P2:** useful support; not the primary reason they buy
+- **P3:** nice-to-have / legacy / incomplete / not aligned to current ICP
 
-**Why it exists:** this is the **highest-frequency input** for the ICP (daily idea capture). It anchors the system in user-owned raw material.
+---
+
+## Feature inventory (ranked: most → least important)
+
+## 1) Chrome extension: save posts to your pipeline (one-click) — **P0**
+**What it does:** injects a “save” button on X posts; saves the post (URL, author, text, metrics, timestamp) into your backend via `/api/capture`.
+
+**Why it exists (product reason):** the main workflow happens *where the user already is* (X). Capturing inspiration in-context beats any separate “library” UI.
 
 **Where in code:**
-- UI: `src/components/create/NewDraftForm.tsx` (transcript submit)
-- API: `src/app/api/sources/transcript/route.ts`
-- DB: `sources` table (see `IMPLEMENTATION.md`)
+- Extension content script UI injection + extraction: `chrome-extension/src/content/content.js`
+- Extension background API call: `chrome-extension/src/background/background.js` (`SAVE_POST` → `/api/capture`)
+- Server capture endpoint: `src/app/api/capture/route.ts`
+
+**Notes:**
+- Duplicate prevention: server returns `409` and extension treats it as `DUPLICATE`.
+- Handles auth via Bearer token (extension-managed).
 
 ---
 
-### 2) Draft generation from voice memo/source(s) (X post / X thread) — **P0**
-**What:** generate `X_POST` or `X_THREAD` from one or more sources.
+## 2) Chrome extension: AI reply agent (tone picker + inject into composer) — **P0**
+**What it does:** injects a reply button (split button + tone dropdown). On click, it:
+1) extracts rich context (parent post, quoted tweet, link card, media alt) from the DOM
+2) calls backend `/api/generate-reply`
+3) displays 3 reply options (with “approach” labels)
+4) on “Use this reply”, opens X reply composer and injects the reply text
 
-**Why:** core value: convert messy thoughts into publishable writing.
+**Why it exists:** this is the highest-frequency value loop for growth: **engage faster, with higher quality, in your voice**.
 
-**Where:**
-- API: `src/app/api/drafts/generate/route.ts`
-- Core gen: `src/lib/openai/generate.ts`, `src/lib/openai/router.ts`, `src/lib/openai/analyzer.ts`
-- Draft editor page: `src/app/drafts/[id]/page.tsx`
+**Where in code:**
+- Extension reply UI + tone picker + composer injection: `chrome-extension/src/content/content.js`
+- Background worker: `chrome-extension/src/background/background.js` (`GENERATE_REPLY` → `/api/generate-reply`)
+- Server endpoint: `src/app/api/generate-reply/route.ts`
+- Reply prompt + personalization: `src/lib/openai/prompts/reply-prompt`, `src/lib/openai/prompts/prompt-assembler` (assembled per-user)
 
-Notes:
-- Supports **legacy pipeline** + **enhanced voice memo pipeline** (`generateFromVoiceMemo`) with fallback for “fragment content”.
-
----
-
-### 3) Human-in-the-loop draft review/edit + status lifecycle — **P0**
-**What:** drafts are created with status `GENERATED`, editable, then can be approved/rejected.
-
-**Why:** explicitly required by `project.md` (no autonomous posting; approval is explicit).
-
-**Where:**
-- Draft editor: `src/app/drafts/[id]/page.tsx`
-- Drafts API: `src/app/api/drafts/[id]/route.ts` (GET/PATCH/DELETE)
-- Draft list: `src/components/create/DraftsList.tsx`
+**Tones implemented (extension → server):** controversial, sarcastic, helpful, insight, enthusiastic.
 
 ---
 
-### 4) X connection (OAuth) + syncing your posts into the product — **P0/P1**
-**What:** connect your X account and sync your tweets into the app.
+## 3) Voice system (settings + examples) powering generation (especially replies) — **P0**
+**What it does:** lets you store/manage voice settings and example posts; the backend assembles a personalized system prompt for reply generation.
 
-**Why:** enables performance snapshot + pattern extraction. It makes the system self-improving using **your real winners**.
+**Why it exists:** “sounds like me” is the compounding advantage—otherwise replies feel generic and users churn.
 
-**Where:**
-- OAuth flow: `src/app/api/x/connect/route.ts`, `src/app/api/x/callback/route.ts`, `src/lib/x-api/client.ts`
-- Status/disconnect: `src/app/api/x/status/route.ts`
-- Sync trigger: `src/app/api/x/sync/route.ts`
-- UI: `src/components/settings/SettingsPage.tsx`, Dashboard `src/components/home/HomePage.tsx`
+**Where in code:**
+- Voice UI: `src/app/voice/page.tsx`, `src/components/voice/*`
+- Voice settings API: `src/app/api/voice/settings/route.ts`
+- Voice examples CRUD: `src/app/api/voice/examples/*`
+- Prompt preview + preview generation:
+  - `src/app/api/voice/prompt-preview/route.ts`
+  - `src/app/api/voice/preview/route.ts`
+- Reply generation uses assembled prompt: `src/app/api/generate-reply/route.ts`
 
 ---
 
-### 5) Captured posts system (your posts + inbox triage) — **P1**
-**What:** store posts (captured/synced) with metrics and triage labels.
+## 4) Chrome extension auth + API token refresh (so extension can act on your behalf) — **P1**
+**What it does:** extension stores `authToken` + `refreshToken`, automatically refreshes on 401, and then retries requests.
 
-**Why:** creates a durable dataset for insights and pattern learning; enables “my posts” vs “inspiration” separation.
+**Why it exists:** makes the “in-X” workflow durable. Users won’t tolerate logging in repeatedly.
 
-**Where:**
-- List: `src/app/api/captured/route.ts`
-- Single update/delete: `src/app/api/captured/[id]/route.ts`
-- Promote to inspiration: `src/app/api/captured/[id]/promote/route.ts`
+**Where in code:**
+- Extension token handling: `chrome-extension/src/background/background.js`
+- Server auth endpoints:
+  - `src/app/api/auth/login/route.ts`
+  - `src/app/api/auth/refresh/route.ts`
+
+---
+
+## 5) Chrome extension: niche account watch + niche post saving — **P1/P2**
+**What it does:**
+- “Watch” an account (store it) for later analysis
+- Save niche posts into a niche dataset (for benchmarking/patterns)
+
+**Why it exists:** lets users build a controlled “reference set” of what works in their niche.
+
+**Where in code:**
+- Extension UI + storage: `chrome-extension/src/content/content.js`
+- Background calls:
+  - `WATCH_ACCOUNT` → `/api/niche-accounts`
+  - niche save → `/api/niche-posts`
+- Server endpoints:
+  - `src/app/api/niche-accounts/*`
+  - `src/app/api/niche-posts/*`
+
+---
+
+## 6) Chrome extension: opportunity scoring overlay — **P2**
+**What it does:** calculates an “opportunity score” for posts (based on views/velocity or engagement proxy + age + reply competition) and can show UI affordances (pill/border) to guide where to engage.
+
+**Why it exists:** helps prioritize where a reply is most worth writing.
+
+**Where in code:**
+- Scoring logic + settings loaded from `chrome.storage`: `chrome-extension/src/content/content.js` (look for `oppSettings`, `calculateOpportunityScore`, `normalizeScore`)
+
+---
+
+## 7) Captured posts library + triage primitives (backend + UI) — **P2**
+**What it does:** stores captured posts, supports listing/filtering, updating triage fields, deleting, and promoting a captured post to inspiration.
+
+**Why it exists:** once posts are captured, you need a durable place to review and curate.
+
+**Where in code:**
+- API:
+  - list: `src/app/api/captured/route.ts`
+  - get/update/delete: `src/app/api/captured/[id]/route.ts`
+  - promote: `src/app/api/captured/[id]/promote/route.ts`
 - UI:
-  - Dashboard recent posts: `src/components/home/HomePage.tsx`
-  - Library: `src/components/library/LibraryPage.tsx`
-  - Insights tabs: `src/components/insights/*`
+  - library: `src/app/library/page.tsx`, `src/components/library/*`
 
 ---
 
-### 6) Pattern extraction from top posts (and niche posts) — **P1**
-**What:** extract reusable patterns (hook styles, formats, timing, topics, engagement triggers) using OpenAI.
+## 8) Pattern extraction + pattern controls + suggestions — **P2**
+**What it does:** analyzes your posts + niche posts to extract patterns (hook styles, formats, timing, topics, engagement triggers), stores them, lets you enable/disable, and generates suggestions.
 
-**Why:** this is the “content optimization” lever: it turns performance history into actionable writing constraints.
+**Why it exists:** helps the system learn “what works” and turn that into constraints.
 
-**Where:**
-- Extract endpoint: `src/app/api/patterns/extract/route.ts`
-- Pattern list/update/delete: `src/app/api/patterns/route.ts`, `src/app/api/patterns/[id]/route.ts`
+**Where in code:**
+- Extract: `src/app/api/patterns/extract/route.ts`
+- CRUD: `src/app/api/patterns/route.ts`, `src/app/api/patterns/[id]/route.ts`
 - Suggestions: `src/app/api/patterns/suggestions/route.ts`
-- UI: `src/components/insights/PatternsTab.tsx`, `src/components/home/PatternInsightsSection.tsx`, `src/components/voice/PatternControlsTab.tsx`
+- UI: `src/components/insights/*`, `src/components/voice/PatternControlsTab.tsx`
 
 ---
 
-### 7) “Create from topic + patterns” (fast generation without sourcing flow) — **P1**
-**What:** enter a topic, select patterns, generate 3 options.
+## 9) X connection + sync (OAuth 1.0a) — **P2**
+**What it does:** connects an X account, verifies status, and can sync a user timeline into the product.
 
-**Why:** fast daily usage loop when you don’t have a transcript; supports “ship something today.”
+**Why it exists:** alternative/backup to extension-capture for building your dataset.
 
-**Where:**
-- UI: `src/components/create/CreatePage.tsx`
+**Where in code:**
+- OAuth + API client: `src/lib/x-api/*`
+- Endpoints: `src/app/api/x/connect`, `/callback`, `/status`, `/sync`
+- UI: `src/components/settings/SettingsPage.tsx`
+
+---
+
+## 10) Analytics ingestion helpers (CSV upload, analytics sync) + best-times view — **P3**
+**What it does:** endpoints exist to sync analytics data and compute best posting times; UI components show best-times sections.
+
+**Where in code:**
+- Analytics sync: `src/app/api/x/analytics-sync/route.ts`
+- CSV upload: `src/app/api/voice/csv-upload/route.ts`
+- Best-times API: `src/app/api/analytics/best-times/route.ts`
+- UI: `src/components/analytics/BestTimesToPost.tsx`, insights tabs
+
+---
+
+## 11) “Create” page: draft generation (topic → drafts) — **P3**
+**What it does:** UI exists to generate `X_POST`/`X_THREAD` drafts from a topic and selected patterns.
+
+**Why it’s lower now:** it’s outside the extension-first loop you described, but still useful as a fallback.
+
+**Where in code:**
+- UI: `src/app/create/page.tsx`, `src/components/create/CreatePage.tsx`
 - API: `src/app/api/drafts/generate-from-topic/route.ts`
 
 ---
 
-### 8) Inspiration library (style references) — **P1/P2**
-**What:** store inspiration posts and optionally apply them as style guidance during generation.
+## 12) Voice memo transcript ingestion + draft generation from sources — **P3 (deprioritized/legacy)**
+**What it does (still implemented):** you can submit a transcript or upload audio as a source and generate drafts from it.
 
-**Why:** helps mimic pacing/hooks/structure without copying; reduces blank-page anxiety.
+**Why it’s ranked low:** you told me this workflow has been ditched. I’m leaving it documented because it is currently in the codebase and can confuse scope if undocumented.
 
-**Where:**
-- Inspiration API: `src/app/api/inspiration/route.ts`, `src/app/api/inspiration/[id]/route.ts`
-- Voice inspiration API (separate namespace): `src/app/api/voice/inspiration/*`
-- Style prompt assembly: `buildStylePrompt(...)` in `src/lib/openai/*` (wired in `drafts/generate`)
-- UI: `src/components/create/StyleSelector.tsx`, `src/components/voice/InspirationTab.tsx`
+**Where in code:**
+- UI: `src/components/create/NewDraftForm.tsx` (transcript + audio)
+- APIs: `src/app/api/sources/*`, `src/app/api/drafts/generate/route.ts`
 
 ---
 
-### 9) Voice/Profile tuning (dials, examples, guardrails, preview) — **P1**
-**What:** manage “voice settings” + pinned examples; preview outputs using current settings.
+## 13) Agent for X waitlist landing page — **P3**
+**What it does:** a marketing page + dev-friendly waitlist endpoint.
 
-**Why:** biggest retention driver for creators: “it sounds like me.”
-
-**Where:**
-- Voice UI: `src/components/voice/VoicePage.tsx` and tabs under `src/components/voice/*`
-- Settings API: `src/app/api/voice/settings/route.ts`
-- Examples CRUD: `src/app/api/voice/examples/*`
-- Prompt preview: `src/app/api/voice/prompt-preview/route.ts`
-- Preview generation: `src/app/api/voice/preview/route.ts`
+**Where in code:**
+- UI: `src/app/agent-for-x/*`
+- API: `src/app/api/waitlist/route.ts`
 
 ---
 
-### 10) Analytics: best times to post (from captured metrics) — **P2**
-**What:** compute “best times” recommendations.
+## Cross-cutting foundations (required for everything above)
 
-**Why:** useful, but secondary to writing quality + distribution.
-
-**Where:**
-- API: `src/app/api/analytics/best-times/route.ts`
-- UI: `src/components/analytics/BestTimesToPost.tsx`, `src/components/insights/BestTimesSection.tsx`
-
----
-
-### 11) Niche accounts + niche posts (benchmark dataset) — **P2**
-**What:** track accounts/posts in your niche; use them for pattern comparisons.
-
-**Why:** helps creators learn what works in-category; not always necessary early.
-
-**Where:**
-- API: `src/app/api/niche-accounts/*`, `src/app/api/niche-posts/*`
-- UI: `src/components/voice/NicheAccountsTab.tsx`
-
----
-
-### 12) Generate-reply (AI replies to a post) — **P2**
-**What:** generate reply options to a post.
-
-**Why:** supports engagement/distribution behavior (“reply guy” strategy), but still optional.
-
-**Where:**
-- API: `src/app/api/generate-reply/route.ts`
-
----
-
-### 13) Chrome extension capture pipeline — **P2**
-**What:** extension sends captured posts into the app; supports bearer-token auth.
-
-**Why:** makes “capture inspiration / capture my posts” frictionless.
-
-**Where:**
-- Capture endpoint: `src/app/api/capture/route.ts`
-- Extension code: `chrome-extension/`
-- Extension auth endpoints: `src/app/api/auth/login/route.ts`, `src/app/api/auth/refresh/route.ts`
-
----
-
-### 14) X analytics sync via browser scraping / CSV ingestion — **P2/P3**
-**What:** bring richer analytics via scraping or CSV upload.
-
-**Why:** increases accuracy of “what worked” but not needed for MVP writing loop.
-
-**Where:**
-- API: `src/app/api/x/analytics-sync/route.ts`
-- CSV upload: `src/app/api/voice/csv-upload/route.ts`
-
----
-
-### 15) Source preprocessing helpers — **P3**
-**What:** preprocess transcripts/inputs before generation.
-
-**Why:** quality improvement; mostly invisible.
-
-**Where:**
-- API: `src/app/api/sources/preprocess/route.ts`
-- Core: `src/lib/openai/preprocessor.ts`
-
----
-
-### 16) Voice memo audio upload to Supabase storage — **P3 (currently constrained)**
-**What:** upload audio files.
-
-**Why:** enables direct capture from phone, but the repo’s docs suggest Apple transcription is the current preferred path.
-
-**Where:**
-- API: `src/app/api/sources/voice-memo/route.ts`
-- Storage helpers: `src/lib/supabase/storage.ts`
-
----
-
-### 17) Waitlist landing page for Agent for X — **P3**
-**What:** marketing route with email capture.
-
-**Why:** top-of-funnel, not product value.
-
-**Where:**
-- UI: `src/app/agent-for-x/page.tsx` (+ `/privacy`, `/terms`)
-- API: `src/app/api/waitlist/route.ts` (dev-friendly append)
-
----
-
-## 3) Cross-cutting “foundational” features (not ranked, but required)
-
-### Authentication (Supabase)
-**What:** login/signup, protected routes.
-
-**Where:**
+### A) Supabase auth + route protection
 - Middleware gate: `src/middleware.ts`
-- Client auth: `src/components/auth/AuthProvider.tsx`
-- Login/signup pages: `src/app/login/page.tsx`, `src/app/signup/page.tsx`
+- Client auth context: `src/components/auth/AuthProvider.tsx`
 
-### Environment health check
-**What:** confirms which env vars exist (no values).
+### B) CORS handling for extension endpoints
+- `src/lib/cors.ts` (used by `/api/capture`, `/api/generate-reply`, etc.)
 
-**Where:** `src/app/api/health/route.ts`
-
----
-
-## 4) Not implemented (explicitly deferred / partially present)
-
-Per `project.md` + `IMPLEMENTATION.md`:
-- Autoposting (explicit non-goal)
-- Multi-user org features (explicit non-goal)
-- Heavy analytics/engagement scoring (out of MVP)
-- Background jobs (BullMQ/Redis installed but not fully used)
-- Drizzle DB access (schema exists, but Supabase JS is primary)
+### C) AI provider abstraction
+- `src/lib/ai/*` (reply generation uses `createChatCompletion`)
 
 ---
 
-## 5) Open questions (to refine ranking)
+## What I need from you to finalize the “importance ranking” correctly
 
-1) Is the ICP **still a single creator** (builder-first), or are we pivoting toward **ghostwriters/agencies**?
-2) Is “distribution automation” (DM/reply loops, scheduling) in-scope now? (`project.md` currently says no autoposting.)
-3) What is the primary output we’re selling next: **before/after writing quality** or **distribution loop**?
+1) **Define ICP precisely** (choose one):
+   - (a) growth-focused solo creator
+   - (b) founder doing distribution
+   - (c) ghostwriter
+   - (d) agency
 
-If you answer those, I’ll re-rank with more precision and translate this into an execution roadmap.
+2) Confirm: is the primary paid value **(1) reply agent** or **(2) full post drafting**?
+
+If you answer those, I can tighten the ranking and translate it into a roadmap + metrics (without changing any code yet).
