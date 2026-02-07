@@ -82,17 +82,85 @@ export function AssistantTab() {
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
-              onClick={() => ask("when is the best time for me to post?")}
+              onClick={async () => {
+                setHistory((h) => [...h, { role: "user", content: "show my best times to post" }]);
+                setLoading(true);
+                try {
+                  const res = await fetch("/api/analytics/best-times");
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error || "failed");
+
+                  if (!data?.hasEnoughData) {
+                    setHistory((h) => [...h, { role: "assistant", content: `Not enough data yet. Posts analyzed: ${data?.totalPostsAnalyzed || 0}.` }]);
+                  } else {
+                    const top = (data.bestTimes || []).slice(0, 3);
+                    const lines = top.map((t: any, i: number) => `${i + 1}) ${t.dayName} ${t.timeDisplay} (${t.confidence}) — avg ${t.avgEngagement}`);
+                    setHistory((h) => [...h, { role: "assistant", content: `Best times (top 3):\n${lines.join("\n")}` }]);
+                  }
+                } catch {
+                  setHistory((h) => [...h, { role: "assistant", content: "Couldn’t load best-times." }]);
+                } finally {
+                  setLoading(false);
+                }
+              }}
               className="text-xs px-2.5 py-1 rounded-full bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-strong)] border border-[var(--color-border-default)]"
             >
-              best time to post
+              best times (deterministic)
             </button>
+
             <button
-              onClick={() => ask("what patterns are working for me right now?")}
+              onClick={async () => {
+                setHistory((h) => [...h, { role: "user", content: "show my top enabled patterns" }]);
+                setLoading(true);
+                try {
+                  const res = await fetch("/api/patterns");
+                  const data = await res.json();
+                  const patterns = Array.isArray(data.patterns) ? data.patterns : [];
+                  const enabled = patterns.filter((p: any) => p.is_enabled);
+                  const top = enabled.sort((a: any, b: any) => (b.multiplier || 1) - (a.multiplier || 1)).slice(0, 5);
+                  if (top.length === 0) {
+                    setHistory((h) => [...h, { role: "assistant", content: "No enabled patterns yet. Extract patterns first." }]);
+                  } else {
+                    const lines = top.map((p: any) => `- [${p.pattern_type}] ${p.pattern_name} (x${(p.multiplier || 1).toFixed(2)})`);
+                    setHistory((h) => [...h, { role: "assistant", content: `Top enabled patterns:\n${lines.join("\n")}` }]);
+                  }
+                } catch {
+                  setHistory((h) => [...h, { role: "assistant", content: "Couldn’t load patterns." }]);
+                } finally {
+                  setLoading(false);
+                }
+              }}
               className="text-xs px-2.5 py-1 rounded-full bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-strong)] border border-[var(--color-border-default)]"
             >
-              what patterns work
+              top patterns (deterministic)
             </button>
+
+            <button
+              onClick={async () => {
+                setHistory((h) => [...h, { role: "user", content: "what should i do next" }]);
+                setLoading(true);
+                try {
+                  const res = await fetch("/api/patterns/suggestions");
+                  const data = await res.json();
+                  const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+                  const top = suggestions.slice(0, 5);
+                  if (top.length === 0) {
+                    setHistory((h) => [...h, { role: "assistant", content: "No suggestions yet." }]);
+                  } else {
+                    const lines = top.map((s: any) => `- ${s.title} (${s.impact})`);
+                    setHistory((h) => [...h, { role: "assistant", content: `Next actions:\n${lines.join("\n")}` }]);
+                  }
+                } catch {
+                  setHistory((h) => [...h, { role: "assistant", content: "Couldn’t load suggestions." }]);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="text-xs px-2.5 py-1 rounded-full bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-strong)] border border-[var(--color-border-default)]"
+            >
+              next actions (deterministic)
+            </button>
+
             <button
               onClick={() => ask("summarize my last 20 inspirations and what they have in common")}
               className="text-xs px-2.5 py-1 rounded-full bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-strong)] border border-[var(--color-border-default)]"
