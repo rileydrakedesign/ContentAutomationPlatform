@@ -232,12 +232,14 @@ export function BestTimesSection() {
         <span className="text-white">{topTimesSummary}</span>
       </div>
 
-      {/* Heatmap */}
+      {/* Heatmap (collapsible) */}
       {analytics.heatmapData.length > 0 && (
-        <div className="pt-4 border-t border-slate-800">
-          <h3 className="text-sm font-medium text-slate-400 mb-2">Engagement Heatmap</h3>
+        <details className="pt-4 border-t border-slate-800">
+          <summary className="text-sm font-medium text-slate-400 mb-2 cursor-pointer select-none">
+            Engagement heatmap
+          </summary>
           <HeatmapGrid data={analytics.heatmapData} />
-        </div>
+        </details>
       )}
     </div>
   );

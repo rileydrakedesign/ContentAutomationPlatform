@@ -93,43 +93,52 @@ export function SuggestionsTab() {
     );
   }
 
+  const topSuggestions = suggestions.slice(0, 5);
+
+  const focus = stats
+    ? {
+        title: "This week’s focus",
+        body:
+          stats.postsAnalyzed < 5
+            ? "Capture more of your own posts (with timestamps) so best-times and patterns become reliable."
+            : stats.totalPatterns === 0
+              ? "Extract patterns, then write 3 posts that deliberately use the top hook + format patterns."
+              : "Ship 3 posts at your best-times using 1–2 enabled patterns. Keep it tight and repeatable.",
+      }
+    : null;
+
   return (
     <div className="space-y-6">
-      {/* Stats Overview */}
+      {/* Condensed stats */}
       {stats && (
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Card className="p-4">
-            <p className="text-xs text-slate-500 uppercase mb-1">Patterns Active</p>
-            <p className="text-2xl font-semibold text-white font-mono">
-              {stats.totalPatterns}
-            </p>
+            <p className="text-xs text-slate-500 uppercase mb-1">Patterns enabled</p>
+            <p className="text-2xl font-semibold text-white font-mono">{stats.totalPatterns}</p>
           </Card>
           <Card className="p-4">
-            <p className="text-xs text-slate-500 uppercase mb-1">Posts Analyzed</p>
-            <p className="text-2xl font-semibold text-white font-mono">
-              {stats.postsAnalyzed}
-            </p>
+            <p className="text-xs text-slate-500 uppercase mb-1">Posts analyzed</p>
+            <p className="text-2xl font-semibold text-white font-mono">{stats.postsAnalyzed}</p>
           </Card>
           <Card className="p-4">
-            <p className="text-xs text-slate-500 uppercase mb-1">Avg Views</p>
-            <p className="text-2xl font-semibold text-white font-mono">
-              {stats.avgViews.toLocaleString()}
-            </p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs text-slate-500 uppercase mb-1">Avg Likes</p>
-            <p className="text-2xl font-semibold text-white font-mono">
-              {stats.avgLikes}
-            </p>
+            <p className="text-xs text-slate-500 uppercase mb-1">Avg views</p>
+            <p className="text-2xl font-semibold text-white font-mono">{stats.avgViews.toLocaleString()}</p>
           </Card>
         </div>
       )}
 
+      {focus && (
+        <Card className="p-6 bg-slate-900/50">
+          <h3 className="font-medium text-white mb-2">{focus.title}</h3>
+          <p className="text-sm text-slate-400">{focus.body}</p>
+        </Card>
+      )}
+
       {/* Suggestions */}
       <div>
-        <h3 className="font-medium text-white mb-4">Recommended Actions</h3>
+        <h3 className="font-medium text-white mb-4">Recommended actions</h3>
         <div className="space-y-4">
-          {suggestions.map((suggestion) => (
+          {topSuggestions.map((suggestion) => (
             <Card
               key={suggestion.id}
               className={`p-6 border ${SUGGESTION_COLORS[suggestion.type]}`}
@@ -139,11 +148,9 @@ export function SuggestionsTab() {
                   {SUGGESTION_ICONS[suggestion.type]}
                 </div>
                 <div className="flex-1">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-semibold text-white text-lg">
-                      {suggestion.title}
-                    </h4>
-                    <span className="px-3 py-1 bg-white/10 rounded-full text-sm font-medium">
+                  <div className="flex items-start justify-between mb-2 gap-3">
+                    <h4 className="font-semibold text-white text-lg">{suggestion.title}</h4>
+                    <span className="px-3 py-1 bg-white/10 rounded-full text-sm font-medium whitespace-nowrap">
                       {suggestion.impact}
                     </span>
                   </div>
@@ -168,38 +175,13 @@ export function SuggestionsTab() {
             </Card>
           ))}
         </div>
-      </div>
 
-      {/* Tips Section */}
-      <Card className="p-6 bg-slate-900/50">
-        <h3 className="font-medium text-white mb-4">Quick Tips</h3>
-        <ul className="space-y-3 text-sm text-slate-400">
-          <li className="flex items-start gap-2">
-            <span className="text-violet-400">•</span>
-            <span>
-              Posts with question hooks get 2-3x more replies on average
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-violet-400">•</span>
-            <span>
-              Threads perform best when the first tweet is a strong hook
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-violet-400">•</span>
-            <span>
-              Consistency matters - posting 3-5 times per week builds momentum
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-violet-400">•</span>
-            <span>
-              Reply to comments within the first hour for maximum engagement
-            </span>
-          </li>
-        </ul>
-      </Card>
+        {suggestions.length > 5 && (
+          <p className="text-xs text-slate-500 mt-3">
+            Showing top 5. Tight list on purpose.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

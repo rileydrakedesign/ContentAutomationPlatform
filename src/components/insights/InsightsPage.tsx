@@ -10,7 +10,7 @@ import { AssistantTab } from "./AssistantTab";
 
 export function InsightsPage() {
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") || "performance";
+  const initialTab = searchParams.get("tab") || "overview";
 
   return (
     <div>
@@ -23,13 +23,13 @@ export function InsightsPage() {
 
       <Tabs defaultValue={initialTab}>
         <TabsList className="mb-6">
-          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="patterns">Patterns</TabsTrigger>
-          <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
+          <TabsTrigger value="actions">Actions</TabsTrigger>
           <TabsTrigger value="assistant">Assistant</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="performance">
+        <TabsContent value="overview">
           <div className="space-y-6">
             <BestTimesSection />
             <PerformanceTab />
@@ -40,7 +40,7 @@ export function InsightsPage() {
           <PatternsTab />
         </TabsContent>
 
-        <TabsContent value="suggestions">
+        <TabsContent value="actions">
           <SuggestionsTab />
         </TabsContent>
 
