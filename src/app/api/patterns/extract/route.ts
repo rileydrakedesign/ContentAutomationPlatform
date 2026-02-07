@@ -16,8 +16,17 @@ interface PostForAnalysis {
     likes?: number;
     retweets?: number;
     replies?: number;
+    quotes?: number;
   };
   post_timestamp: string;
+}
+
+function weightedEngagement(metrics: PostForAnalysis["metrics"]): number {
+  const likes = metrics?.likes || 0;
+  const retweets = metrics?.retweets || 0;
+  const replies = metrics?.replies || 0;
+  const quotes = metrics?.quotes || 0;
+  return likes + retweets * 2 + replies * 3 + quotes * 2;
 }
 
 interface ExtractedPattern {
@@ -25,10 +34,8 @@ interface ExtractedPattern {
   pattern_name: string;
   pattern_value: string;
   confidence_score: number;
-  sample_count: number;
-  avg_engagement: number;
-  multiplier: number;
-  source_post_ids: string[];
+  // Indices into the analyzed post list (0-based) that best represent this pattern.
+  matched_post_indices: number[];
 }
 
 // POST /api/patterns/extract - Trigger pattern extraction from posts
@@ -66,9 +73,15 @@ export async function POST(request: NextRequest) {
     if (nichePostsError) throw nichePostsError;
 
     const allPosts: PostForAnalysis[] = [
-      ...(ownPosts || []).map(p => ({ ...p, source: "own" })),
-      ...(nichePosts || []).map(p => ({ ...p, source: "niche" })),
+      ...(ownPosts || []).map((p) => ({ ...p, source: "own" })),
+      ...(nichePosts || []).map((p) => ({ ...p, source: "niche" })),
     ];
+
+    const engagements = allPosts.map((p) => weightedEngagement(p.metrics || {}));
+    const baselineAvgEngagement =
+      engagements.length > 0
+        ? engagements.reduce((sum, v) => sum + v, 0) / engagements.length
+        : 0;
 
     if (allPosts.length < 5) {
       return NextResponse.json(
@@ -97,13 +110,16 @@ Replies: ${p.metrics?.replies || 0}
 Posted: ${p.post_timestamp || 'Unknown'}
 `).join('\n')}
 
-Return a JSON array of patterns found. Each pattern should have:
+Return a JSON array of patterns found. Each pattern must have:
 - pattern_type: one of "hook_style", "format", "timing", "topic", "engagement_trigger"
-- pattern_name: short name for the pattern (e.g., "Question Hook", "Tuesday Morning")
-- pattern_value: detailed description of the pattern
-- confidence_score: 0-1 based on how consistent the pattern is
-- avg_engagement: average engagement rate for posts with this pattern
-- multiplier: how much better this performs vs average (e.g., 2.3 means 2.3x better)
+- pattern_name: short name (e.g., "Question Hook", "Tuesday Morning")
+- pattern_value: actionable description (what to do, not just what you saw)
+- confidence_score: 0-1 based on consistency
+- matched_post_indices: array of 0-based indices of posts (from the list above) that best match this pattern
+
+Rules:
+- matched_post_indices must be valid indices into the provided post list
+- aim for 3–12 indices per pattern (fewer is fine if data is sparse)
 
 Return ONLY the JSON array, no other text.`;
 
@@ -140,19 +156,37 @@ Return ONLY the JSON array, no other text.`;
       );
     }
 
-    // Store patterns in database
-    const patternsToInsert = extractedPatterns.map(pattern => ({
-      user_id: user.id,
-      pattern_type: pattern.pattern_type,
-      pattern_name: pattern.pattern_name,
-      pattern_value: pattern.pattern_value,
-      confidence_score: pattern.confidence_score || 0.5,
-      sample_count: allPosts.length,
-      avg_engagement: pattern.avg_engagement || 0,
-      multiplier: pattern.multiplier || 1.0,
-      source_post_ids: allPosts.slice(0, 10).map(p => p.id),
-      is_enabled: true,
-    }));
+    // Store patterns in database (compute engagement/multiplier from real user metrics)
+    const patternsToInsert = extractedPatterns.map((pattern) => {
+      const idxs = Array.isArray(pattern.matched_post_indices)
+        ? pattern.matched_post_indices.filter((n) => Number.isFinite(n))
+        : [];
+
+      const matched = idxs
+        .map((i) => allPosts[i])
+        .filter(Boolean)
+        .slice(0, 50);
+
+      const matchedEngagements = matched.map((p) => weightedEngagement(p.metrics || {}));
+      const avg = matchedEngagements.length
+        ? matchedEngagements.reduce((sum, v) => sum + v, 0) / matchedEngagements.length
+        : 0;
+
+      const multiplier = baselineAvgEngagement > 0 ? avg / baselineAvgEngagement : 1.0;
+
+      return {
+        user_id: user.id,
+        pattern_type: pattern.pattern_type,
+        pattern_name: pattern.pattern_name,
+        pattern_value: pattern.pattern_value,
+        confidence_score: pattern.confidence_score || 0.5,
+        sample_count: matched.length,
+        avg_engagement: Math.round(avg),
+        multiplier: Number.isFinite(multiplier) ? multiplier : 1.0,
+        source_post_ids: matched.map((p) => p.id).slice(0, 25),
+        is_enabled: true,
+      };
+    });
 
     // Delete old patterns and insert new ones
     await supabase
