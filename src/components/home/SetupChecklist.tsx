@@ -67,7 +67,7 @@ export function SetupChecklist({
       desc: "Publishing uses your own rate limits.",
       done: !!byoStatus?.configured,
       cta: {
-        label: "Go to Settings",
+        label: "Settings",
         href: "/settings",
       },
     },
@@ -77,7 +77,7 @@ export function SetupChecklist({
       desc: "Required for posting/scheduling from the dashboard.",
       done: !!xStatus?.connected,
       cta: {
-        label: "Go to Settings",
+        label: "Settings",
         href: "/settings",
       },
     },

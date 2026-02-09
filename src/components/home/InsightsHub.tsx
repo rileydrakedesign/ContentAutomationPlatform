@@ -96,7 +96,7 @@ export function InsightsHub({ posts, uploadedAt, onUploadClick, compact }: Insig
     posts.forEach((post) => {
       const date = parsePostDate(post.date);
       if (!date) return;
-      const day = date.toLocaleDateString("en-US", { weekday: "long" });
+      const day = date.toLocaleDateString("en-US", { weekday: "short" });
       if (!dayPerformance[day]) {
         dayPerformance[day] = { impressions: 0, count: 0 };
       }
@@ -288,7 +288,7 @@ export function InsightsHub({ posts, uploadedAt, onUploadClick, compact }: Insig
                       </span>
                       {getTrendIcon(insight.trend)}
                     </div>
-                    <p className="text-lg font-semibold text-[var(--color-text-primary)] font-mono mt-0.5">
+                    <p className="text-lg font-semibold text-[var(--color-text-primary)] font-mono mt-0.5 truncate">
                       {insight.value}
                     </p>
                     <p className="text-xs text-[var(--color-text-muted)] mt-1 line-clamp-2">
