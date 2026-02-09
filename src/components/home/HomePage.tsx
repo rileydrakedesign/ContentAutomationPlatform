@@ -7,6 +7,7 @@ import { ConsistencyTracker } from "./ConsistencyTracker";
 import { ContentSidebar } from "./ContentSidebar";
 import { InsightsHub } from "./InsightsHub";
 import { CsvUploadDrawer } from "./CsvUploadDrawer";
+import { SetupChecklist } from "./SetupChecklist";
 import { CapturedPost } from "@/types/captured";
 import { UserAnalyticsData } from "@/types/analytics";
 
@@ -26,24 +27,32 @@ export function HomePage() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUploadDrawer, setShowUploadDrawer] = useState(false);
+  const [xStatus, setXStatus] = useState<{ connected: boolean; username?: string } | null>(null);
+  const [byoStatus, setByoStatus] = useState<{ configured: boolean } | null>(null);
 
   const fetchData = async () => {
     try {
-      const [analyticsRes, inspirationRes, draftsRes] = await Promise.all([
+      const [analyticsRes, inspirationRes, draftsRes, xRes, byoRes] = await Promise.all([
         fetch("/api/analytics/csv"),
         fetch("/api/captured?triaged_as=inspiration"),
         fetch("/api/drafts"),
+        fetch("/api/x/status"),
+        fetch("/api/x/byo/credentials"),
       ]);
 
-      const [analyticsJson, inspirationJson, draftsJson] = await Promise.all([
+      const [analyticsJson, inspirationJson, draftsJson, xJson, byoJson] = await Promise.all([
         analyticsRes.json(),
         inspirationRes.json(),
         draftsRes.json(),
+        xRes.json(),
+        byoRes.json(),
       ]);
 
       setAnalyticsData(analyticsJson.data || null);
       setInspirationPosts(Array.isArray(inspirationJson) ? inspirationJson : []);
       setDrafts(Array.isArray(draftsJson) ? draftsJson : []);
+      setXStatus(xJson || null);
+      setByoStatus(byoJson || null);
     } catch (error) {
       console.error("Failed to fetch data:", error);
     } finally {
@@ -116,6 +125,13 @@ export function HomePage() {
       <div className="flex gap-5 items-start">
         {/* Left: All content stacked naturally */}
         <div className="flex-1 space-y-4">
+          <SetupChecklist
+            xStatus={xStatus}
+            byoStatus={byoStatus}
+            csvStatus={{ uploaded_at: analyticsData?.uploaded_at, total_posts: analyticsData?.total_posts }}
+            onUploadCsv={() => setShowUploadDrawer(true)}
+          />
+
           <InsightsHub
             posts={analyticsData?.posts || []}
             uploadedAt={analyticsData?.uploaded_at}
