@@ -46,11 +46,11 @@ function XThreadEditor({
   content,
   onChange,
 }: {
-  content: { tweets: string[] };
+  content: { tweets?: string[]; posts?: string[] };
   onChange: (content: { tweets: string[] }) => void;
 }) {
-  // Defensive: ensure tweets array exists
-  const tweets = content?.tweets ?? [""];
+  // Defensive: accept either { tweets: string[] } (canonical) or legacy { posts: string[] }
+  const tweets = content.tweets ?? content.posts ?? [""];
 
   function updateTweet(index: number, value: string) {
     const newTweets = [...tweets];

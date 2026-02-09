@@ -55,6 +55,11 @@ create index if not exists scheduled_posts_scheduled_for_idx on public.scheduled
 Adds:
 - `public.scheduled_posts.job_id`
 
+### C) `supabase/migrations/20260209_rls_x_byo_apps_and_scheduled_posts.sql`
+Enables RLS + creates ownership policies for:
+- `public.x_byo_apps`
+- `public.scheduled_posts`
+
 SQL:
 
 ```sql
@@ -70,6 +75,8 @@ create index if not exists scheduled_posts_job_id_idx on public.scheduled_posts(
 ---
 
 ## 2) RLS policies (required)
+
+If you apply `20260209_rls_x_byo_apps_and_scheduled_posts.sql`, you can skip the manual policy creation below (it creates the same policies).
 
 ### A) `public.x_byo_apps`
 1) Table Editor → `x_byo_apps` → **RLS: Enable**

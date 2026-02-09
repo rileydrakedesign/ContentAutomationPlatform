@@ -360,17 +360,29 @@ export function CreatePage() {
                         )}
                       </div>
 
-                      <p className="text-sm text-[var(--color-text-secondary)] line-clamp-4 mb-4">
-                        {draftType === "X_THREAD"
-                          ? (draft.content.posts || [])[0] || ""
-                          : draft.content.text || ""}
-                      </p>
+                      {(() => {
+                        const c = draft.content as unknown as Record<string, unknown>;
+                        const threadItems =
+                          Array.isArray(c.tweets) ? (c.tweets as string[]) :
+                          Array.isArray(c.posts) ? (c.posts as string[]) :
+                          [];
 
-                      {draftType === "X_THREAD" && (draft.content.posts?.length || 0) > 1 && (
-                        <p className="text-xs text-[var(--color-text-muted)] mb-4">
-                          + {(draft.content.posts?.length || 1) - 1} more posts in thread
-                        </p>
-                      )}
+                        return (
+                          <>
+                            <p className="text-sm text-[var(--color-text-secondary)] line-clamp-4 mb-4">
+                              {draftType === "X_THREAD"
+                                ? (threadItems[0] || "")
+                                : draft.content.text || ""}
+                            </p>
+
+                            {draftType === "X_THREAD" && threadItems.length > 1 && (
+                              <p className="text-xs text-[var(--color-text-muted)] mb-4">
+                                + {threadItems.length - 1} more posts in thread
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
 
                       <Button
                         variant="secondary"

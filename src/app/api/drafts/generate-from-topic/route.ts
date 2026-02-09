@@ -202,7 +202,7 @@ Return ONLY the JSON array, no other text.`;
       type: draftType,
       status: "GENERATED",
       content: draftType === "X_THREAD"
-        ? { posts: Array.isArray(option.content) ? option.content : [option.content] }
+        ? { tweets: Array.isArray(option.content) ? option.content : [option.content] }
         : { text: option.content },
       topic,
       applied_patterns: patterns.map(p => p.id),

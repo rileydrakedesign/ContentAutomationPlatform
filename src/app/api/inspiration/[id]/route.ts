@@ -26,6 +26,7 @@ export async function GET(
       .from("inspiration_posts")
       .select("*")
       .eq("id", id)
+      .eq("user_id", user.id)
       .single();
 
     if (error) {
@@ -71,7 +72,8 @@ export async function DELETE(
     const { error } = await supabase
       .from("inspiration_posts")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user.id);
 
     if (error) throw error;
 
@@ -110,6 +112,7 @@ export async function POST(
       .from("inspiration_posts")
       .select("*")
       .eq("id", id)
+      .eq("user_id", user.id)
       .single();
 
     if (fetchError) {
@@ -126,7 +129,8 @@ export async function POST(
     await supabase
       .from("inspiration_posts")
       .update({ analysis_status: "analyzing" })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user.id);
 
     // Re-analyze
     try {
@@ -141,6 +145,7 @@ export async function POST(
           updated_at: new Date().toISOString(),
         })
         .eq("id", id)
+        .eq("user_id", user.id)
         .select()
         .single();
 
@@ -152,7 +157,8 @@ export async function POST(
       await supabase
         .from("inspiration_posts")
         .update({ analysis_status: "failed" })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", user.id);
 
       throw analysisError;
     }

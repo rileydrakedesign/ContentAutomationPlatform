@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         .limit(50),
       supabase
         .from("inspiration_posts")
-        .select("id, text_content, author_handle, source_url, created_at, is_pinned, note")
+        .select("id, raw_content, author_handle, source_url, created_at, is_pinned, note")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(30),
@@ -105,7 +105,15 @@ export async function POST(request: NextRequest) {
     );
 
     // Inspirations
-    const insp = inspirationsRes.data || [];
+    const insp = (inspirationsRes.data || []) as Array<{
+      raw_content: string | null;
+      author_handle: string | null;
+      source_url: string | null;
+      created_at: string;
+      is_pinned: boolean | null;
+      note: string | null;
+    }>;
+
     sourcesMd.push(
       `# INSPIRATION_POSTS_RECENT\n` +
         (insp.length
@@ -115,7 +123,7 @@ export async function POST(request: NextRequest) {
                 const url = i.source_url || "";
                 const pinned = i.is_pinned ? " (pinned)" : "";
                 const note = i.note ? `\n  note: ${clamp(String(i.note), 140)}` : "";
-                return `- ${author}${pinned}${url ? ` — ${url}` : ""}\n  ${clamp(String(i.text_content || ""), 280)}${note}`;
+                return `- ${author}${pinned}${url ? ` — ${url}` : ""}\n  ${clamp(String(i.raw_content || ""), 280)}${note}`;
               })
               .join("\n")
           : "(none)"

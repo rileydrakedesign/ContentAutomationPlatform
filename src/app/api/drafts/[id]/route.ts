@@ -23,6 +23,7 @@ export async function GET(
       .from("drafts")
       .select("*")
       .eq("id", id)
+      .eq("user_id", user.id)
       .single();
 
     if (error || !draft) {
@@ -85,6 +86,7 @@ export async function PATCH(
       .from("drafts")
       .update(updateData)
       .eq("id", id)
+      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -121,7 +123,8 @@ export async function DELETE(
     const { error } = await supabase
       .from("drafts")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user.id);
 
     if (error) {
       return NextResponse.json({ error: "Draft not found" }, { status: 404 });

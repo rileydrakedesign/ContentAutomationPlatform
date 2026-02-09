@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
     const { data: sourceMaterials, error: fetchError } = await supabase
       .from("sources")
       .select("*")
+      .eq("user_id", user.id)
       .in("id", sourceIds);
 
     if (fetchError) throw fetchError;
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest) {
       const { data: inspirations, error: inspirationError } = await supabase
         .from("inspiration_posts")
         .select("*")
+        .eq("user_id", user.id)
         .in("id", styleReference.inspirationIds);
 
       if (inspirationError) throw inspirationError;

@@ -36,13 +36,16 @@ export async function middleware(request: NextRequest) {
 
   // Protected routes - redirect to login if not authenticated
   const protectedPaths = [
-    "/inbox",
-    "/my-posts",
-    "/collections",
-    "/settings",
-    "/sources",
+    "/", // dashboard
+    "/create",
     "/drafts",
+    "/insights",
+    "/library",
+    "/queue",
+    "/settings",
+    "/voice",
     "/inspiration",
+    "/sources",
   ];
 
   const isProtectedPath = protectedPaths.some(
@@ -51,10 +54,7 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith(path + "/")
   );
 
-  // Also protect the dashboard (home page)
-  const isDashboard = request.nextUrl.pathname === "/";
-
-  if ((isProtectedPath || isDashboard) && !user) {
+  if (isProtectedPath && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

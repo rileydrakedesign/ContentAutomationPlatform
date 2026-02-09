@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       .from("sources")
       .select("*")
       .eq("id", sourceId)
+      .eq("user_id", user.id)
       .single();
 
     if (fetchError || !source) {
@@ -71,7 +72,8 @@ export async function POST(request: NextRequest) {
           },
         },
       })
-      .eq("id", sourceId);
+      .eq("id", sourceId)
+      .eq("user_id", user.id);
 
     return NextResponse.json(result);
   } catch (error) {

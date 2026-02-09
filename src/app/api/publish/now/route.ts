@@ -62,7 +62,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, postedIds: [posted.id_str] });
     }
 
-    const tweets: string[] = Array.isArray(payload?.tweets) ? payload.tweets : [];
+    const tweets: string[] = Array.isArray(payload?.tweets)
+      ? payload.tweets
+      : Array.isArray(payload?.posts)
+        ? payload.posts
+        : [];
     const cleaned = tweets.map((t) => String(t || "").trim()).filter(Boolean);
     if (cleaned.length === 0) {
       return NextResponse.json({ error: "Missing tweets" }, { status: 400 });

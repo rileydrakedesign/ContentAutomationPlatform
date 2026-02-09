@@ -24,6 +24,7 @@ export async function POST(
       .from("captured_posts")
       .select("*")
       .eq("id", id)
+      .eq("user_id", user.id)
       .single();
 
     if (fetchError) {
@@ -57,7 +58,8 @@ export async function POST(
         triaged_as: "inspiration",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user.id);
 
     // Run analysis asynchronously (don't wait for it)
     analyzeAndUpdate(supabase, inspirationPost.id, capturedPost.text_content);

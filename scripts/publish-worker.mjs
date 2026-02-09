@@ -159,7 +159,11 @@ async function publishScheduledPost(scheduledPostId, userId) {
 
     postedIds = [posted.id_str];
   } else if (post.content_type === 'X_THREAD') {
-    const tweets = Array.isArray(payload.tweets) ? payload.tweets : [];
+    const tweets = Array.isArray(payload.tweets)
+      ? payload.tweets
+      : Array.isArray(payload.posts)
+        ? payload.posts
+        : [];
     const cleaned = tweets.map((t) => String(t || '').trim()).filter(Boolean);
     assert(cleaned.length > 0, 'missing tweets');
 

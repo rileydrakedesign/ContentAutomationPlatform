@@ -63,6 +63,7 @@ export async function GET() {
     const { data: posts, error } = await supabase
       .from("captured_posts")
       .select("post_timestamp, metrics")
+      .eq("user_id", user.id)
       .eq("triaged_as", "my_post")
       .not("post_timestamp", "is", null);
 

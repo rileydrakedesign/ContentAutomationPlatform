@@ -23,6 +23,7 @@ export async function GET(
       .from("captured_posts")
       .select("*")
       .eq("id", id)
+      .eq("user_id", user.id)
       .single();
 
     if (error) {
@@ -81,6 +82,7 @@ export async function PATCH(
       .from("captured_posts")
       .update(updateData)
       .eq("id", id)
+      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -121,7 +123,8 @@ export async function DELETE(
     const { error } = await supabase
       .from("captured_posts")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user.id);
 
     if (error) throw error;
 

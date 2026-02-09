@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("captured_posts")
       .select("*")
+      .eq("user_id", user.id)
       .order("captured_at", { ascending: false });
 
     // Apply filters
