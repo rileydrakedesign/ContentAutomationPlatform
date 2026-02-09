@@ -208,7 +208,7 @@ export function InsightsHub({ posts, uploadedAt, onUploadClick, compact }: Insig
     return (
       <Card>
         <CardContent className={compact ? "py-4" : "py-8"}>
-          <div className={compact ? "flex items-center gap-4" : "text-center"}>
+          <div className={compact ? "flex flex-col sm:flex-row sm:items-center gap-4" : "text-center"}>
             <div className={`${compact ? "w-10 h-10" : "w-14 h-14 mx-auto mb-4"} rounded-2xl bg-[var(--color-bg-elevated)] flex items-center justify-center shrink-0`}>
               <BarChart3 className={`${compact ? "w-5 h-5" : "w-7 h-7"} text-[var(--color-text-muted)]`} />
             </div>
@@ -231,14 +231,17 @@ export function InsightsHub({ posts, uploadedAt, onUploadClick, compact }: Insig
               </Button>
             )}
             {compact && (
-              <Button
-                variant="primary"
-                size="sm"
-                icon={<Upload className="w-3.5 h-3.5" />}
-                onClick={onUploadClick}
-              >
-                Upload
-              </Button>
+              <div className="w-full sm:w-auto">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<Upload className="w-3.5 h-3.5" />}
+                  onClick={onUploadClick}
+                  fullWidth
+                >
+                  Upload
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>

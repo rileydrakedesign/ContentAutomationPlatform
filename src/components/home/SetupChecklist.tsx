@@ -139,7 +139,7 @@ export function SetupChecklist({
           </Link>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
           {items
             .filter((i) => i.id !== "extension")
             .map((item) => {
@@ -153,7 +153,7 @@ export function SetupChecklist({
                       : "bg-[var(--color-primary-500)]/5 border-[var(--color-primary-500)]/15"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
                         <Icon className="w-4 h-4 text-[var(--color-text-secondary)]" />
@@ -189,7 +189,7 @@ export function SetupChecklist({
                     </div>
 
                     {item.cta && (
-                      <div className="shrink-0">
+                      <div className="shrink-0 sm:pt-1">
                         {item.cta.href ? (
                           <Link href={item.cta.href} target={item.cta.external ? "_blank" : undefined}>
                             <Button variant={item.done ? "secondary" : "primary"} size="sm" icon={item.cta.external ? <ExternalLink className="w-3.5 h-3.5" /> : undefined}>

@@ -8,6 +8,7 @@ import { PostAnalytics } from "@/types/analytics";
 interface ConsistencyTrackerProps {
   posts: PostAnalytics[];
   dateRange?: { start: string; end: string };
+  className?: string;
 }
 
 function parsePostDate(dateStr: string): Date | null {
@@ -33,7 +34,7 @@ function formatDateKey(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
-export function ConsistencyTracker({ posts, dateRange }: ConsistencyTrackerProps) {
+export function ConsistencyTracker({ posts, dateRange, className }: ConsistencyTrackerProps) {
   const [weeksToShow, setWeeksToShow] = useState(4);
 
   // Build activity map from posts
@@ -191,7 +192,7 @@ export function ConsistencyTracker({ posts, dateRange }: ConsistencyTrackerProps
 
   if (posts.length === 0) {
     return (
-      <Card>
+      <Card className={className}>
         <CardContent className="py-6">
           <div className="text-center">
             <h3 className="text-sm font-medium text-[var(--color-text-primary)] mb-1">
@@ -207,8 +208,8 @@ export function ConsistencyTracker({ posts, dateRange }: ConsistencyTrackerProps
   }
 
   return (
-    <Card>
-      <CardContent>
+    <Card className={className}>
+      <CardContent className="h-full flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
@@ -244,7 +245,7 @@ export function ConsistencyTracker({ posts, dateRange }: ConsistencyTrackerProps
           </div>
         </div>
 
-        <div className="flex gap-1">
+        <div className="flex-1 flex gap-1">
           {/* Day labels */}
           <div className="flex flex-col gap-1 mr-1">
             {dayLabels.map((label, i) => (

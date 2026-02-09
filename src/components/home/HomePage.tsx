@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { QuickActionsBar } from "./QuickActionsBar";
-import { AnalyticsTabs } from "./AnalyticsTabs";
+// (removed) AnalyticsTabs — looked visually out of place on dashboard
 import { ConsistencyTracker } from "./ConsistencyTracker";
 import { ContentSidebar } from "./ContentSidebar";
 import { InsightsHub } from "./InsightsHub";
@@ -71,7 +71,7 @@ export function HomePage() {
       .catch(console.error);
   };
 
-  // Calculate counts for analytics tabs
+  // Draft counts (used in sidebar)
   const generatedDrafts = drafts.filter((d) => d.status === "GENERATED");
   const approvedDrafts = drafts.filter((d) => d.status === "APPROVED");
   const postedCount = analyticsData?.total_posts || 0;
@@ -122,9 +122,9 @@ export function HomePage() {
       </div>
 
       {/* Main Layout: Left stacked items | Right sidebar */}
-      <div className="flex gap-5 items-start">
-        {/* Left: All content stacked naturally */}
-        <div className="flex-1 space-y-4">
+      <div className="flex gap-5 items-stretch">
+        {/* Left */}
+        <div className="flex-1 flex flex-col gap-4">
           <SetupChecklist
             xStatus={xStatus}
             byoStatus={byoStatus}
@@ -138,14 +138,9 @@ export function HomePage() {
             onUploadClick={() => setShowUploadDrawer(true)}
             compact
           />
-          <AnalyticsTabs
-            inspirationCount={inspirationPosts.length}
-            draftsCount={generatedDrafts.length}
-            approvedCount={approvedDrafts.length}
-            postedCount={postedCount}
-            horizontal
-          />
+          {/* removed: content bar looked out of place */}
           <ConsistencyTracker
+            className="flex-1"
             posts={analyticsData?.posts || []}
             dateRange={analyticsData?.date_range}
           />
