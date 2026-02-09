@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { TopicInput } from "./TopicInput";
 import { PatternSelector } from "./PatternSelector";
 import { DraftsList } from "./DraftsList";
+import { CapturedPost } from "@/types/captured";
 import {
   Sparkles,
   FileText,
@@ -18,6 +19,8 @@ import {
   Lightbulb,
   ArrowRight,
   Wand2,
+  X,
+  Quote,
 } from "lucide-react";
 
 type DraftType = "X_POST" | "X_THREAD";
@@ -39,6 +42,7 @@ export function CreatePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialTab = searchParams.get("tab") === "drafts" ? "drafts" : "new";
+  const inspirationId = searchParams.get("inspiration");
 
   const [topic, setTopic] = useState("");
   const [selectedPatterns, setSelectedPatterns] = useState<string[]>([]);
@@ -46,6 +50,35 @@ export function CreatePage() {
   const [generating, setGenerating] = useState(false);
   const [generatedDrafts, setGeneratedDrafts] = useState<GeneratedDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [inspirationPost, setInspirationPost] = useState<CapturedPost | null>(null);
+  const [loadingInspiration, setLoadingInspiration] = useState(false);
+
+  // Fetch inspiration post if ID is provided
+  useEffect(() => {
+    if (!inspirationId) {
+      setInspirationPost(null);
+      return;
+    }
+
+    setLoadingInspiration(true);
+    fetch(`/api/captured/${inspirationId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && !data.error) {
+          setInspirationPost(data);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoadingInspiration(false));
+  }, [inspirationId]);
+
+  const clearInspiration = () => {
+    setInspirationPost(null);
+    // Update URL without inspiration param
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("inspiration");
+    router.replace(`/create?${params.toString()}`);
+  };
 
   const handleGenerate = async () => {
     if (!topic.trim() || topic.length < 3) {
@@ -58,15 +91,25 @@ export function CreatePage() {
     setGeneratedDrafts([]);
 
     try {
+      const requestBody: Record<string, unknown> = {
+        topic: topic.trim(),
+        draftType,
+        patternIds: selectedPatterns,
+        generateCount: 3,
+      };
+
+      // Add inspiration post if available
+      if (inspirationPost) {
+        requestBody.inspirationPost = {
+          text: inspirationPost.text_content,
+          author: inspirationPost.author_handle,
+        };
+      }
+
       const res = await fetch("/api/drafts/generate-from-topic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          topic: topic.trim(),
-          draftType,
-          patternIds: selectedPatterns,
-          generateCount: 3,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!res.ok) {
@@ -116,6 +159,47 @@ export function CreatePage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - Topic & Format */}
             <div className="lg:col-span-2 space-y-6">
+              {/* Inspiration Post Card (if present) */}
+              {(inspirationPost || loadingInspiration) && (
+                <Card className="border-[var(--color-accent-500)]/30 bg-[var(--color-accent-500)]/5">
+                  <CardContent>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center shrink-0">
+                          <Quote className="w-4 h-4 text-[var(--color-accent-400)]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                              Using as Inspiration
+                            </h3>
+                            <Badge variant="accent" size="sm">Style Reference</Badge>
+                          </div>
+                          {loadingInspiration ? (
+                            <div className="h-16 skeleton rounded" />
+                          ) : inspirationPost ? (
+                            <>
+                              <p className="text-xs text-[var(--color-text-muted)] mb-1">
+                                @{inspirationPost.author_handle}
+                              </p>
+                              <p className="text-sm text-[var(--color-text-secondary)] line-clamp-3">
+                                {inspirationPost.text_content}
+                              </p>
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+                      <button
+                        onClick={clearInspiration}
+                        className="p-1.5 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
+                      >
+                        <X className="w-4 h-4 text-[var(--color-text-muted)]" />
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Topic Input Card */}
               <Card>
                 <CardContent>

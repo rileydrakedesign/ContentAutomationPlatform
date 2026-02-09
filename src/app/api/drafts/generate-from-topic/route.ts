@@ -49,11 +49,16 @@ export async function POST(request: NextRequest) {
       draftType = "X_POST",
       patternIds = [],
       generateCount = 3,
+      inspirationPost,
     } = body as {
       topic: string;
       draftType?: DraftType;
       patternIds?: string[];
       generateCount?: number;
+      inspirationPost?: {
+        text: string;
+        author: string;
+      };
     };
 
     if (!topic || topic.trim().length < 3) {
@@ -128,9 +133,19 @@ export async function POST(request: NextRequest) {
       ? "Generate a thread of 3-5 connected tweets. Each tweet should be under 280 characters. Start with a hook that grabs attention."
       : "Generate a single tweet under 280 characters. Make it punchy and engaging.";
 
+    const inspirationInstructions = inspirationPost
+      ? `Use this post as style and format inspiration (adapt the approach, don't copy):
+---
+@${inspirationPost.author}: "${inspirationPost.text}"
+---
+Study the structure, tone, and hooks used. Create original content on the topic that captures similar energy and format.`
+      : "";
+
     const prompt = `Generate ${generateCount} ${draftType === "X_THREAD" ? "thread" : "tweet"} options about: "${topic}"
 
 ${formatInstructions}
+
+${inspirationInstructions}
 
 ${patternInstructions}
 
@@ -194,7 +209,8 @@ Return ONLY the JSON array, no other text.`;
       metadata: {
         hook_type: option.hook_type,
         patterns_applied: option.patterns_applied,
-        generation_type: "topic_based",
+        generation_type: inspirationPost ? "inspiration_based" : "topic_based",
+        inspiration_author: inspirationPost?.author,
       },
     }));
 
