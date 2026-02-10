@@ -25,6 +25,7 @@ export function HomePage() {
   const [analyticsData, setAnalyticsData] = useState<UserAnalyticsData | null>(null);
   const [inspirationPosts, setInspirationPosts] = useState<CapturedPost[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [activityDays, setActivityDays] = useState<Array<{ date: string; posts: number; replies: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [showUploadDrawer, setShowUploadDrawer] = useState(false);
   const [xStatus, setXStatus] = useState<{ connected: boolean; username?: string } | null>(null);
@@ -32,20 +33,22 @@ export function HomePage() {
 
   const fetchData = async () => {
     try {
-      const [analyticsRes, inspirationRes, draftsRes, xRes, byoRes] = await Promise.all([
+      const [analyticsRes, inspirationRes, draftsRes, xRes, byoRes, activityRes] = await Promise.all([
         fetch("/api/analytics/csv"),
         fetch("/api/captured?triaged_as=inspiration"),
         fetch("/api/drafts"),
         fetch("/api/x/status"),
         fetch("/api/x/byo/credentials"),
+        fetch("/api/activity/consistency"),
       ]);
 
-      const [analyticsJson, inspirationJson, draftsJson, xJson, byoJson] = await Promise.all([
+      const [analyticsJson, inspirationJson, draftsJson, xJson, byoJson, activityJson] = await Promise.all([
         analyticsRes.json(),
         inspirationRes.json(),
         draftsRes.json(),
         xRes.json(),
         byoRes.json(),
+        activityRes.json(),
       ]);
 
       setAnalyticsData(analyticsJson.data || null);
@@ -53,6 +56,7 @@ export function HomePage() {
       setDrafts(Array.isArray(draftsJson) ? draftsJson : []);
       setXStatus(xJson || null);
       setByoStatus(byoJson || null);
+      setActivityDays(Array.isArray(activityJson?.days) ? activityJson.days : []);
     } catch (error) {
       console.error("Failed to fetch data:", error);
     } finally {
@@ -141,6 +145,7 @@ export function HomePage() {
           {/* removed: content bar looked out of place */}
           <ConsistencyTracker
             className="flex-1"
+            activityDays={activityDays}
             posts={analyticsData?.posts || []}
             dateRange={analyticsData?.date_range}
           />

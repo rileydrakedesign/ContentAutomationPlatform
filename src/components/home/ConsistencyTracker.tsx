@@ -5,8 +5,13 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PostAnalytics } from "@/types/analytics";
 
+type ActivityDay = { date: string; posts: number; replies: number };
+
 interface ConsistencyTrackerProps {
-  posts: PostAnalytics[];
+  /** Legacy: CSV-derived posts. Prefer activityDays. */
+  posts?: PostAnalytics[];
+  /** New: computed activity based on captured_posts + scheduled_posts. */
+  activityDays?: ActivityDay[];
   dateRange?: { start: string; end: string };
   className?: string;
 }
@@ -34,12 +39,20 @@ function formatDateKey(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
-export function ConsistencyTracker({ posts, dateRange, className }: ConsistencyTrackerProps) {
+export function ConsistencyTracker({ posts = [], activityDays, dateRange, className }: ConsistencyTrackerProps) {
   const [weeksToShow, setWeeksToShow] = useState(4);
 
-  // Build activity map from posts
+  // Build activity map from either activityDays (preferred) or CSV posts (legacy)
   const activityMap = useMemo(() => {
     const map: Record<string, { posts: number; replies: number }> = {};
+
+    if (activityDays && activityDays.length > 0) {
+      for (const day of activityDays) {
+        if (!day?.date) continue;
+        map[day.date] = { posts: day.posts || 0, replies: day.replies || 0 };
+      }
+      return map;
+    }
 
     posts.forEach((post) => {
       const date = parsePostDate(post.date);
@@ -58,7 +71,7 @@ export function ConsistencyTracker({ posts, dateRange, className }: ConsistencyT
     });
 
     return map;
-  }, [posts]);
+  }, [posts, activityDays]);
 
   // Generate weeks grid
   const weeksGrid = useMemo(() => {
@@ -190,7 +203,9 @@ export function ConsistencyTracker({ posts, dateRange, className }: ConsistencyT
 
   const maxWeeks = dateRange ? Math.min(12, Math.ceil((new Date().getTime() - new Date(dateRange.start).getTime()) / (7 * 24 * 60 * 60 * 1000))) : 12;
 
-  if (posts.length === 0) {
+  const hasAnyActivity = (activityDays && activityDays.length > 0) || posts.length > 0;
+
+  if (!hasAnyActivity) {
     return (
       <Card className={className}>
         <CardContent className="py-6">
