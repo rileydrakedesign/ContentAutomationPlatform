@@ -41,7 +41,7 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
   const totalReplies = posts.reduce((sum, p) => sum + (p.replies || 0), 0);
   const totalEngagement = posts.reduce((sum, p) => sum + (p.engagement_score || 0), 0);
 
-  const avgEngagementPerPost = posts.length > 0 ? Math.round(totalEngagement / posts.length) : 0;
+  const avgImpressions = posts.length > 0 ? Math.round(totalViews / posts.length) : 0;
   const engagementRate = totalViews > 0 ? ((totalEngagement / totalViews) * 100).toFixed(2) : "0";
 
   if (loading) {
@@ -90,11 +90,10 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
 
         <Card className="p-4">
           <div className="flex items-center gap-2 text-slate-400 mb-1">
-            <Heart className="w-4 h-4" />
-            <span className="text-xs uppercase">Avg engagement / post</span>
+            <Eye className="w-4 h-4" />
+            <span className="text-xs uppercase">Avg impressions / post</span>
           </div>
-          <p className="text-2xl font-semibold text-white font-mono">{formatNumber(avgEngagementPerPost)}</p>
-          <p className="text-xs text-slate-500 mt-1">weighted: 3x likes + 4x rts + 5x replies + 3x bookmarks</p>
+          <p className="text-2xl font-semibold text-white font-mono">{formatNumber(avgImpressions)}</p>
         </Card>
 
         <Card className="p-4">
