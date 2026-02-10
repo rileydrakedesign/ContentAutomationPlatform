@@ -55,11 +55,6 @@ create index if not exists scheduled_posts_scheduled_for_idx on public.scheduled
 Adds:
 - `public.scheduled_posts.job_id`
 
-### C) `supabase/migrations/20260209_rls_x_byo_apps_and_scheduled_posts.sql`
-Enables RLS + creates ownership policies for:
-- `public.x_byo_apps`
-- `public.scheduled_posts`
-
 SQL:
 
 ```sql
@@ -70,6 +65,30 @@ alter table if exists public.scheduled_posts
   add column if not exists job_id text null;
 
 create index if not exists scheduled_posts_job_id_idx on public.scheduled_posts(job_id);
+```
+
+### C) `supabase/migrations/20260209_rls_x_byo_apps_and_scheduled_posts.sql`
+Enables RLS + creates ownership policies for:
+- `public.x_byo_apps`
+- `public.scheduled_posts`
+
+SQL: *(see file contents)*
+
+### D) `supabase/migrations/20260210_extracted_patterns_extraction_batch.sql`
+Adds:
+- `public.extracted_patterns.extraction_batch`
+
+SQL:
+
+```sql
+-- 20260210_extracted_patterns_extraction_batch.sql
+-- Add extraction_batch to extracted_patterns for non-destructive extraction runs
+
+alter table if exists public.extracted_patterns
+  add column if not exists extraction_batch timestamptz null;
+
+create index if not exists extracted_patterns_user_batch_idx
+  on public.extracted_patterns(user_id, extraction_batch);
 ```
 
 ---

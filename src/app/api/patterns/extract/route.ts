@@ -232,7 +232,8 @@ Return ONLY the JSON array, no other text.`;
     await supabase
       .from("extracted_patterns")
       .update({ is_enabled: false })
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .eq("is_enabled", true);
 
     // Insert new batch with is_enabled = true
     const { data: insertedPatterns, error: insertError } = await supabase
