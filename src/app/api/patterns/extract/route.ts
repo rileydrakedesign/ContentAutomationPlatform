@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
         return {
           id: p.id,
           text: p.text_content,
-          impressions: m.views ?? 0,
+          impressions: (m.impressions ?? m.views) ?? 0,
           likes: m.likes ?? 0,
           retweets: m.retweets ?? 0,
           replies: m.replies ?? 0,

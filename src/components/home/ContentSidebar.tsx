@@ -6,8 +6,8 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatRelativeTime, formatNumber } from "@/lib/utils/formatting";
-import { CapturedPost } from "@/types/captured";
 import { PostAnalytics } from "@/types/analytics";
+import { InspirationPost } from "@/types/inspiration";
 import {
   FileText,
   ArrowRight,
@@ -37,7 +37,7 @@ type ContentType = "drafts" | "top_posts" | "inspiration" | "approved";
 interface ContentSidebarProps {
   drafts: Draft[];
   posts: PostAnalytics[];
-  inspirationPosts: CapturedPost[];
+  inspirationPosts: InspirationPost[];
   onUploadClick: () => void;
 }
 
@@ -325,7 +325,7 @@ function TopPostsContent({
   );
 }
 
-function InspirationContent({ posts }: { posts: CapturedPost[] }) {
+function InspirationContent({ posts }: { posts: InspirationPost[] }) {
   if (posts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -351,14 +351,16 @@ function InspirationContent({ posts }: { posts: CapturedPost[] }) {
         >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-medium text-[var(--color-primary-400)]">
-              @{post.author_handle}
+              {post.author_handle
+                ? (post.author_handle.startsWith("@") ? post.author_handle : `@${post.author_handle}`)
+                : "unknown"}
             </span>
             <span className="text-xs text-[var(--color-text-muted)]">
               {formatRelativeTime(post.created_at)}
             </span>
           </div>
           <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">
-            {post.text_content}
+            {post.raw_content}
           </p>
           <Link
             href={`/create?inspiration=${post.id}`}

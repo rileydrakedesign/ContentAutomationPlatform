@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Ensure X account connected
     const { data: connection } = await supabase
       .from("x_connections")
-      .select("access_token, access_token_secret")
+      .select("access_token, access_token_secret, x_username")
       .eq("user_id", user.id)
       .single();
 
@@ -58,6 +58,26 @@ export async function POST(request: NextRequest) {
         text,
         { apiKey: byo.consumer_key, apiSecret: byo.consumer_secret }
       );
+
+      // Backfill captured_posts so the rest of the app (insights/voice/patterns/consistency) stays consistent.
+      try {
+        const username = (connection as any).x_username ? String((connection as any).x_username) : null;
+        await supabase.from("captured_posts").insert({
+          user_id: user.id,
+          x_post_id: posted.id_str,
+          post_url: username ? `https://x.com/${username}/status/${posted.id_str}` : null,
+          author_handle: username,
+          text_content: text,
+          is_own_post: true,
+          inbox_status: "triaged",
+          triaged_as: "my_post",
+          post_timestamp: new Date().toISOString(),
+          metrics: {},
+        });
+      } catch (e) {
+        // best-effort; don't fail publishing on backfill issues
+        console.warn("publish now: failed to backfill captured_posts", e);
+      }
 
       return NextResponse.json({ success: true, postedIds: [posted.id_str] });
     }
@@ -98,6 +118,26 @@ export async function POST(request: NextRequest) {
       );
       postedIds.push(next.id_str);
       replyTo = next.id_str;
+    }
+
+    // Backfill captured_posts (one row per tweet)
+    try {
+      const username = (connection as any).x_username ? String((connection as any).x_username) : null;
+      const rows = postedIds.map((id, idx) => ({
+        user_id: user.id,
+        x_post_id: id,
+        post_url: username ? `https://x.com/${username}/status/${id}` : null,
+        author_handle: username,
+        text_content: cleaned[idx] || "",
+        is_own_post: true,
+        inbox_status: "triaged",
+        triaged_as: "my_post",
+        post_timestamp: new Date().toISOString(),
+        metrics: {},
+      }));
+      await supabase.from("captured_posts").insert(rows);
+    } catch (e) {
+      console.warn("publish now: failed to backfill captured_posts (thread)", e);
     }
 
     return NextResponse.json({ success: true, postedIds });

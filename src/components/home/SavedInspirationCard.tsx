@@ -4,25 +4,25 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { CapturedPost } from "@/types/captured";
+import { InspirationPost } from "@/types/inspiration";
 import { formatRelativeTime } from "@/lib/utils/formatting";
 import { Lightbulb, Sparkles, ExternalLink } from "lucide-react";
 
 interface SavedInspirationCardProps {
-  posts: CapturedPost[];
+  posts: InspirationPost[];
 }
 
 export function SavedInspirationCard({ posts }: SavedInspirationCardProps) {
   // Get newest saves first
   const recentSaves = [...posts]
-    .sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime())
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 3);
 
   // Count new saves (last 24 hours)
   const oneDayAgo = new Date();
   oneDayAgo.setDate(oneDayAgo.getDate() - 1);
   const newCount = posts.filter(
-    (p) => new Date(p.captured_at) > oneDayAgo
+    (p) => new Date(p.created_at) > oneDayAgo
   ).length;
 
   if (posts.length === 0) {
@@ -76,15 +76,17 @@ export function SavedInspirationCard({ posts }: SavedInspirationCardProps) {
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-                    @{post.author_handle}
+                    {post.author_handle
+                      ? (post.author_handle.startsWith("@") ? post.author_handle : `@${post.author_handle}`)
+                      : "unknown"}
                   </span>
                   <span className="text-xs text-[var(--color-text-muted)]">
-                    · Saved {formatRelativeTime(post.captured_at)}
+                    · Saved {formatRelativeTime(post.created_at)}
                   </span>
                 </div>
-                {post.post_url && (
+                {post.source_url && (
                   <a
-                    href={post.post_url}
+                    href={post.source_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] opacity-0 group-hover:opacity-100 transition-opacity"
@@ -95,7 +97,7 @@ export function SavedInspirationCard({ posts }: SavedInspirationCardProps) {
               </div>
 
               <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2 mb-3">
-                {post.text_content}
+                {post.raw_content}
               </p>
 
               <Link

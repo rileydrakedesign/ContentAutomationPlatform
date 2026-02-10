@@ -78,6 +78,10 @@ SQL: *(see file contents)*
 Adds:
 - `public.extracted_patterns.extraction_batch`
 
+### E) `supabase/migrations/20260210_user_analytics_update_with_check.sql`
+Tightens RLS policy:
+- Adds `WITH CHECK` to `user_analytics` UPDATE policy (prevents changing `user_id`)
+
 SQL:
 
 ```sql
@@ -89,6 +93,30 @@ alter table if exists public.extracted_patterns
 
 create index if not exists extracted_patterns_user_batch_idx
   on public.extracted_patterns(user_id, extraction_batch);
+```
+
+SQL:
+
+```sql
+-- 20260210_user_analytics_update_with_check.sql
+-- Tighten user_analytics UPDATE policy: add WITH CHECK to prevent changing user_id
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname='public'
+      AND tablename='user_analytics'
+      AND policyname='Users can update their own analytics'
+  ) THEN
+    DROP POLICY "Users can update their own analytics" ON public.user_analytics;
+  END IF;
+END$$;
+
+CREATE POLICY "Users can update their own analytics" ON public.user_analytics
+  FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 ```
 
 ---

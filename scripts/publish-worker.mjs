@@ -138,7 +138,7 @@ async function publishScheduledPost(scheduledPostId, userId) {
 
   const { data: conn } = await supabase
     .from('x_connections')
-    .select('access_token, access_token_secret')
+    .select('access_token, access_token_secret, x_username')
     .eq('user_id', userId)
     .single();
 
@@ -185,6 +185,48 @@ async function publishScheduledPost(scheduledPostId, userId) {
     }
   } else {
     throw new Error(`unsupported content_type: ${post.content_type}`);
+  }
+
+  // Backfill captured_posts so the rest of the app stays consistent.
+  try {
+    const username = conn?.x_username ? String(conn.x_username) : null;
+    const nowIso = new Date().toISOString();
+
+    const items = [];
+    if (post.content_type === 'X_POST') {
+      items.push({ id: postedIds[0], text: String(payload.text || '').trim() });
+    } else if (post.content_type === 'X_THREAD') {
+      const tweets = Array.isArray(payload.tweets)
+        ? payload.tweets
+        : Array.isArray(payload.posts)
+          ? payload.posts
+          : [];
+      const cleaned = tweets.map((t) => String(t || '').trim()).filter(Boolean);
+      for (let i = 0; i < postedIds.length; i++) {
+        items.push({ id: postedIds[i], text: cleaned[i] || '' });
+      }
+    }
+
+    const rows = items
+      .filter((it) => it.id)
+      .map((it) => ({
+        user_id: userId,
+        x_post_id: it.id,
+        post_url: username ? `https://x.com/${username}/status/${it.id}` : null,
+        author_handle: username,
+        text_content: it.text,
+        is_own_post: true,
+        inbox_status: 'triaged',
+        triaged_as: 'my_post',
+        post_timestamp: nowIso,
+        metrics: {},
+      }));
+
+    if (rows.length > 0) {
+      await supabase.from('captured_posts').insert(rows);
+    }
+  } catch (e) {
+    console.warn('[publish-worker] failed to backfill captured_posts', e?.message || e);
   }
 
   await supabase

@@ -8,8 +8,9 @@ import { ContentSidebar } from "./ContentSidebar";
 import { InsightsHub } from "./InsightsHub";
 import { CsvUploadDrawer } from "./CsvUploadDrawer";
 import { SetupChecklist } from "./SetupChecklist";
-import { CapturedPost } from "@/types/captured";
+// (removed) CapturedPost import — dashboard inspiration now uses inspiration_posts
 import { UserAnalyticsData } from "@/types/analytics";
+import { InspirationPost } from "@/types/inspiration";
 
 type Draft = {
   id: string;
@@ -23,7 +24,7 @@ type Draft = {
 
 export function HomePage() {
   const [analyticsData, setAnalyticsData] = useState<UserAnalyticsData | null>(null);
-  const [inspirationPosts, setInspirationPosts] = useState<CapturedPost[]>([]);
+  const [inspirationPosts, setInspirationPosts] = useState<InspirationPost[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [activityDays, setActivityDays] = useState<Array<{ date: string; posts: number; replies: number }>>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +36,7 @@ export function HomePage() {
     try {
       const [analyticsRes, inspirationRes, draftsRes, xRes, byoRes, activityRes] = await Promise.all([
         fetch("/api/analytics/csv"),
-        fetch("/api/captured?triaged_as=inspiration"),
+        fetch("/api/inspiration"),
         fetch("/api/drafts"),
         fetch("/api/x/status"),
         fetch("/api/x/byo/credentials"),

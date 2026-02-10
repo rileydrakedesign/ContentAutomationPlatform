@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { TopicInput } from "./TopicInput";
 import { PatternSelector } from "./PatternSelector";
 import { DraftsList } from "./DraftsList";
-import { CapturedPost } from "@/types/captured";
+import { InspirationPost } from "@/types/inspiration";
 import {
   Sparkles,
   FileText,
@@ -50,7 +50,7 @@ export function CreatePage() {
   const [generating, setGenerating] = useState(false);
   const [generatedDrafts, setGeneratedDrafts] = useState<GeneratedDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [inspirationPost, setInspirationPost] = useState<CapturedPost | null>(null);
+  const [inspirationPost, setInspirationPost] = useState<InspirationPost | null>(null);
   const [loadingInspiration, setLoadingInspiration] = useState(false);
 
   // Fetch inspiration post if ID is provided
@@ -61,7 +61,7 @@ export function CreatePage() {
     }
 
     setLoadingInspiration(true);
-    fetch(`/api/captured/${inspirationId}`)
+    fetch(`/api/inspiration/${inspirationId}`)
       .then((res) => res.json())
       .then((data) => {
         if (data && !data.error) {
@@ -101,8 +101,8 @@ export function CreatePage() {
       // Add inspiration post if available
       if (inspirationPost) {
         requestBody.inspirationPost = {
-          text: inspirationPost.text_content,
-          author: inspirationPost.author_handle,
+          text: inspirationPost.raw_content,
+          author: inspirationPost.author_handle || "",
         };
       }
 
@@ -180,10 +180,12 @@ export function CreatePage() {
                           ) : inspirationPost ? (
                             <>
                               <p className="text-xs text-[var(--color-text-muted)] mb-1">
-                                @{inspirationPost.author_handle}
+                                {inspirationPost.author_handle
+                                  ? (inspirationPost.author_handle.startsWith("@") ? inspirationPost.author_handle : `@${inspirationPost.author_handle}`)
+                                  : "unknown"}
                               </p>
                               <p className="text-sm text-[var(--color-text-secondary)] line-clamp-3">
-                                {inspirationPost.text_content}
+                                {inspirationPost.raw_content}
                               </p>
                             </>
                           ) : null}

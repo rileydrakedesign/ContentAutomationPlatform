@@ -101,7 +101,10 @@ export async function GET(request: NextRequest) {
 
     // Calculate overall insights
     const avgViews = recentPosts?.length
-      ? recentPosts.reduce((sum, p) => sum + (p.metrics?.views || 0), 0) / recentPosts.length
+      ? recentPosts.reduce((sum, p) => {
+          const m = (p.metrics || {}) as any;
+          return sum + (m.impressions || m.views || 0);
+        }, 0) / recentPosts.length
       : 0;
 
     const avgLikes = recentPosts?.length

@@ -144,10 +144,21 @@ export async function POST(request: Request) {
 
     for (const post of existingToUpdate) {
       if (post.metrics.impressions || post.metrics.views) {
+        // Merge metrics instead of overwriting the entire JSON.
+        const { data: existing } = await supabase
+          .from("captured_posts")
+          .select("metrics")
+          .eq("x_post_id", post.x_post_id)
+          .eq("user_id", user.id)
+          .single();
+
+        const existingMetrics = (existing?.metrics || {}) as Record<string, unknown>;
+
         await supabase
           .from("captured_posts")
           .update({
             metrics: {
+              ...existingMetrics,
               impressions: post.metrics.impressions || post.metrics.views || 0,
             },
             updated_at: new Date().toISOString(),

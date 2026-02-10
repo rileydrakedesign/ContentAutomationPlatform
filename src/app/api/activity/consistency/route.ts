@@ -40,6 +40,11 @@ export async function GET() {
 
     const map: Record<string, { posts: number; replies: number }> = {};
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const since = new Date(today);
+    since.setDate(since.getDate() - 90);
+
     // 1) captured_posts (own posts + replies)
     // Prefer post_timestamp, fallback to captured_at.
     const { data: captured, error: capturedError } = await supabase
@@ -54,6 +59,7 @@ export async function GET() {
     for (const row of captured || []) {
       const dt = safeDate((row as any).post_timestamp) || safeDate((row as any).captured_at);
       if (!dt) continue;
+      if (dt < since) continue;
       const key = dateKey(dt);
       if (!map[key]) map[key] = { posts: 0, replies: 0 };
 
@@ -75,6 +81,8 @@ export async function GET() {
       for (const row of scheduled || []) {
         const dt = safeDate((row as any).scheduled_for);
         if (!dt) continue;
+        if (dt < since) continue;
+        if (dt > today) continue; // don't count future scheduled posts as completed activity
         const key = dateKey(dt);
         if (!map[key]) map[key] = { posts: 0, replies: 0 };
         map[key].posts += 1;
