@@ -43,12 +43,14 @@ export async function GET() {
       .order("pinned_rank", { ascending: true, nullsFirst: false })
       .order("engagement_score", { ascending: false });
 
-    // Fetch inspiration (non-excluded)
+    // Fetch manually-included inspiration posts for reply voice
     const { data: inspirations } = await supabase
-      .from("user_inspiration")
-      .select("*")
+      .from("inspiration_posts")
+      .select("id, raw_content, author_handle, created_at, is_pinned")
       .eq("user_id", user.id)
-      .eq("is_excluded", false);
+      .eq("include_in_reply_voice", true)
+      .order("is_pinned", { ascending: false })
+      .order("created_at", { ascending: false });
 
     // Assemble the prompt
     const assembled = assemblePrompt({
@@ -62,7 +64,7 @@ export async function GET() {
       assembled,
       settings,
       examples: examples || [],
-      inspirations: inspirations || [],
+      inspirations: (inspirations as any) || [],
     };
 
     return NextResponse.json(response);

@@ -82,6 +82,11 @@ Adds:
 Tightens RLS policy:
 - Adds `WITH CHECK` to `user_analytics` UPDATE policy (prevents changing `user_id`)
 
+### F) `supabase/migrations/20260210_inspiration_posts_voice_includes.sql`
+Adds manual toggles for prompt injection:
+- `inspiration_posts.include_in_post_voice`
+- `inspiration_posts.include_in_reply_voice`
+
 SQL:
 
 ```sql

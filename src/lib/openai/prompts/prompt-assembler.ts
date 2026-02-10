@@ -14,18 +14,26 @@
 import {
   UserVoiceSettings,
   UserVoiceExample,
-  UserInspiration,
   AssembledPrompt,
   DEFAULT_VOICE_SETTINGS,
   VoiceType
 } from '@/types/voice';
+type InspirationForPrompt = {
+  id: string;
+  raw_content: string;
+  author_handle: string | null;
+  created_at: string;
+  is_pinned?: boolean | null;
+  include_in_post_voice?: boolean;
+  include_in_reply_voice?: boolean;
+};
 import { estimateTokens } from '@/lib/utils/tokens';
 import { REPLY_SYSTEM_PROMPT } from './reply-prompt';
 
 interface AssemblyContext {
   settings: Partial<UserVoiceSettings>;
   examples: UserVoiceExample[];
-  inspirations: UserInspiration[];
+  inspirations: InspirationForPrompt[];
   mode: VoiceType;
 }
 
@@ -194,23 +202,26 @@ ${included.join('\n\n')}`;
  * Build inspiration section with token budgeting
  */
 function buildInspirationSection(
-  inspirations: UserInspiration[],
-  maxTokens: number
+  inspirations: InspirationForPrompt[],
+  maxTokens: number,
+  mode: VoiceType
 ): { section: string; tokensUsed: number; included: number; omitted: number } {
   if (inspirations.length === 0) {
     return { section: '', tokensUsed: 0, included: 0, omitted: 0 };
   }
 
-  // Sort: pinned first, then by relevance
+  // Manual include only: inspirations are explicitly toggled per voice type.
   const sorted = [...inspirations]
-    .filter(i => !i.is_excluded)
-    .sort((a, b) => {
+    .filter((i) => {
+      // We don't have is_excluded in inspiration_posts; treat manual include flags as the filter.
+      if (mode === 'reply') return (i as any).include_in_reply_voice === true;
+      return (i as any).include_in_post_voice === true;
+    })
+    .sort((a: any, b: any) => {
+      // Pinned first if available, then most recent
       if (a.is_pinned && !b.is_pinned) return -1;
       if (!a.is_pinned && b.is_pinned) return 1;
-      if (a.pinned_rank !== null && b.pinned_rank !== null) {
-        return a.pinned_rank - b.pinned_rank;
-      }
-      return b.relevance_score - a.relevance_score;
+      return new Date(String(b.created_at || 0)).getTime() - new Date(String(a.created_at || 0)).getTime();
     });
 
   const included: string[] = [];
@@ -220,10 +231,11 @@ function buildInspirationSection(
   tokensUsed += headerTokens;
 
   for (const insp of sorted) {
-    // Skip placeholder items
-    if (insp.content_text.startsWith('[Keyword placeholder')) continue;
+    const raw = String((insp as any).raw_content || "");
+    if (!raw.trim()) continue;
 
-    const inspText = `"${insp.content_text}"${insp.source_author ? ` (@${insp.source_author})` : ''}`;
+    const author = (insp as any).author_handle ? String((insp as any).author_handle) : "";
+    const inspText = `"${raw}"${author ? ` (${author.startsWith("@") ? author : `@${author}`})` : ""}`;
     const inspTokens = estimateTokens(inspText + '\n\n');
 
     if (tokensUsed + inspTokens > maxTokens) break;
@@ -280,7 +292,8 @@ export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
   // Build inspiration section with budget
   const inspirationResult = buildInspirationSection(
     inspirations,
-    effectiveSettings.max_inspiration_tokens
+    effectiveSettings.max_inspiration_tokens,
+    mode
   );
 
   // Assemble final prompt (insert controls and examples after base prompt)
@@ -337,12 +350,19 @@ export async function getAssembledPromptForUser(
     .order('pinned_rank', { ascending: true, nullsFirst: false })
     .order('engagement_score', { ascending: false });
 
-  // Fetch inspiration (non-excluded)
-  const { data: inspirations } = await supabase
-    .from('user_inspiration')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('is_excluded', false);
+  // Fetch manually-included inspiration posts (per voice type)
+  let inspQuery = supabase
+    .from('inspiration_posts')
+    .select('id, raw_content, author_handle, created_at, is_pinned, include_in_post_voice, include_in_reply_voice')
+    .eq('user_id', userId);
+
+  if (voiceType === 'reply') {
+    inspQuery = inspQuery.eq('include_in_reply_voice', true);
+  } else {
+    inspQuery = inspQuery.eq('include_in_post_voice', true);
+  }
+
+  const { data: inspirations } = await inspQuery;
 
   const assembled = assemblePrompt({
     settings: settings || {},

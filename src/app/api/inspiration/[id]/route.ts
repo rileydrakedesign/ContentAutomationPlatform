@@ -50,6 +50,74 @@ export async function GET(
 }
 
 /**
+ * PATCH /api/inspiration/[id]
+ * Update fields used by the product surface (pin/note/include toggles)
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const supabase = await createAuthClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = (await request.json()) as {
+      is_pinned?: boolean;
+      note?: string | null;
+      include_in_post_voice?: boolean;
+      include_in_reply_voice?: boolean;
+    };
+
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (body.is_pinned !== undefined) updateData.is_pinned = !!body.is_pinned;
+    if (body.note !== undefined) updateData.note = body.note;
+    if (body.include_in_post_voice !== undefined) {
+      updateData.include_in_post_voice = !!body.include_in_post_voice;
+    }
+    if (body.include_in_reply_voice !== undefined) {
+      updateData.include_in_reply_voice = !!body.include_in_reply_voice;
+    }
+
+    const { data, error } = await supabase
+      .from("inspiration_posts")
+      .update(updateData)
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        return NextResponse.json(
+          { error: "Inspiration post not found" },
+          { status: 404 }
+        );
+      }
+      throw error;
+    }
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("Failed to update inspiration post:", error);
+    return NextResponse.json(
+      { error: "Failed to update inspiration post" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * DELETE /api/inspiration/[id]
  * Delete an inspiration post
  */

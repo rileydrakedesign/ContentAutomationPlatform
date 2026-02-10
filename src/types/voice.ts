@@ -252,5 +252,12 @@ export interface PromptPreviewResponse {
   assembled: AssembledPrompt;
   settings: UserVoiceSettings;
   examples: UserVoiceExample[];
-  inspirations: UserInspiration[];
+  // Inspiration posts manually included for this voice type
+  inspirations: Array<{
+    id: string;
+    raw_content: string;
+    author_handle: string | null;
+    created_at: string;
+    is_pinned?: boolean | null;
+  }>;
 }

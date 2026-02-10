@@ -114,6 +114,10 @@ export function VoiceSection() {
   const [examples, setExamples] = useState<Array<{ id: string; content_text: string }>>([]);
   const [newExample, setNewExample] = useState("");
 
+  // Inspiration posts (saved)
+  const [inspirations, setInspirations] = useState<Array<{ id: string; raw_content: string; author_handle: string | null; include_in_post_voice?: boolean; include_in_reply_voice?: boolean; created_at: string; is_pinned?: boolean | null }>>([]);
+  const [loadingInspirations, setLoadingInspirations] = useState(false);
+
   const fetchSettings = async () => {
     try {
       setLoading(true);
@@ -141,9 +145,25 @@ export function VoiceSection() {
     }
   };
 
+  const fetchInspirations = async () => {
+    try {
+      setLoadingInspirations(true);
+      const res = await fetch("/api/inspiration");
+      if (res.ok) {
+        const data = await res.json();
+        setInspirations(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch inspirations:", err);
+    } finally {
+      setLoadingInspirations(false);
+    }
+  };
+
   useEffect(() => {
     fetchSettings();
     fetchExamples();
+    fetchInspirations();
   }, [voiceType]);
 
   const updateSettings = async (updates: Partial<UserVoiceSettings>): Promise<void> => {
@@ -440,6 +460,101 @@ export function VoiceSection() {
                     />
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Saved Inspiration (manual include) */}
+            <Card>
+              <CardContent>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-[var(--color-accent-400)]" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                      Saved Inspiration
+                    </h3>
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      Manually include saved posts in your {voiceType === "reply" ? "response" : "post"} voice
+                    </p>
+                  </div>
+                  {inspirations.length > 0 && (
+                    <Badge variant="accent">{inspirations.length}</Badge>
+                  )}
+                </div>
+
+                {loadingInspirations ? (
+                  <div className="space-y-2">
+                    <div className="h-16 skeleton" />
+                    <div className="h-16 skeleton" />
+                  </div>
+                ) : inspirations.length === 0 ? (
+                  <div className="text-sm text-[var(--color-text-muted)]">
+                    No inspiration posts yet. Save posts in the app, then toggle inclusion here.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {inspirations.slice(0, 30).map((post) => {
+                      const included = voiceType === "reply"
+                        ? (post.include_in_reply_voice === true)
+                        : (post.include_in_post_voice === true);
+
+                      return (
+                        <div
+                          key={post.id}
+                          className={`p-3 rounded-lg border transition-colors ${
+                            included
+                              ? "bg-[var(--color-primary-500)]/10 border-[var(--color-primary-500)]/30"
+                              : "bg-[var(--color-bg-elevated)] border-[var(--color-border-subtle)]"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs text-[var(--color-text-muted)]">
+                                  {post.author_handle
+                                    ? (post.author_handle.startsWith("@") ? post.author_handle : `@${post.author_handle}`)
+                                    : "unknown"}
+                                </span>
+                                <span className="text-xs text-[var(--color-text-muted)]">·</span>
+                                <span className="text-xs text-[var(--color-text-muted)]">
+                                  {new Date(post.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">
+                                {post.raw_content}
+                              </p>
+                            </div>
+
+                            <Button
+                              variant={included ? "primary" : "secondary"}
+                              size="sm"
+                              onClick={async () => {
+                                const next = !included;
+                                const payload = voiceType === "reply"
+                                  ? { include_in_reply_voice: next }
+                                  : { include_in_post_voice: next };
+                                const res = await fetch(`/api/inspiration/${post.id}`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify(payload),
+                                });
+                                if (res.ok) {
+                                  const updated = await res.json();
+                                  setInspirations((prev) => prev.map((p) => (p.id === post.id ? { ...p, ...updated } : p)));
+                                }
+                              }}
+                            >
+                              {included
+                                ? (voiceType === "reply" ? "included" : "included")
+                                : (voiceType === "reply" ? "include" : "include")}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

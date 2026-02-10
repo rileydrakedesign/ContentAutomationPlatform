@@ -52,6 +52,18 @@ export function CreatePage() {
   const [error, setError] = useState<string | null>(null);
   const [inspirationPost, setInspirationPost] = useState<InspirationPost | null>(null);
   const [loadingInspiration, setLoadingInspiration] = useState(false);
+  const [inspirationList, setInspirationList] = useState<Array<{ id: string; raw_content: string; author_handle: string | null; created_at: string }>>([]);
+  const [loadingInspirationList, setLoadingInspirationList] = useState(false);
+
+  // Fetch available inspiration posts (for manual selection)
+  useEffect(() => {
+    setLoadingInspirationList(true);
+    fetch("/api/inspiration")
+      .then((res) => res.json())
+      .then((data) => setInspirationList(Array.isArray(data) ? data : []))
+      .catch(console.error)
+      .finally(() => setLoadingInspirationList(false));
+  }, []);
 
   // Fetch inspiration post if ID is provided
   useEffect(() => {
@@ -290,6 +302,62 @@ export function CreatePage() {
 
             {/* Right Column - Patterns & Generate */}
             <div className="lg:col-span-1 space-y-6">
+              {/* Inspiration Picker */}
+              {!inspirationId && (
+                <Card>
+                  <CardContent>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+                        <Quote className="w-4 h-4 text-[var(--color-accent-400)]" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                          Inspiration
+                        </h3>
+                        <p className="text-xs text-[var(--color-text-muted)]">
+                          Optionally inject a saved inspiration post
+                        </p>
+                      </div>
+                    </div>
+
+                    {loadingInspirationList ? (
+                      <div className="h-9 skeleton" />
+                    ) : inspirationList.length === 0 ? (
+                      <p className="text-xs text-[var(--color-text-muted)]">No saved inspiration yet.</p>
+                    ) : (
+                      <select
+                        className="w-full h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg"
+                        value={inspirationPost?.id || ""}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          const found = inspirationList.find((p) => p.id === id) || null;
+                          if (found) {
+                            // Fetch full post so we have raw_content/author_handle
+                            setLoadingInspiration(true);
+                            fetch(`/api/inspiration/${id}`)
+                              .then((r) => r.json())
+                              .then((d) => setInspirationPost(d && !d.error ? d : null))
+                              .finally(() => setLoadingInspiration(false));
+                          } else {
+                            setInspirationPost(null);
+                          }
+                        }}
+                      >
+                        <option value="">No inspiration</option>
+                        {inspirationList.slice(0, 50).map((p) => {
+                          const label = `${p.author_handle ? (p.author_handle.startsWith("@") ? p.author_handle : `@${p.author_handle}`) : "unknown"}: ${p.raw_content.slice(0, 60).replace(/\s+/g, " ")}`;
+                          return (
+                            <option key={p.id} value={p.id}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Pattern Selection Card */}
               <Card>
                 <CardContent>

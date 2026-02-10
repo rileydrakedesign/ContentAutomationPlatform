@@ -52,11 +52,76 @@ export async function GET(request: NextRequest) {
       .order("pinned_rank", { ascending: true, nullsFirst: false })
       .order("engagement_score", { ascending: false });
 
-    const { data, error } = await query;
+    let { data, error } = await query;
 
     if (error) throw error;
 
-    return NextResponse.json(data);
+    // If the user has no examples yet for this voice type, seed a default top 5 from latest CSV analytics.
+    if (voiceType && ["post", "reply"].includes(voiceType) && (!data || data.length === 0)) {
+      try {
+        const { data: analyticsRow } = await supabase
+          .from("user_analytics")
+          .select("posts")
+          .eq("user_id", user.id)
+          .order("uploaded_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        const posts = (analyticsRow?.posts && Array.isArray(analyticsRow.posts))
+          ? (analyticsRow.posts as Array<Record<string, unknown>>)
+          : [];
+
+        const wantReplies = voiceType === "reply";
+        const top = posts
+          .filter((p) => Boolean(p.text))
+          .filter((p) => (wantReplies ? p.is_reply === true : p.is_reply === false))
+          .map((p) => ({
+            text: String(p.text || "").trim(),
+            impressions: Number((p as any).impressions || 0),
+          }))
+          .filter((p) => p.text.length >= 10)
+          .sort((a, b) => b.impressions - a.impressions)
+          .slice(0, 5);
+
+        if (top.length > 0) {
+          const inserts = top.map((p, idx) => ({
+            user_id: user.id,
+            captured_post_id: null,
+            content_text: p.text,
+            content_type: voiceType,
+            source: "auto",
+            is_excluded: false,
+            pinned_rank: null,
+            user_note: null,
+            metrics_snapshot: { impressions: p.impressions },
+            engagement_score: p.impressions,
+            token_count: estimateTokens(p.text),
+            selection_reason: `top by impressions (#${idx + 1})`,
+          }));
+
+          await supabase.from("user_voice_examples").insert(inserts);
+
+          // Re-fetch
+          const refreshed = await supabase
+            .from("user_voice_examples")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("is_excluded", false)
+            .eq("content_type", voiceType)
+            .order("pinned_rank", { ascending: true, nullsFirst: false })
+            .order("engagement_score", { ascending: false });
+
+          if (!refreshed.error) {
+            data = refreshed.data || [];
+          }
+        }
+      } catch (seedErr) {
+        // best-effort; don't fail the request
+        console.warn("voice examples seed failed", seedErr);
+      }
+    }
+
+    return NextResponse.json(data || []);
   } catch (error) {
     console.error("Failed to fetch voice examples:", error);
     return NextResponse.json(
