@@ -2,12 +2,11 @@ import { NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import type {
   PostingAnalytics,
+  PostAnalytics,
   TimeSlot,
   BestTimeRecommendation,
   HeatmapCell,
 } from "@/types/analytics";
-import type { PostMetrics } from "@/types/captured";
-import { weightedEngagement } from "@/lib/utils/engagement";
 
 const DAY_NAMES = [
   "Sunday",
@@ -28,10 +27,6 @@ function formatHour(hour: number): string {
   if (hour === 12) return "12 PM";
   if (hour < 12) return `${hour} AM`;
   return `${hour - 12} PM`;
-}
-
-function calculateEngagement(metrics: PostMetrics): number {
-  return weightedEngagement(metrics as Record<string, number | undefined>);
 }
 
 function getConfidence(
@@ -56,17 +51,17 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch posts that are marked as own posts with timestamp
-    const { data: posts, error } = await supabase
-      .from("captured_posts")
-      .select("post_timestamp, metrics")
+    // Fetch CSV-uploaded analytics data
+    const { data: row, error } = await supabase
+      .from("user_analytics")
+      .select("posts")
       .eq("user_id", user.id)
-      .eq("triaged_as", "my_post")
-      .not("post_timestamp", "is", null);
+      .single();
 
-    if (error) throw error;
+    if (error && error.code !== "PGRST116") throw error;
 
-    const validPosts = posts || [];
+    const allPosts: PostAnalytics[] = row?.posts || [];
+    const validPosts = allPosts.filter((p) => p.date);
 
     // Not enough data for analysis
     if (validPosts.length < MINIMUM_POSTS_FOR_ANALYSIS) {
@@ -83,11 +78,12 @@ export async function GET() {
     const timeSlotMap = new Map<string, TimeSlot>();
 
     for (const post of validPosts) {
-      const postDate = new Date(post.post_timestamp);
+      const postDate = new Date(post.date);
+      if (isNaN(postDate.getTime())) continue;
       const dayOfWeek = postDate.getDay();
       const hour = postDate.getHours();
       const key = `${dayOfWeek}-${hour}`;
-      const engagement = calculateEngagement(post.metrics || {});
+      const engagement = post.engagement_score || 0;
 
       const existing = timeSlotMap.get(key);
       if (existing) {

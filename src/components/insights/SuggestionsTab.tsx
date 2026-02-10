@@ -100,7 +100,7 @@ export function SuggestionsTab() {
         title: "This week’s focus",
         body:
           stats.postsAnalyzed < 5
-            ? "Capture more of your own posts (with timestamps) so best-times and patterns become reliable."
+            ? "Upload your X analytics CSV so best-times and patterns become reliable."
             : stats.totalPatterns === 0
               ? "Extract patterns, then write 3 posts that deliberately use the top hook + format patterns."
               : "Ship 3 posts at your best-times using 1–2 enabled patterns. Keep it tight and repeatable.",

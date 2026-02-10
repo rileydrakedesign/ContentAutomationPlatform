@@ -190,7 +190,7 @@ export function BestTimesSection() {
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
         <h2 className="text-sm font-semibold text-white mb-2">Best Times to Post</h2>
         <p className="text-slate-500">
-          Not enough data yet. Capture at least 5 posts with timestamps to see posting time recommendations.
+          Not enough data yet. Upload your analytics CSV with at least 5 posts to see posting time recommendations.
         </p>
         {analytics && analytics.totalPostsAnalyzed > 0 && (
           <p className="text-sm text-slate-600 mt-2">

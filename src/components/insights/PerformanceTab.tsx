@@ -1,64 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { CapturedPost } from "@/types/captured";
+import type { PostAnalytics } from "@/types/analytics";
 import { formatNumber, formatRelativeTime } from "@/lib/utils/formatting";
-import { weightedEngagement as canonicalEngagement } from "@/lib/utils/engagement";
-import { Eye, Heart, MessageSquare, Repeat, ExternalLink } from "lucide-react";
+import { Eye, Heart, MessageSquare, Repeat, ExternalLink, Upload } from "lucide-react";
 
-export function PerformanceTab() {
-  const [posts, setPosts] = useState<CapturedPost[]>([]);
-  const [loading, setLoading] = useState(true);
+interface PerformanceTabProps {
+  posts: PostAnalytics[];
+  uploadedAt?: string;
+  onUploadClick: () => void;
+  loading?: boolean;
+}
+
+export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: PerformanceTabProps) {
   const [sortBy, setSortBy] = useState<"engagement" | "views" | "likes" | "recent">("engagement");
-
-  useEffect(() => {
-    async function fetchPosts() {
-      try {
-        const res = await fetch("/api/captured?triaged_as=my_post");
-        if (res.ok) {
-          const data = await res.json();
-          setPosts(Array.isArray(data) ? data : []);
-        }
-      } catch (error) {
-        console.error("Failed to fetch posts:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchPosts();
-  }, []);
-
-  function weightedEngagement(p: CapturedPost) {
-    return canonicalEngagement(p.metrics as Record<string, number | undefined>);
-  }
 
   const sortedPosts = [...posts].sort((a, b) => {
     if (sortBy === "engagement") {
-      return weightedEngagement(b) - weightedEngagement(a);
+      return (b.engagement_score || 0) - (a.engagement_score || 0);
     }
     if (sortBy === "views") {
-      return (b.metrics.views || 0) - (a.metrics.views || 0);
+      return (b.impressions || 0) - (a.impressions || 0);
     }
     if (sortBy === "likes") {
-      return (b.metrics.likes || 0) - (a.metrics.likes || 0);
+      return (b.likes || 0) - (a.likes || 0);
     }
-    return new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime();
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
 
   // Calculate aggregate stats
-  const totalViews = posts.reduce((sum, p) => sum + (p.metrics.views || 0), 0);
-  const totalLikes = posts.reduce((sum, p) => sum + (p.metrics.likes || 0), 0);
-  const totalRetweets = posts.reduce((sum, p) => sum + (p.metrics.retweets || 0), 0);
-  const totalReplies = posts.reduce((sum, p) => sum + (p.metrics.replies || 0), 0);
-  const totalEngagement = posts.reduce((sum, p) => sum + weightedEngagement(p), 0);
+  const totalViews = posts.reduce((sum, p) => sum + (p.impressions || 0), 0);
+  const totalLikes = posts.reduce((sum, p) => sum + (p.likes || 0), 0);
+  const totalReposts = posts.reduce((sum, p) => sum + (p.reposts || 0), 0);
+  const totalReplies = posts.reduce((sum, p) => sum + (p.replies || 0), 0);
+  const totalEngagement = posts.reduce((sum, p) => sum + (p.engagement_score || 0), 0);
 
   const avgEngagementPerPost = posts.length > 0 ? Math.round(totalEngagement / posts.length) : 0;
   const engagementRate = totalViews > 0 ? ((totalEngagement / totalViews) * 100).toFixed(2) : "0";
 
-  const winners = [...posts].sort((a, b) => weightedEngagement(b) - weightedEngagement(a)).slice(0, 5);
-  const recent = [...posts].sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime()).slice(0, 5);
+  const winners = [...posts].sort((a, b) => (b.engagement_score || 0) - (a.engagement_score || 0)).slice(0, 5);
+  const recent = [...posts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
   if (loading) {
     return (
@@ -71,6 +53,24 @@ export function PerformanceTab() {
         </div>
         <div className="h-64 bg-slate-800 rounded-lg"></div>
       </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <Card className="p-8 text-center">
+        <Upload className="w-8 h-8 text-slate-500 mx-auto mb-3" />
+        <h3 className="text-white font-medium mb-1">No analytics data</h3>
+        <p className="text-sm text-slate-500 mb-4">
+          Upload your X analytics CSV to see performance insights.
+        </p>
+        <button
+          onClick={onUploadClick}
+          className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg transition-colors"
+        >
+          Upload CSV
+        </button>
+      </Card>
     );
   }
 
@@ -92,7 +92,7 @@ export function PerformanceTab() {
             <span className="text-xs uppercase">Avg engagement / post</span>
           </div>
           <p className="text-2xl font-semibold text-white font-mono">{formatNumber(avgEngagementPerPost)}</p>
-          <p className="text-xs text-slate-500 mt-1">weighted: 3×likes + 4×rts + 5×replies + 3×bookmarks</p>
+          <p className="text-xs text-slate-500 mt-1">weighted: 3x likes + 4x rts + 5x replies + 3x bookmarks</p>
         </Card>
 
         <Card className="p-4">
@@ -101,7 +101,7 @@ export function PerformanceTab() {
             <span className="text-xs uppercase">Engagement rate</span>
           </div>
           <p className="text-2xl font-semibold text-white font-mono">{engagementRate}%</p>
-          <p className="text-xs text-slate-500 mt-1">vs views (if present)</p>
+          <p className="text-xs text-slate-500 mt-1">vs impressions</p>
         </Card>
       </div>
 
@@ -113,25 +113,24 @@ export function PerformanceTab() {
               <h3 className="font-medium text-white">Top winners</h3>
               <p className="text-xs text-slate-500 mt-1">Best posts by weighted engagement</p>
             </div>
-            <a href="/library" className="text-xs text-slate-400 hover:text-white">View all</a>
           </div>
 
           {winners.length === 0 ? (
-            <div className="text-sm text-slate-500">No posts yet. Save your posts with the extension.</div>
+            <div className="text-sm text-slate-500">No posts yet. Upload your analytics CSV.</div>
           ) : (
             <div className="space-y-2">
               {winners.map((post, index) => (
-                <div key={post.id} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
+                <div key={post.id || index} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
                   <div className="flex items-center justify-center w-8 h-8 bg-slate-700 rounded-full text-sm font-medium text-slate-300">
                     {index + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-200 line-clamp-2">{post.text_content}</p>
+                    <p className="text-sm text-slate-200 line-clamp-2">{post.text}</p>
                     <div className="flex items-center gap-3 text-xs text-slate-500 mt-2">
-                      <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{formatNumber(post.metrics.views || 0)}</span>
-                      <span className="flex items-center gap-1"><Heart className="w-3 h-3" />{formatNumber(post.metrics.likes || 0)}</span>
-                      <span className="flex items-center gap-1"><Repeat className="w-3 h-3" />{formatNumber(post.metrics.retweets || 0)}</span>
-                      <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{formatNumber(post.metrics.replies || 0)}</span>
+                      <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{formatNumber(post.impressions || 0)}</span>
+                      <span className="flex items-center gap-1"><Heart className="w-3 h-3" />{formatNumber(post.likes || 0)}</span>
+                      <span className="flex items-center gap-1"><Repeat className="w-3 h-3" />{formatNumber(post.reposts || 0)}</span>
+                      <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{formatNumber(post.replies || 0)}</span>
                     </div>
                   </div>
                   {post.post_url && (
@@ -149,7 +148,7 @@ export function PerformanceTab() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-medium text-white">Recent posts</h3>
-              <p className="text-xs text-slate-500 mt-1">Most recently captured</p>
+              <p className="text-xs text-slate-500 mt-1">Most recent from analytics</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Sort:</span>
@@ -170,17 +169,17 @@ export function PerformanceTab() {
             <div className="text-sm text-slate-500">No posts yet.</div>
           ) : (
             <div className="space-y-2">
-              {(sortBy === "recent" ? recent : sortedPosts.slice(0, 5)).map((post) => (
-                <div key={post.id} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
+              {(sortBy === "recent" ? recent : sortedPosts.slice(0, 5)).map((post, index) => (
+                <div key={post.id || index} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-200 line-clamp-2">{post.text_content}</p>
+                    <p className="text-sm text-slate-200 line-clamp-2">{post.text}</p>
                     <div className="flex items-center justify-between gap-3 mt-2 text-xs text-slate-500">
                       <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1"><Heart className="w-3 h-3" />{formatNumber(post.metrics.likes || 0)}</span>
-                        <span className="flex items-center gap-1"><Repeat className="w-3 h-3" />{formatNumber(post.metrics.retweets || 0)}</span>
-                        <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{formatNumber(post.metrics.replies || 0)}</span>
+                        <span className="flex items-center gap-1"><Heart className="w-3 h-3" />{formatNumber(post.likes || 0)}</span>
+                        <span className="flex items-center gap-1"><Repeat className="w-3 h-3" />{formatNumber(post.reposts || 0)}</span>
+                        <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{formatNumber(post.replies || 0)}</span>
                       </div>
-                      <span>{formatRelativeTime(post.captured_at)}</span>
+                      <span>{formatRelativeTime(post.date)}</span>
                     </div>
                   </div>
                   {post.post_url && (

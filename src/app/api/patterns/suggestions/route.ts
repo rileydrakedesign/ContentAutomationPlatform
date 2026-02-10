@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
+import type { PostAnalytics } from "@/types/analytics";
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -40,16 +41,20 @@ export async function GET(request: NextRequest) {
 
     if (patternsError) throw patternsError;
 
-    // Get recent post performance for context
-    const { data: recentPosts, error: postsError } = await supabase
-      .from("captured_posts")
-      .select("metrics, post_timestamp")
+    // Get recent post performance from CSV analytics
+    const { data: row, error: postsError } = await supabase
+      .from("user_analytics")
+      .select("posts")
       .eq("user_id", user.id)
-      .eq("is_own_post", true)
-      .order("post_timestamp", { ascending: false })
-      .limit(20);
+      .single();
 
-    if (postsError) throw postsError;
+    if (postsError && postsError.code !== "PGRST116") throw postsError;
+
+    const allPosts: PostAnalytics[] = row?.posts || [];
+    const recentPosts = [...allPosts]
+      .filter((p) => p.date)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 20);
 
     const suggestions: Suggestion[] = [];
 
@@ -99,16 +104,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Calculate overall insights
-    const avgViews = recentPosts?.length
-      ? recentPosts.reduce((sum, p) => {
-          const m = (p.metrics || {}) as any;
-          return sum + (m.impressions || m.views || 0);
-        }, 0) / recentPosts.length
+    // Calculate overall insights from CSV data
+    const avgViews = recentPosts.length
+      ? recentPosts.reduce((sum, p) => sum + (p.impressions || 0), 0) / recentPosts.length
       : 0;
 
-    const avgLikes = recentPosts?.length
-      ? recentPosts.reduce((sum, p) => sum + (p.metrics?.likes || 0), 0) / recentPosts.length
+    const avgLikes = recentPosts.length
+      ? recentPosts.reduce((sum, p) => sum + (p.likes || 0), 0) / recentPosts.length
       : 0;
 
     // Add action suggestion if no patterns yet
@@ -117,9 +119,9 @@ export async function GET(request: NextRequest) {
         id: "action-extract",
         type: "action",
         title: "Extract your patterns",
-        description: "Capture more posts to unlock personalized growth insights",
+        description: "Upload your X analytics CSV to unlock personalized growth insights",
         impact: "Unlock insights",
-        action: "Save posts via extension",
+        action: "Upload analytics CSV",
       });
     }
 
@@ -130,7 +132,7 @@ export async function GET(request: NextRequest) {
           totalPatterns: patterns?.length || 0,
           avgViews: Math.round(avgViews),
           avgLikes: Math.round(avgLikes),
-          postsAnalyzed: recentPosts?.length || 0,
+          postsAnalyzed: recentPosts.length,
         },
       },
       { headers: corsHeaders }
