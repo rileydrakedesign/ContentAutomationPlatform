@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
+import { weightedEngagement } from "@/lib/utils/engagement";
 
 // Estimate tokens (approx 4 chars per token)
 function estimateTokens(text: string): number {
@@ -8,12 +9,7 @@ function estimateTokens(text: string): number {
 
 // Calculate engagement score
 function calculateEngagementScore(metrics: Record<string, number>): number {
-  return (
-    (metrics.likes || 0) +
-    (metrics.retweets || 0) * 2 +
-    (metrics.replies || 0) * 3 +
-    (metrics.quotes || 0) * 4
-  );
+  return weightedEngagement(metrics);
 }
 
 // POST /api/voice/refresh - Manually trigger a refresh of top examples

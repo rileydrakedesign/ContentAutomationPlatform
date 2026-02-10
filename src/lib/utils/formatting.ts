@@ -1,4 +1,5 @@
 import type { PostMetrics } from "@/types/captured";
+import { weightedEngagement } from "@/lib/utils/engagement";
 
 /**
  * Format a number with K/M suffixes for display
@@ -82,8 +83,9 @@ export function calculateEngagementRate(metrics: PostMetrics): number {
 }
 
 /**
- * Calculate an engagement score for sorting
+ * Calculate an engagement score for sorting.
+ * Delegates to the canonical weightedEngagement formula.
  */
 export function calculateEngagementScore(metrics: PostMetrics): number {
-  return (metrics.views || 0) + (metrics.likes || 0) * 10;
+  return weightedEngagement(metrics as Record<string, number | undefined>);
 }

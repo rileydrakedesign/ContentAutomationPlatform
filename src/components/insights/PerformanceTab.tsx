@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { CapturedPost } from "@/types/captured";
 import { formatNumber, formatRelativeTime } from "@/lib/utils/formatting";
+import { weightedEngagement as canonicalEngagement } from "@/lib/utils/engagement";
 import { Eye, Heart, MessageSquare, Repeat, ExternalLink } from "lucide-react";
 
 export function PerformanceTab() {
@@ -30,10 +31,7 @@ export function PerformanceTab() {
   }, []);
 
   function weightedEngagement(p: CapturedPost) {
-    const likes = p.metrics.likes || 0;
-    const retweets = p.metrics.retweets || 0;
-    const replies = p.metrics.replies || 0;
-    return likes + retweets * 2 + replies * 3;
+    return canonicalEngagement(p.metrics as Record<string, number | undefined>);
   }
 
   const sortedPosts = [...posts].sort((a, b) => {
@@ -94,7 +92,7 @@ export function PerformanceTab() {
             <span className="text-xs uppercase">Avg engagement / post</span>
           </div>
           <p className="text-2xl font-semibold text-white font-mono">{formatNumber(avgEngagementPerPost)}</p>
-          <p className="text-xs text-slate-500 mt-1">weighted: likes + 2×rts + 3×replies</p>
+          <p className="text-xs text-slate-500 mt-1">weighted: 3×likes + 4×rts + 5×replies + 3×bookmarks</p>
         </Card>
 
         <Card className="p-4">

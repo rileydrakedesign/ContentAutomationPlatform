@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { ParsedCsvPost, VoiceType } from "@/types/voice";
+import { weightedEngagement } from "@/lib/utils/engagement";
 
 interface CsvRow {
   id: string;
@@ -17,13 +18,7 @@ interface CsvRow {
 }
 
 function calculateEngagementScore(row: CsvRow): number {
-  return (
-    row.likes * 3 +
-    row.reposts * 5 +
-    row.replies * 2 +
-    row.bookmarks * 4 +
-    row.impressions * 0.001
-  );
+  return weightedEngagement(row as unknown as Record<string, number | undefined>);
 }
 
 function isReply(text: string): boolean {

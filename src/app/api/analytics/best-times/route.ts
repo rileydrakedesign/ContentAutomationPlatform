@@ -7,6 +7,7 @@ import type {
   HeatmapCell,
 } from "@/types/analytics";
 import type { PostMetrics } from "@/types/captured";
+import { weightedEngagement } from "@/lib/utils/engagement";
 
 const DAY_NAMES = [
   "Sunday",
@@ -30,11 +31,7 @@ function formatHour(hour: number): string {
 }
 
 function calculateEngagement(metrics: PostMetrics): number {
-  const likes = metrics.likes || 0;
-  const retweets = metrics.retweets || 0;
-  const replies = metrics.replies || 0;
-  // Weighted: likes + retweets*2 + replies*3
-  return likes + retweets * 2 + replies * 3;
+  return weightedEngagement(metrics as Record<string, number | undefined>);
 }
 
 function getConfidence(

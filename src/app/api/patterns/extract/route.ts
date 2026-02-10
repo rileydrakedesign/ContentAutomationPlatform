@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai/client";
 import { corsHeaders, handleCors } from "@/lib/cors";
+import { weightedEngagement } from "@/lib/utils/engagement";
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -9,24 +10,14 @@ export async function OPTIONS() {
 }
 
 interface PostForAnalysis {
-  id: string;
-  text_content: string;
-  metrics: {
-    views?: number;
-    likes?: number;
-    retweets?: number;
-    replies?: number;
-    quotes?: number;
-  };
-  post_timestamp: string;
-}
-
-function weightedEngagement(metrics: PostForAnalysis["metrics"]): number {
-  const likes = metrics?.likes || 0;
-  const retweets = metrics?.retweets || 0;
-  const replies = metrics?.replies || 0;
-  const quotes = metrics?.quotes || 0;
-  return likes + retweets * 2 + replies * 3 + quotes * 2;
+  text: string;
+  impressions: number;
+  likes: number;
+  retweets: number;
+  replies: number;
+  bookmarks: number;
+  engagement: number;
+  posted_at: string;
 }
 
 interface ExtractedPattern {
@@ -34,7 +25,6 @@ interface ExtractedPattern {
   pattern_name: string;
   pattern_value: string;
   confidence_score: number;
-  // Indices into the analyzed post list (0-based) that best represent this pattern.
   matched_post_indices: number[];
 }
 
@@ -51,46 +41,91 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's own posts from captured_posts
-    const { data: ownPosts, error: ownPostsError } = await supabase
-      .from("captured_posts")
-      .select("id, text_content, metrics, post_timestamp")
+    // ── 1. Try CSV data first ──────────────────────────────────
+    let posts: PostForAnalysis[] = [];
+    let dataSource: "csv" | "captured" = "csv";
+
+    const { data: analyticsRow } = await supabase
+      .from("user_analytics")
+      .select("posts")
       .eq("user_id", user.id)
-      .eq("is_own_post", true)
-      .order("post_timestamp", { ascending: false })
-      .limit(100);
+      .order("uploaded_at", { ascending: false })
+      .limit(1)
+      .single();
 
-    if (ownPostsError) throw ownPostsError;
+    if (analyticsRow?.posts && Array.isArray(analyticsRow.posts)) {
+      const csvPosts = (analyticsRow.posts as Array<Record<string, unknown>>)
+        .filter((p) => !p.is_reply)
+        .map((p) => {
+          const m = {
+            likes: Number(p.likes) || 0,
+            reposts: Number(p.reposts) || 0,
+            replies: Number(p.replies) || 0,
+            bookmarks: Number(p.bookmarks) || 0,
+            impressions: Number(p.impressions) || 0,
+          };
+          return {
+            text: String(p.text || ""),
+            impressions: m.impressions,
+            likes: m.likes,
+            retweets: m.reposts,
+            replies: m.replies,
+            bookmarks: m.bookmarks,
+            engagement: weightedEngagement(m),
+            posted_at: String(p.date || ""),
+          };
+        })
+        .filter((p) => p.text.length >= 10);
 
-    // Get niche posts for comparison
-    const { data: nichePosts, error: nichePostsError } = await supabase
-      .from("niche_posts")
-      .select("id, text_content, metrics, post_timestamp")
-      .eq("user_id", user.id)
-      .order("post_timestamp", { ascending: false })
-      .limit(100);
+      if (csvPosts.length >= 5) {
+        posts = csvPosts;
+      }
+    }
 
-    if (nichePostsError) throw nichePostsError;
+    // ── 2. Fallback to captured_posts (own posts only) ─────────
+    if (posts.length === 0) {
+      dataSource = "captured";
+      const { data: ownPosts, error: ownPostsError } = await supabase
+        .from("captured_posts")
+        .select("text_content, metrics, post_timestamp")
+        .eq("user_id", user.id)
+        .eq("is_own_post", true)
+        .order("post_timestamp", { ascending: false })
+        .limit(200);
 
-    const allPosts: PostForAnalysis[] = [
-      ...(ownPosts || []).map((p) => ({ ...p, source: "own" })),
-      ...(nichePosts || []).map((p) => ({ ...p, source: "niche" })),
-    ];
+      if (ownPostsError) throw ownPostsError;
 
-    const engagements = allPosts.map((p) => weightedEngagement(p.metrics || {}));
-    const baselineAvgEngagement =
-      engagements.length > 0
-        ? engagements.reduce((sum, v) => sum + v, 0) / engagements.length
-        : 0;
+      posts = (ownPosts || []).map((p) => {
+        const m = (p.metrics || {}) as Record<string, number | undefined>;
+        return {
+          text: p.text_content,
+          impressions: m.views ?? 0,
+          likes: m.likes ?? 0,
+          retweets: m.retweets ?? 0,
+          replies: m.replies ?? 0,
+          bookmarks: m.bookmarks ?? 0,
+          engagement: weightedEngagement(m),
+          posted_at: p.post_timestamp || "",
+        };
+      });
+    }
 
-    if (allPosts.length < 5) {
+    if (posts.length < 5) {
       return NextResponse.json(
         { error: "Need at least 5 posts to extract patterns", patterns: [] },
         { status: 400, headers: corsHeaders }
       );
     }
 
-    // Use OpenAI to analyze patterns
+    // ── 3. Sort by engagement DESC, take top 50 ───────────────
+    posts.sort((a, b) => b.engagement - a.engagement);
+    const topPosts = posts.slice(0, 50);
+
+    const allEngagements = posts.map((p) => p.engagement);
+    const baselineAvg =
+      allEngagements.reduce((sum, v) => sum + v, 0) / allEngagements.length;
+
+    // ── 4. Send to GPT-4o-mini ─────────────────────────────────
     const analysisPrompt = `Analyze these social media posts and identify growth patterns. Look for:
 
 1. HOOK STYLES - How posts start (questions, statements, lists, stories, etc.)
@@ -99,15 +134,17 @@ export async function POST(request: NextRequest) {
 4. TOPICS - Subject matter that gets high engagement
 5. ENGAGEMENT TRIGGERS - Elements that drive replies/shares (controversy, humor, value, etc.)
 
-Posts to analyze:
-${allPosts.slice(0, 50).map((p, i) => `
+Posts to analyze (sorted best-performing first):
+${topPosts.map((p, i) => `
 [Post ${i + 1}]
-Text: ${p.text_content.slice(0, 500)}
-Views: ${p.metrics?.views || 'N/A'}
-Likes: ${p.metrics?.likes || 0}
-Retweets: ${p.metrics?.retweets || 0}
-Replies: ${p.metrics?.replies || 0}
-Posted: ${p.post_timestamp || 'Unknown'}
+Text: ${p.text.slice(0, 500)}
+Impressions: ${p.impressions}
+Likes: ${p.likes}
+Retweets: ${p.retweets}
+Replies: ${p.replies}
+Bookmarks: ${p.bookmarks}
+Engagement score: ${Math.round(p.engagement)}
+Posted: ${p.posted_at || 'Unknown'}
 `).join('\n')}
 
 Return a JSON array of patterns found. Each pattern must have:
@@ -143,7 +180,6 @@ Return ONLY the JSON array, no other text.`;
 
     let extractedPatterns: ExtractedPattern[] = [];
     try {
-      // Try to parse JSON, handling potential markdown code blocks
       const jsonMatch = responseText.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         extractedPatterns = JSON.parse(jsonMatch[0]);
@@ -156,23 +192,23 @@ Return ONLY the JSON array, no other text.`;
       );
     }
 
-    // Store patterns in database (compute engagement/multiplier from real user metrics)
+    // ── 5. Compute per-pattern multiplier ──────────────────────
     const patternsToInsert = extractedPatterns.map((pattern) => {
       const idxs = Array.isArray(pattern.matched_post_indices)
         ? pattern.matched_post_indices.filter((n) => Number.isFinite(n))
         : [];
 
       const matched = idxs
-        .map((i) => allPosts[i])
+        .map((i) => topPosts[i])
         .filter(Boolean)
         .slice(0, 50);
 
-      const matchedEngagements = matched.map((p) => weightedEngagement(p.metrics || {}));
+      const matchedEngagements = matched.map((p) => p.engagement);
       const avg = matchedEngagements.length
         ? matchedEngagements.reduce((sum, v) => sum + v, 0) / matchedEngagements.length
         : 0;
 
-      const multiplier = baselineAvgEngagement > 0 ? avg / baselineAvgEngagement : 1.0;
+      const multiplier = baselineAvg > 0 ? avg / baselineAvg : 1.0;
 
       return {
         user_id: user.id,
@@ -183,17 +219,20 @@ Return ONLY the JSON array, no other text.`;
         sample_count: matched.length,
         avg_engagement: Math.round(avg),
         multiplier: Number.isFinite(multiplier) ? multiplier : 1.0,
-        source_post_ids: matched.map((p) => p.id).slice(0, 25),
+        source_post_ids: [] as string[],
         is_enabled: true,
+        extraction_batch: new Date().toISOString(),
       };
     });
 
-    // Delete old patterns and insert new ones
+    // ── 6. Non-destructive insert ──────────────────────────────
+    // Disable all existing patterns for this user
     await supabase
       .from("extracted_patterns")
-      .delete()
+      .update({ is_enabled: false })
       .eq("user_id", user.id);
 
+    // Insert new batch with is_enabled = true
     const { data: insertedPatterns, error: insertError } = await supabase
       .from("extracted_patterns")
       .insert(patternsToInsert)
@@ -204,7 +243,8 @@ Return ONLY the JSON array, no other text.`;
     return NextResponse.json(
       {
         patterns: insertedPatterns,
-        analyzed_posts: allPosts.length,
+        analyzed_posts: posts.length,
+        data_source: dataSource,
       },
       { status: 200, headers: corsHeaders }
     );

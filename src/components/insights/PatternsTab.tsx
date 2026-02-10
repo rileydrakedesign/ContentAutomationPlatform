@@ -129,7 +129,7 @@ export function PatternsTab() {
         <div>
           <h3 className="font-medium text-white">Extracted Patterns</h3>
           <p className="text-sm text-slate-400 mt-1">
-            Patterns discovered from your posts and watched accounts
+            Patterns discovered from your posts
           </p>
         </div>
         <button

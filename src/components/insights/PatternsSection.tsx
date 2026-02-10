@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { CapturedPost } from "@/types/captured";
 import { formatNumber, calculateEngagementRate } from "@/lib/utils/formatting";
+import { weightedEngagement } from "@/lib/utils/engagement";
 
 export function PatternsSection() {
   const [posts, setPosts] = useState<CapturedPost[]>([]);
@@ -47,10 +48,9 @@ export function PatternsSection() {
       if (post.post_timestamp) {
         const day = new Date(post.post_timestamp).getDay();
         const current = dayMap.get(day) || { count: 0, engagement: 0 };
-        const engagement =
-          (post.metrics.likes || 0) +
-          (post.metrics.retweets || 0) +
-          (post.metrics.replies || 0);
+        const engagement = weightedEngagement(
+          post.metrics as Record<string, number | undefined>
+        );
         dayMap.set(day, {
           count: current.count + 1,
           engagement: current.engagement + engagement,

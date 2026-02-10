@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { weightedEngagement } from "@/lib/utils/engagement";
 
 // Vercel Cron configuration
 export const runtime = "nodejs";
@@ -12,12 +13,7 @@ function estimateTokens(text: string): number {
 
 // Calculate engagement score
 function calculateEngagementScore(metrics: Record<string, number>): number {
-  return (
-    (metrics.likes || 0) +
-    (metrics.retweets || 0) * 2 +
-    (metrics.replies || 0) * 3 +
-    (metrics.quotes || 0) * 4
-  );
+  return weightedEngagement(metrics);
 }
 
 // Refresh voice examples for a single user
