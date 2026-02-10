@@ -194,48 +194,112 @@ export async function PATCH(request: NextRequest) {
       updateData.ai_model = body.ai_model;
     }
 
-    // Try upsert with new schema (compound key: user_id + voice_type)
-    let { data, error } = await supabase
-      .from("user_voice_settings")
-      .upsert(
-        {
+    // Load existing settings first so partial updates don't reset other fields.
+    // (Important: never spread DEFAULT_VOICE_SETTINGS into an update unless we're creating a new row.)
+    let existing: any = null;
+
+    // Try new schema (user_id + voice_type)
+    {
+      const res = await supabase
+        .from("user_voice_settings")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("voice_type", voiceType)
+        .single();
+
+      if (res.error && res.error.code !== "PGRST116" && !res.error.message?.includes("voice_type")) {
+        throw res.error;
+      }
+
+      if (!res.error) existing = res.data;
+    }
+
+    // If no row exists yet (new schema), create defaults once.
+    if (!existing) {
+      const { data: created, error: createErr } = await supabase
+        .from("user_voice_settings")
+        .insert({
           ...DEFAULT_VOICE_SETTINGS,
-          ...updateData,
           user_id: user.id,
           voice_type: voiceType,
-        },
-        { onConflict: "user_id,voice_type" }
-      )
-      .select()
-      .single();
+        })
+        .select()
+        .single();
 
-    // If voice_type column doesn't exist, fall back to old schema
-    if (error && (error.message?.includes("voice_type") || error.message?.includes("user_id,voice_type"))) {
-      // Remove new columns from defaults and updateData
+      if (createErr) {
+        // If we failed because voice_type column doesn't exist, we fall back below.
+        if (!(createErr.message?.includes("voice_type"))) throw createErr;
+      } else {
+        existing = created;
+      }
+    }
+
+    // If we have existing settings (new schema), merge updates and upsert.
+    if (existing) {
+      const mergedGuardrails = body.guardrails !== undefined
+        ? { ...(existing.guardrails || {}), ...(body.guardrails || {}) }
+        : (existing.guardrails || undefined);
+
+      const payload = {
+        ...existing,
+        ...updateData,
+        user_id: user.id,
+        voice_type: voiceType,
+        guardrails: mergedGuardrails,
+      };
+
+      const { data, error } = await supabase
+        .from("user_voice_settings")
+        .upsert(payload, { onConflict: "user_id,voice_type" })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return NextResponse.json(data);
+    }
+
+    // If we couldn't use new schema (voice_type missing), fall through to legacy handling.
+    let data: any = null;
+    let error: any = { message: "voice_type missing" };
+
+    // Legacy schema fallback (no voice_type column)
+    // Preserve existing values on partial update.
+    {
       const { voice_type: _vt, special_notes: _sn, ...legacyDefaults } = DEFAULT_VOICE_SETTINGS;
-      const legacyUpdateData = { ...updateData };
-      delete legacyUpdateData.special_notes;
+
+      const { data: legacyExisting, error: legacyGetErr } = await supabase
+        .from("user_voice_settings")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      if (legacyGetErr && legacyGetErr.code !== "PGRST116") throw legacyGetErr;
+
+      const base = legacyExisting || { ...legacyDefaults, user_id: user.id };
+
+      const mergedGuardrails = body.guardrails !== undefined
+        ? { ...(base.guardrails || {}), ...(body.guardrails || {}) }
+        : (base.guardrails || undefined);
+
+      const legacyUpdateData: Record<string, unknown> = { ...updateData };
+      delete (legacyUpdateData as any).special_notes;
+
+      const payload = {
+        ...base,
+        ...legacyUpdateData,
+        user_id: user.id,
+        guardrails: mergedGuardrails,
+      };
 
       const { data: legacyData, error: legacyError } = await supabase
         .from("user_voice_settings")
-        .upsert(
-          {
-            ...legacyDefaults,
-            ...legacyUpdateData,
-            user_id: user.id,
-          },
-          { onConflict: "user_id" }
-        )
+        .upsert(payload, { onConflict: "user_id" })
         .select()
         .single();
 
       if (legacyError) throw legacyError;
       return NextResponse.json({ ...legacyData, voice_type: voiceType });
     }
-
-    if (error) throw error;
-
-    return NextResponse.json(data);
   } catch (error) {
     console.error("Failed to update voice settings:", error);
     return NextResponse.json(
