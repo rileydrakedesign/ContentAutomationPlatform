@@ -1,336 +1,65 @@
-# Content Pipeline - Implementation Documentation
+# ContentAutomationPlatform (Agent for X) — Implementation Notes
 
-> Last updated: January 2025
+> This doc is meant to keep future agents/devs grounded in what the product **actually does today**.
+> If you change the product surface, update this file.
 
-## Overview
+## What this product is (current)
+A creator operating system for X that is **extension-first**:
+- save inspiration / posts from the X timeline into your dataset
+- generate high-quality **replies** (primary) and drafts (secondary)
+- analyze your performance (CSV upload + captured posts)
+- extract patterns + suggestions grounded in your own metrics
+- publish now + schedule posts via a queue/worker
 
-A content automation pipeline for generating X posts, X threads, and Instagram Reel scripts from raw inputs (voice memo transcripts, inspirations, news articles).
+## What we intentionally de‑emphasized / legacy
+- **Voice memo → transcript → drafts** is legacy / not the primary workflow.
+  The code paths still exist, but product direction is: **Chrome extension + reply agent + voice editing**.
+- “News ingestion” is not a first-class workflow right now.
 
-**Core Flow:** `Source → Generate → Review → Approve`
+## Core data model (mental model)
+There are four main buckets of data:
 
----
+1) `captured_posts` — the canonical stream of posts the system can learn from.
+   - includes: saved inspiration, your own posts (via sync, analytics sync, and publish backfill)
 
-## Tech Stack
+2) `user_analytics` — your uploaded X analytics CSV (used for dashboard/top posts and pattern extraction CSV-first).
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | Next.js 16 (App Router), React 19, Tailwind CSS |
-| Backend | Next.js API Routes |
-| Database | Supabase Postgres |
-| Storage | Supabase Storage (voice-memos bucket) |
-| AI | OpenAI GPT-4 (content generation) |
-| ORM | Supabase JS Client (not Drizzle - see notes) |
+3) `drafts` — generated content awaiting review/approval and optionally publish/schedule.
 
-### Notes
-- Drizzle ORM is installed but **not used** due to DATABASE_URL IPv6 connectivity issues
-- All database operations use the Supabase JS client instead
-- BullMQ/Redis are installed but **not implemented** (background jobs deferred)
+4) `scheduled_posts` — the publish queue source of truth (BullMQ job id stored on row).
 
----
+## Publishing (critical wiring)
+- `POST /api/publish/now` publishes immediately and **backfills `captured_posts`** with the posted tweet(s).
+- `POST /api/publish/schedule` inserts into `scheduled_posts` and enqueues a BullMQ job.
+- `scripts/publish-worker.mjs` processes jobs and **backfills `captured_posts`** on success.
 
-## Database Schema
+## Analytics + patterns
+- CSV upload: `POST /api/analytics/csv` stores a normalized `user_analytics.posts` array.
+- Best-times and Insights mostly use `captured_posts` (your own posts).
+- Pattern extraction: `POST /api/patterns/extract`
+  - CSV-first (preferred)
+  - fallback to `captured_posts` (own posts)
+  - non-destructive: disables previous patterns and inserts a new batch (see `extraction_batch`).
 
-### Tables
+## Inspiration (single source)
+- Canonical “saved inspiration” is `inspiration_posts` (analyzed, pinnable).
+- Dashboard and Create flow should read from `/api/inspiration` and `/api/inspiration/[id]`.
+- Captured posts can still be used as an intake/inbox, but the *saved inspiration surface* is inspiration_posts.
 
-#### `sources`
-Raw input materials for content generation.
+## Auth model
+- Web app uses Supabase cookie session.
+- Extension endpoints may use Bearer tokens.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| type | ENUM | `VOICE_MEMO`, `INSPIRATION`, `NEWS` |
-| raw_content | TEXT | Transcript or text content |
-| source_url | TEXT | URL for inspirations/news |
-| audio_path | TEXT | Supabase Storage path (voice memos) |
-| metadata | JSONB | Additional data (platform, author, etc.) |
-| created_at | TIMESTAMP | Creation time |
-| updated_at | TIMESTAMP | Last update time |
+## Migrations / RLS
+See `supabase/MIGRATIONS_TO_APPLY.md`.
 
-#### `drafts`
-Generated content awaiting review.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| type | ENUM | `X_POST`, `X_THREAD`, `REEL_SCRIPT` |
-| status | ENUM | `PENDING`, `GENERATED`, `APPROVED`, `REJECTED` |
-| content | JSONB | Generated content structure |
-| source_ids | UUID[] | References to source materials |
-| edited_content | JSONB | Human edits (if any) |
-| created_at | TIMESTAMP | Creation time |
-| updated_at | TIMESTAMP | Last update time |
-
-### Content Structures (JSONB)
-
-```typescript
-// X_POST
-{ text: string }
-
-// X_THREAD
-{ tweets: string[] }
-
-// REEL_SCRIPT
-{
-  hook: string,
-  body: string,
-  callToAction: string,
-  estimatedDuration: string
-}
-```
-
----
-
-## API Routes
-
-### Sources
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/sources` | List all sources |
-| POST | `/api/sources/inspiration` | Add inspiration (text/URL) |
-| POST | `/api/sources/news` | Add news article |
-| POST | `/api/sources/voice-memo` | Upload audio file |
-| POST | `/api/sources/transcript` | Add voice memo transcript (text) |
-
-#### POST `/api/sources/inspiration`
-```json
-{
-  "text": "Content text",
-  "url": "https://...",
-  "platform": "X|Instagram|LinkedIn|Blog|Other",
-  "author": "optional"
-}
-```
-
-#### POST `/api/sources/news`
-```json
-{
-  "content": "Article content",
-  "url": "https://...",
-  "title": "Article title",
-  "author": "optional",
-  "publication": "optional"
-}
-```
-
-#### POST `/api/sources/transcript`
-```json
-{
-  "transcript": "Voice memo transcript text",
-  "title": "optional"
-}
-```
-
-#### POST `/api/sources/voice-memo`
-- Content-Type: `multipart/form-data`
-- Body: `file` (audio file)
-
-### Drafts
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/drafts` | List all drafts |
-| POST | `/api/drafts/generate` | Generate draft from sources |
-| GET | `/api/drafts/[id]` | Get single draft |
-| PATCH | `/api/drafts/[id]` | Update draft (edit/approve/reject) |
-| DELETE | `/api/drafts/[id]` | Delete draft |
-
-#### POST `/api/drafts/generate`
-```json
-{
-  "sourceIds": ["uuid1", "uuid2"],
-  "draftType": "X_POST|X_THREAD|REEL_SCRIPT"
-}
-```
-
-#### PATCH `/api/drafts/[id]`
-```json
-{
-  "status": "APPROVED|REJECTED",
-  "editedContent": { ... }
-}
-```
-
----
-
-## UI Pages
-
-| Route | Description |
-|-------|-------------|
-| `/` | Dashboard - stats overview, quick actions |
-| `/sources` | List sources, add new (inspiration/news/voice memo) |
-| `/drafts` | List drafts with status filters |
-| `/drafts/generate` | Select sources, choose type, generate draft |
-| `/drafts/[id]` | Edit draft content, approve/reject |
-
----
-
-## File Structure
-
-```
-src/
-├── app/
-│   ├── layout.tsx          # Root layout with navigation
-│   ├── page.tsx            # Dashboard home
-│   ├── globals.css         # Global styles
-│   ├── sources/
-│   │   └── page.tsx        # Sources list + add forms
-│   ├── drafts/
-│   │   ├── page.tsx        # Drafts list
-│   │   ├── generate/
-│   │   │   └── page.tsx    # Generate new draft
-│   │   └── [id]/
-│   │       └── page.tsx    # Draft editor
-│   └── api/
-│       ├── sources/
-│       │   ├── route.ts           # GET /api/sources
-│       │   ├── inspiration/
-│       │   │   └── route.ts       # POST
-│       │   ├── news/
-│       │   │   └── route.ts       # POST
-│       │   ├── voice-memo/
-│       │   │   └── route.ts       # POST (audio upload)
-│       │   └── transcript/
-│       │       └── route.ts       # POST (text transcript)
-│       └── drafts/
-│           ├── route.ts           # GET /api/drafts
-│           ├── generate/
-│           │   └── route.ts       # POST
-│           └── [id]/
-│               └── route.ts       # GET, PATCH, DELETE
-├── lib/
-│   ├── db/
-│   │   ├── index.ts        # Drizzle client (unused)
-│   │   └── schema.ts       # Drizzle schema (reference only)
-│   ├── supabase/
-│   │   ├── index.ts        # Exports
-│   │   ├── client.ts       # Supabase client
-│   │   └── storage.ts      # Storage helpers
-│   ├── openai/
-│   │   ├── index.ts        # Exports
-│   │   ├── client.ts       # OpenAI client
-│   │   ├── transcribe.ts   # Whisper transcription (unused)
-│   │   └── generate.ts     # Content generation with brand voice
-│   └── queue/
-│       ├── index.ts        # Exports
-│       ├── connection.ts   # Redis connection (unused)
-│       └── queues.ts       # BullMQ queues (unused)
-└── types/
-    ├── index.ts
-    └── content.ts          # TypeScript types
-```
-
----
-
-## Environment Variables
-
+## Local commands
 ```bash
-# Required
-NEXT_PUBLIC_SUPABASE_URL=https://[project].supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-OPENAI_API_KEY=sk-...
-
-# Optional (not currently used)
-DATABASE_URL=postgresql://...  # For Drizzle (IPv6 issues)
-REDIS_URL=redis://...          # For BullMQ (not implemented)
-```
-
----
-
-## Brand Voice (Built into Generation)
-
-The OpenAI generation prompt enforces these rules:
-
-**Voice Principles:**
-- Write as a builder, not a marketer
-- Curious, practical, slightly opinionated
-- Concrete > abstract
-- Short sentences > long explanations
-
-**Tone Constraints:**
-- No hype language
-- No emojis (unless requested)
-- No generic motivational fluff
-- No clichés ("game-changer", "revolutionary")
-
-**Content Heuristics:**
-- Prefer "what I learned" over "what you should do"
-- Reference tools with practical context
-- News requires impact explanation
-
----
-
-## Current Workflows
-
-### Adding a Voice Memo
-1. Record on iPhone Voice Memos app
-2. View transcript in app
-3. Copy transcript
-4. Sources → Voice Memo → Paste Transcript → Save
-
-### Adding Inspiration
-1. Sources → + Inspiration
-2. Paste content, add URL/platform
-3. Save
-
-### Generating a Draft
-1. Drafts → Generate New Draft
-2. Select content type (X Post, Thread, Reel Script)
-3. Select one or more sources
-4. Click Generate
-5. Redirects to editor
-
-### Reviewing a Draft
-1. Drafts → Click draft card
-2. Edit content in editor
-3. Approve or Reject
-
----
-
-## Not Implemented (Deferred)
-
-| Feature | Reason |
-|---------|--------|
-| Audio transcription | Using Apple's built-in transcription instead |
-| Background jobs (BullMQ) | MVP uses synchronous operations |
-| Drizzle ORM | IPv6 connectivity issues with Supabase direct connection |
-| Auto-posting | Explicit non-goal per project spec |
-| Multi-user auth | MVP is single-user |
-| Analytics | Out of scope for MVP |
-
----
-
-## Running Locally
-
-```bash
-# Install dependencies
 npm install
-
-# Start dev server
-npm run dev -- -p 3003
-
-# Build for production
+npm run dev
 npm run build
-
-# Start production server
 npm start
+
+# worker (needs REDIS_URL + SUPABASE_SERVICE_ROLE_KEY)
+npm run worker:publish
 ```
-
----
-
-## Supabase Setup
-
-1. Tables created via Supabase MCP (migrations in Supabase dashboard)
-2. Storage bucket `voice-memos` created
-3. RLS is **disabled** (single-user MVP)
-
----
-
-## Future Considerations
-
-1. **iOS Shortcut automation** - Direct transcript posting from iPhone
-2. **Background transcription** - Process audio with Whisper async
-3. **Scheduled posting** - Queue approved content for publishing
-4. **Content analytics** - Track performance of posted content
-5. **Voice input in web UI** - Record directly in browser

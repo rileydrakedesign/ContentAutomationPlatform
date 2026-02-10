@@ -21,5 +21,5 @@
 - thread
 
 ## Mini cards
-- input: podcast transcript, voice memo, or notes.
+- input: posts you saved in-browser (extension) + your own analytics + notes.
 - output: drafts that preserve meaning and avoid cringe.
