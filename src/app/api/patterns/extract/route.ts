@@ -10,6 +10,7 @@ export async function OPTIONS() {
 }
 
 interface PostForAnalysis {
+  id?: string; // present for captured_posts; absent for CSV
   text: string;
   impressions: number;
   likes: number;
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
       dataSource = "captured";
       const { data: ownPosts, error: ownPostsError } = await supabase
         .from("captured_posts")
-        .select("text_content, metrics, post_timestamp")
+        .select("id, text_content, metrics, post_timestamp")
         .eq("user_id", user.id)
         .eq("is_own_post", true)
         .order("post_timestamp", { ascending: false })
@@ -98,6 +99,7 @@ export async function POST(request: NextRequest) {
       posts = (ownPosts || []).map((p) => {
         const m = (p.metrics || {}) as Record<string, number | undefined>;
         return {
+          id: p.id,
           text: p.text_content,
           impressions: m.views ?? 0,
           likes: m.likes ?? 0,
@@ -219,7 +221,7 @@ Return ONLY the JSON array, no other text.`;
         sample_count: matched.length,
         avg_engagement: Math.round(avg),
         multiplier: Number.isFinite(multiplier) ? multiplier : 1.0,
-        source_post_ids: [] as string[],
+        source_post_ids: matched.map((p) => p.id).filter(Boolean).slice(0, 25),
         is_enabled: true,
         extraction_batch: new Date().toISOString(),
       };

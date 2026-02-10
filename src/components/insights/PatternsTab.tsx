@@ -204,7 +204,7 @@ export function PatternsTab() {
                       </p>
                       <div className="flex items-center gap-4 text-xs text-slate-500">
                         <span>
-                          Confidence: {Math.round(pattern.confidence_score * 100)}%
+                          Confidence: {Math.max(0, Math.min(100, Math.round(pattern.confidence_score)))}%
                         </span>
                         <span>{pattern.sample_count} samples</span>
                       </div>
