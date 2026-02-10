@@ -13,21 +13,26 @@ interface PerformanceTabProps {
   loading?: boolean;
 }
 
-export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: PerformanceTabProps) {
-  const [sortBy, setSortBy] = useState<"engagement" | "views" | "likes" | "recent">("engagement");
+type SortKey = "engagement" | "views" | "likes" | "recent";
 
-  const sortedPosts = [...posts].sort((a, b) => {
-    if (sortBy === "engagement") {
-      return (b.engagement_score || 0) - (a.engagement_score || 0);
-    }
-    if (sortBy === "views") {
-      return (b.impressions || 0) - (a.impressions || 0);
-    }
-    if (sortBy === "likes") {
-      return (b.likes || 0) - (a.likes || 0);
-    }
+function sortItems(items: PostAnalytics[], sortBy: SortKey): PostAnalytics[] {
+  return [...items].sort((a, b) => {
+    if (sortBy === "engagement") return (b.engagement_score || 0) - (a.engagement_score || 0);
+    if (sortBy === "views") return (b.impressions || 0) - (a.impressions || 0);
+    if (sortBy === "likes") return (b.likes || 0) - (a.likes || 0);
     return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
+}
+
+export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: PerformanceTabProps) {
+  const [postsSortBy, setPostsSortBy] = useState<SortKey>("engagement");
+  const [repliesSortBy, setRepliesSortBy] = useState<SortKey>("engagement");
+
+  const onlyPosts = posts.filter((p) => !p.is_reply);
+  const onlyReplies = posts.filter((p) => p.is_reply);
+
+  const sortedOnlyPosts = sortItems(onlyPosts, postsSortBy).slice(0, 5);
+  const sortedOnlyReplies = sortItems(onlyReplies, repliesSortBy).slice(0, 5);
 
   // Calculate aggregate stats
   const totalViews = posts.reduce((sum, p) => sum + (p.impressions || 0), 0);
@@ -38,9 +43,6 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
 
   const avgEngagementPerPost = posts.length > 0 ? Math.round(totalEngagement / posts.length) : 0;
   const engagementRate = totalViews > 0 ? ((totalEngagement / totalViews) * 100).toFixed(2) : "0";
-
-  const winners = [...posts].sort((a, b) => (b.engagement_score || 0) - (a.engagement_score || 0)).slice(0, 5);
-  const recent = [...posts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
   if (loading) {
     return (
@@ -105,32 +107,45 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
         </Card>
       </div>
 
-      {/* Winners + recent */}
+      {/* Posts + Replies */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card className="p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-medium text-white">Top winners</h3>
-              <p className="text-xs text-slate-500 mt-1">Best posts by weighted engagement</p>
+              <h3 className="font-medium text-white">Posts</h3>
+              <p className="text-xs text-slate-500 mt-1">{formatNumber(onlyPosts.length)} original posts</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Sort:</span>
+              <select
+                value={postsSortBy}
+                onChange={(e) => setPostsSortBy(e.target.value as SortKey)}
+                className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="engagement">Engagement</option>
+                <option value="recent">Recent</option>
+                <option value="views">Views</option>
+                <option value="likes">Likes</option>
+              </select>
             </div>
           </div>
 
-          {winners.length === 0 ? (
+          {sortedOnlyPosts.length === 0 ? (
             <div className="text-sm text-slate-500">No posts yet. Upload your analytics CSV.</div>
           ) : (
             <div className="space-y-2">
-              {winners.map((post, index) => (
+              {sortedOnlyPosts.map((post, index) => (
                 <div key={post.id || index} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
-                  <div className="flex items-center justify-center w-8 h-8 bg-slate-700 rounded-full text-sm font-medium text-slate-300">
-                    {index + 1}
-                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-200 line-clamp-2">{post.text}</p>
-                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-2">
-                      <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{formatNumber(post.impressions || 0)}</span>
-                      <span className="flex items-center gap-1"><Heart className="w-3 h-3" />{formatNumber(post.likes || 0)}</span>
-                      <span className="flex items-center gap-1"><Repeat className="w-3 h-3" />{formatNumber(post.reposts || 0)}</span>
-                      <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{formatNumber(post.replies || 0)}</span>
+                    <div className="flex items-center justify-between gap-3 mt-2 text-xs text-slate-500">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{formatNumber(post.impressions || 0)}</span>
+                        <span className="flex items-center gap-1"><Heart className="w-3 h-3" />{formatNumber(post.likes || 0)}</span>
+                        <span className="flex items-center gap-1"><Repeat className="w-3 h-3" />{formatNumber(post.reposts || 0)}</span>
+                        <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{formatNumber(post.replies || 0)}</span>
+                      </div>
+                      <span>{formatRelativeTime(post.date)}</span>
                     </div>
                   </div>
                   {post.post_url && (
@@ -147,34 +162,35 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
         <Card className="p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-medium text-white">Recent posts</h3>
-              <p className="text-xs text-slate-500 mt-1">Most recent from analytics</p>
+              <h3 className="font-medium text-white">Replies</h3>
+              <p className="text-xs text-slate-500 mt-1">{formatNumber(onlyReplies.length)} replies</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Sort:</span>
               <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
+                value={repliesSortBy}
+                onChange={(e) => setRepliesSortBy(e.target.value as SortKey)}
                 className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
               >
-                <option value="recent">Recent</option>
                 <option value="engagement">Engagement</option>
+                <option value="recent">Recent</option>
                 <option value="views">Views</option>
                 <option value="likes">Likes</option>
               </select>
             </div>
           </div>
 
-          {recent.length === 0 ? (
-            <div className="text-sm text-slate-500">No posts yet.</div>
+          {sortedOnlyReplies.length === 0 ? (
+            <div className="text-sm text-slate-500">No replies yet.</div>
           ) : (
             <div className="space-y-2">
-              {(sortBy === "recent" ? recent : sortedPosts.slice(0, 5)).map((post, index) => (
+              {sortedOnlyReplies.map((post, index) => (
                 <div key={post.id || index} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-200 line-clamp-2">{post.text}</p>
                     <div className="flex items-center justify-between gap-3 mt-2 text-xs text-slate-500">
                       <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{formatNumber(post.impressions || 0)}</span>
                         <span className="flex items-center gap-1"><Heart className="w-3 h-3" />{formatNumber(post.likes || 0)}</span>
                         <span className="flex items-center gap-1"><Repeat className="w-3 h-3" />{formatNumber(post.reposts || 0)}</span>
                         <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{formatNumber(post.replies || 0)}</span>
