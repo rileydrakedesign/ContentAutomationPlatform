@@ -25,58 +25,66 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user's captured posts (own posts only)
-    const { data: posts, error: postsError } = await supabase
-      .from("captured_posts")
-      .select("*")
+    // Use CSV analytics as the sole source of truth for "my posts"
+    const { data: row, error: postsError } = await supabase
+      .from("user_analytics")
+      .select("posts")
       .eq("user_id", user.id)
-      .eq("triaged_as", "my_post")
-      .order("captured_at", { ascending: false })
-      .limit(100);
+      .order("uploaded_at", { ascending: false })
+      .limit(1)
+      .single();
 
-    if (postsError) throw postsError;
+    if (postsError && postsError.code !== "PGRST116") throw postsError;
 
-    if (!posts || posts.length === 0) {
+    const posts = (row?.posts && Array.isArray(row.posts)) ? (row.posts as any[]) : [];
+    const onlyPosts = posts.filter((p) => p && p.is_reply === false);
+
+    if (onlyPosts.length === 0) {
       return NextResponse.json({
-        message: "No posts found to refresh. Sync your X account first.",
+        message: "No posts found in CSV. Upload your X analytics CSV first.",
         examples_updated: 0,
       });
     }
 
-    // Calculate engagement scores and sort
-    const scoredPosts = posts
+    // Score by impressions (primary)
+    const scoredPosts = [...onlyPosts]
       .map((post) => ({
         ...post,
-        engagement_score: calculateEngagementScore(post.metrics || {}),
+        engagement_score: Number((post as any).impressions || 0),
       }))
       .sort((a, b) => b.engagement_score - a.engagement_score);
 
     // Get existing pinned examples (preserve them)
     const { data: pinnedExamples } = await supabase
       .from("user_voice_examples")
-      .select("captured_post_id")
+      .select("content_text")
       .eq("user_id", user.id)
+      .eq("content_type", "post")
       .eq("source", "pinned")
       .eq("is_excluded", false);
 
-    const pinnedIds = new Set(
-      pinnedExamples?.map((e) => e.captured_post_id).filter(Boolean) || []
+    const pinnedTexts = new Set(
+      pinnedExamples?.map((e) => String(e.content_text || "")).filter(Boolean) || []
     );
 
     // Get excluded post IDs
     const { data: excludedExamples } = await supabase
       .from("user_voice_examples")
-      .select("captured_post_id")
+      .select("content_text")
       .eq("user_id", user.id)
+      .eq("content_type", "post")
       .eq("is_excluded", true);
 
-    const excludedIds = new Set(
-      excludedExamples?.map((e) => e.captured_post_id).filter(Boolean) || []
+    const excludedTexts = new Set(
+      excludedExamples?.map((e) => String(e.content_text || "")).filter(Boolean) || []
     );
 
     // Select top 10 posts not already pinned or excluded
     const autoSelected = scoredPosts
-      .filter((p) => !pinnedIds.has(p.id) && !excludedIds.has(p.id))
+      .filter((p: any) => {
+        const text = String(p.text || "");
+        return text && !pinnedTexts.has(text) && !excludedTexts.has(text);
+      })
       .slice(0, 10);
 
     // Remove old auto-selected examples
@@ -90,18 +98,18 @@ export async function POST() {
 
     // Insert new auto-selected examples
     if (autoSelected.length > 0) {
-      const examples = autoSelected.map((post, index) => ({
+      const examples = autoSelected.map((post: any, index) => ({
         user_id: user.id,
-        captured_post_id: post.id,
-        content_text: post.text_content,
+        captured_post_id: null,
+        content_text: String(post.text || ""),
         content_type: "post" as const,
         source: "auto" as const,
         is_excluded: false,
-        metrics_snapshot: post.metrics || {},
-        engagement_score: post.engagement_score,
-        token_count: estimateTokens(post.text_content),
+        metrics_snapshot: { impressions: Number(post.impressions || 0) },
+        engagement_score: Number(post.engagement_score || 0),
+        token_count: estimateTokens(String(post.text || "")),
         selection_reason:
-          index === 0 ? "highest engagement" : `top ${index + 1} by engagement`,
+          index === 0 ? "highest impressions" : `top ${index + 1} by impressions`,
       }));
 
       const { error: insertError } = await supabase

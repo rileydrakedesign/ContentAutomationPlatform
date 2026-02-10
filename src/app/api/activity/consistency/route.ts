@@ -23,7 +23,7 @@ function isReplyText(text: string): boolean {
 
 // GET /api/activity/consistency
 // Returns daily post/reply activity based on:
-// - captured_posts created via extension + x sync (user-owned only)
+// - user_analytics CSV (sole source of truth for "my posts" and "my replies")
 // - scheduled_posts created via Agent for X publish scheduler
 export async function GET() {
   try {
@@ -45,26 +45,31 @@ export async function GET() {
     const since = new Date(today);
     since.setDate(since.getDate() - 90);
 
-    // 1) captured_posts (own posts + replies)
-    // Prefer post_timestamp, fallback to captured_at.
-    const { data: captured, error: capturedError } = await supabase
-      .from("captured_posts")
-      .select("post_timestamp, captured_at, text_content, is_own_post, triaged_as")
+    // 1) user_analytics (CSV)
+    const { data: analyticsRow, error: analyticsErr } = await supabase
+      .from("user_analytics")
+      .select("posts")
       .eq("user_id", user.id)
-      // defense: only count user-owned content
-      .or("is_own_post.eq.true,triaged_as.eq.my_post");
+      .order("uploaded_at", { ascending: false })
+      .limit(1)
+      .single();
 
-    if (capturedError) throw capturedError;
+    if (analyticsErr && analyticsErr.code !== "PGRST116") throw analyticsErr;
 
-    for (const row of captured || []) {
-      const dt = safeDate((row as any).post_timestamp) || safeDate((row as any).captured_at);
+    const csvPosts = (analyticsRow?.posts && Array.isArray(analyticsRow.posts))
+      ? (analyticsRow.posts as Array<Record<string, unknown>>)
+      : [];
+
+    for (const row of csvPosts) {
+      const dateStr = String((row as any).date || "");
+      const dt = safeDate(dateStr);
       if (!dt) continue;
       if (dt < since) continue;
       const key = dateKey(dt);
       if (!map[key]) map[key] = { posts: 0, replies: 0 };
 
-      const text = String((row as any).text_content || "");
-      if (isReplyText(text)) map[key].replies += 1;
+      const isReply = Boolean((row as any).is_reply);
+      if (isReply) map[key].replies += 1;
       else map[key].posts += 1;
     }
 

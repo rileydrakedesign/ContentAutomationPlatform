@@ -1,20 +1,21 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { CapturedPost } from "@/types/captured";
-import { formatNumber, calculateEngagementRate } from "@/lib/utils/formatting";
+import { PostAnalytics } from "@/types/analytics";
+import { formatNumber } from "@/lib/utils/formatting";
 import { weightedEngagement } from "@/lib/utils/engagement";
 
 export function PatternsSection() {
-  const [posts, setPosts] = useState<CapturedPost[]>([]);
+  const [posts, setPosts] = useState<PostAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchPosts() {
       try {
-        const res = await fetch("/api/captured?triaged_as=my_post");
-        const data = await res.json();
-        setPosts(data);
+        const res = await fetch("/api/analytics/csv");
+        const json = await res.json();
+        const rows = (json?.data?.posts && Array.isArray(json.data.posts)) ? json.data.posts : [];
+        setPosts(rows.filter((p: any) => !p.is_reply));
       } catch (error) {
         console.error("Failed to fetch posts:", error);
       } finally {
@@ -30,27 +31,29 @@ export function PatternsSection() {
 
     // Average length
     const avgLength = Math.round(
-      posts.reduce((sum, p) => sum + p.text_content.length, 0) / posts.length
+      posts.reduce((sum, p) => sum + (p.text?.length || 0), 0) / posts.length
     );
 
-    // Average engagement rate
-    const engagementRates = posts
-      .map((p) => calculateEngagementRate(p.metrics))
-      .filter((r) => r > 0);
+    // Average engagement per post (weighted), plus rate vs impressions when present
+    const engagementVals = posts.map((p: any) => weightedEngagement(p as any));
     const avgEngagement =
-      engagementRates.length > 0
-        ? (engagementRates.reduce((a, b) => a + b, 0) / engagementRates.length).toFixed(2)
-        : "0";
+      engagementVals.length > 0
+        ? Math.round(engagementVals.reduce((a, b) => a + b, 0) / engagementVals.length)
+        : 0;
+
+    const totalImpressions = posts.reduce((sum, p) => sum + (p.impressions || 0), 0);
+    const engagementRate = totalImpressions > 0
+      ? ((engagementVals.reduce((a, b) => a + b, 0) / totalImpressions) * 100).toFixed(2)
+      : "0";
 
     // Best performing day
     const dayMap = new Map<number, { count: number; engagement: number }>();
-    posts.forEach((post) => {
-      if (post.post_timestamp) {
-        const day = new Date(post.post_timestamp).getDay();
+    posts.forEach((post: any) => {
+      const d = post.date ? new Date(String(post.date)) : null;
+      if (d && !isNaN(d.getTime())) {
+        const day = d.getDay();
         const current = dayMap.get(day) || { count: 0, engagement: 0 };
-        const engagement = weightedEngagement(
-          post.metrics as Record<string, number | undefined>
-        );
+        const engagement = weightedEngagement(post as any);
         dayMap.set(day, {
           count: current.count + 1,
           engagement: current.engagement + engagement,
@@ -71,34 +74,34 @@ export function PatternsSection() {
 
     // Detect if threads perform better
     const threadLikePosts = posts.filter(
-      (p) => p.text_content.includes("🧵") || p.text_content.includes("1/")
+      (p) => (p.text || "").includes("🧵") || (p.text || "").includes("1/")
     );
     const regularPosts = posts.filter(
-      (p) => !p.text_content.includes("🧵") && !p.text_content.includes("1/")
+      (p) => !(p.text || "").includes("🧵") && !(p.text || "").includes("1/")
     );
 
     let bestFormat = "Single posts";
     if (threadLikePosts.length >= 3 && regularPosts.length >= 3) {
       const threadAvg =
-        threadLikePosts.reduce((sum, p) => sum + (p.metrics.likes || 0), 0) /
+        threadLikePosts.reduce((sum, p: any) => sum + (p.impressions || 0), 0) /
         threadLikePosts.length;
       const regularAvg =
-        regularPosts.reduce((sum, p) => sum + (p.metrics.likes || 0), 0) /
+        regularPosts.reduce((sum, p: any) => sum + (p.impressions || 0), 0) /
         regularPosts.length;
       bestFormat = threadAvg > regularAvg * 1.2 ? "Threads" : "Single posts";
     }
 
     // Total stats
-    const totalViews = posts.reduce((sum, p) => sum + (p.metrics.views || 0), 0);
-    const totalLikes = posts.reduce((sum, p) => sum + (p.metrics.likes || 0), 0);
+    const totalLikes = posts.reduce((sum, p) => sum + (p.likes || 0), 0);
 
     return {
       avgLength,
       avgEngagement,
+      engagementRate,
       bestDay,
       bestFormat,
       totalPosts: posts.length,
-      totalViews,
+      totalImpressions,
       totalLikes,
     };
   }, [posts]);
@@ -141,8 +144,8 @@ export function PatternsSection() {
           <p className="text-xl font-semibold text-white">{patterns.totalPosts}</p>
         </div>
         <div className="bg-slate-800 rounded-lg p-4">
-          <p className="text-sm text-slate-500 mb-1">Total Views</p>
-          <p className="text-xl font-semibold text-white">{formatNumber(patterns.totalViews)}</p>
+          <p className="text-sm text-slate-500 mb-1">Total Impressions</p>
+          <p className="text-xl font-semibold text-white">{formatNumber(patterns.totalImpressions)}</p>
         </div>
         <div className="bg-slate-800 rounded-lg p-4">
           <p className="text-sm text-slate-500 mb-1">Total Likes</p>
@@ -157,8 +160,12 @@ export function PatternsSection() {
           <span className="text-white font-medium">{patterns.avgLength} characters</span>
         </div>
         <div className="flex items-center justify-between py-3 border-b border-slate-800">
-          <span className="text-slate-400">Average engagement rate</span>
-          <span className="text-white font-medium">{patterns.avgEngagement}%</span>
+          <span className="text-slate-400">Avg engagement / post</span>
+          <span className="text-white font-medium">{formatNumber(patterns.avgEngagement)}</span>
+        </div>
+        <div className="flex items-center justify-between py-3 border-b border-slate-800">
+          <span className="text-slate-400">Engagement rate</span>
+          <span className="text-white font-medium">{patterns.engagementRate}%</span>
         </div>
         <div className="flex items-center justify-between py-3 border-b border-slate-800">
           <span className="text-slate-400">Best performing day</span>

@@ -32,14 +32,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Retrieve relevant user data (keep it small + cheap)
-    const [bestTimesRes, patternsRes, inspirationsRes] = await Promise.all([
+    const [analyticsRes, patternsRes, inspirationsRes] = await Promise.all([
       supabase
-        .from("captured_posts")
-        .select("post_timestamp, metrics")
+        .from("user_analytics")
+        .select("posts")
         .eq("user_id", user.id)
-        .eq("triaged_as", "my_post")
-        .not("post_timestamp", "is", null)
-        .limit(400),
+        .order("uploaded_at", { ascending: false })
+        .limit(1)
+        .single(),
       supabase
         .from("extracted_patterns")
         .select("pattern_type, pattern_name, pattern_value, multiplier, confidence_score")
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     // If any tables are missing (e.g. migrations not applied yet), respond gracefully.
     const missingTables: string[] = [];
     const errs = [
-      { name: "captured_posts", err: (bestTimesRes as any)?.error },
+      { name: "user_analytics", err: (analyticsRes as any)?.error },
       { name: "extracted_patterns", err: (patternsRes as any)?.error },
       { name: "inspiration_posts", err: (inspirationsRes as any)?.error },
     ];
@@ -80,13 +80,17 @@ export async function POST(request: NextRequest) {
     // Build a compact “knowledge bundle” as markdown
     const sourcesMd: string[] = [];
 
-    // Best-times: we avoid calling internal API; we provide raw distribution + allow model to reason.
-    const posts = bestTimesRes.data || [];
-    const postsCount = posts.length;
+    // Analytics snapshot from CSV (sole source for "my posts")
+    const csvPosts = (analyticsRes as any)?.data?.posts;
+    const arr = Array.isArray(csvPosts) ? csvPosts : [];
+    const ownPosts = arr.filter((p: any) => p && p.is_reply === false);
+    const replies = arr.filter((p: any) => p && p.is_reply === true);
+
     sourcesMd.push(
       `# USER_ANALYTICS_SNAPSHOT\n` +
-        `own posts available (triaged_as=my_post): ${postsCount}\n` +
-        `note: best-times requires enough posts with timestamps.\n`
+        `csv posts: ${ownPosts.length}\n` +
+        `csv replies: ${replies.length}\n` +
+        `note: timing insights depend on valid dates in the CSV.\n`
     );
 
     // Patterns

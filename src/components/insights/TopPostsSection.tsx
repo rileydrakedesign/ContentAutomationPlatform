@@ -2,20 +2,22 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { CapturedPost } from "@/types/captured";
+import { PostAnalytics } from "@/types/analytics";
 import { Card } from "@/components/ui/Card";
-import { formatNumber, formatMetrics, calculateEngagementScore } from "@/lib/utils/formatting";
+import { formatNumber } from "@/lib/utils/formatting";
+import { weightedEngagement } from "@/lib/utils/engagement";
 
 export function TopPostsSection() {
-  const [posts, setPosts] = useState<CapturedPost[]>([]);
+  const [posts, setPosts] = useState<PostAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchPosts() {
       try {
-        const res = await fetch("/api/captured?triaged_as=my_post");
-        const data = await res.json();
-        setPosts(data);
+        const res = await fetch("/api/analytics/csv");
+        const json = await res.json();
+        const rows = (json?.data?.posts && Array.isArray(json.data.posts)) ? json.data.posts : [];
+        setPosts(rows);
       } catch (error) {
         console.error("Failed to fetch posts:", error);
       } finally {
@@ -41,20 +43,26 @@ export function TopPostsSection() {
     );
   }
 
-  if (posts.length === 0) {
+  const onlyPosts = posts.filter((p) => !p.is_reply);
+
+  if (onlyPosts.length === 0) {
     return (
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
         <h2 className="text-sm font-semibold text-white mb-2">Top Performing Posts</h2>
         <p className="text-slate-500">
-          No posts yet. Capture your X posts and mark them as "My Post" to see rankings.
+          Upload your X analytics CSV to see rankings.
         </p>
       </div>
     );
   }
 
-  // Sort by engagement score
-  const sortedPosts = [...posts]
-    .sort((a, b) => calculateEngagementScore(b.metrics) - calculateEngagementScore(a.metrics))
+  // Sort by impressions (primary) then weighted engagement
+  const sortedPosts = [...onlyPosts]
+    .sort((a, b) => {
+      const imp = (b.impressions || 0) - (a.impressions || 0);
+      if (imp !== 0) return imp;
+      return weightedEngagement(b as any) - weightedEngagement(a as any);
+    })
     .slice(0, 5);
 
   return (
@@ -80,27 +88,25 @@ export function TopPostsSection() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-slate-300 line-clamp-2 mb-2">
-                {post.text_content}
+                {post.text}
               </p>
               <div className="flex items-center gap-3 text-xs">
-                {post.metrics.views && (
-                  <span className="text-slate-400">
-                    {formatNumber(post.metrics.views)} views
-                  </span>
-                )}
-                {post.metrics.likes && (
-                  <span className="text-slate-400">
-                    {formatNumber(post.metrics.likes)} likes
-                  </span>
-                )}
-                <a
-                  href={post.post_url}
+                <span className="text-slate-400">
+                  {formatNumber(post.impressions || 0)} impressions
+                </span>
+                <span className="text-slate-400">
+                  {formatNumber(post.likes || 0)} likes
+                </span>
+                {post.post_url && (
+                  <a
+                    href={post.post_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-amber-400 hover:text-amber-300 transition"
                 >
-                  View
-                </a>
+                    View
+                  </a>
+                )}
               </div>
             </div>
           </div>

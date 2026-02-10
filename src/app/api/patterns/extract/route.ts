@@ -44,7 +44,6 @@ export async function POST(request: NextRequest) {
 
     // ── 1. Try CSV data first ──────────────────────────────────
     let posts: PostForAnalysis[] = [];
-    let dataSource: "csv" | "captured" = "csv";
 
     const { data: analyticsRow } = await supabase
       .from("user_analytics")
@@ -83,38 +82,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── 2. Fallback to captured_posts (own posts only) ─────────
-    if (posts.length === 0) {
-      dataSource = "captured";
-      const { data: ownPosts, error: ownPostsError } = await supabase
-        .from("captured_posts")
-        .select("id, text_content, metrics, post_timestamp")
-        .eq("user_id", user.id)
-        .eq("is_own_post", true)
-        .order("post_timestamp", { ascending: false })
-        .limit(200);
-
-      if (ownPostsError) throw ownPostsError;
-
-      posts = (ownPosts || []).map((p) => {
-        const m = (p.metrics || {}) as Record<string, number | undefined>;
-        return {
-          id: p.id,
-          text: p.text_content,
-          impressions: (m.impressions ?? m.views) ?? 0,
-          likes: m.likes ?? 0,
-          retweets: m.retweets ?? 0,
-          replies: m.replies ?? 0,
-          bookmarks: m.bookmarks ?? 0,
-          engagement: weightedEngagement(m),
-          posted_at: p.post_timestamp || "",
-        };
-      });
-    }
+    // ── 2. No captured_posts fallback ─────────────────────────
+    // Per product decision: "My posts" analytics and pattern extraction must be driven ONLY by CSV analytics.
+    // If CSV isn't present, we fail with a clear instruction.
 
     if (posts.length < 5) {
       return NextResponse.json(
-        { error: "Need at least 5 posts to extract patterns", patterns: [] },
+        { error: "Need at least 5 posts in your uploaded analytics CSV to extract patterns", patterns: [] },
         { status: 400, headers: corsHeaders }
       );
     }
@@ -247,7 +221,7 @@ Return ONLY the JSON array, no other text.`;
       {
         patterns: insertedPatterns,
         analyzed_posts: posts.length,
-        data_source: dataSource,
+        data_source: "csv",
       },
       { status: 200, headers: corsHeaders }
     );
