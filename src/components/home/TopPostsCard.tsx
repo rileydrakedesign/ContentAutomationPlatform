@@ -80,6 +80,13 @@ export function TopPostsCard({ posts, uploadedAt, onUploadClick }: TopPostsCardP
             )}
           </div>
 
+          <a
+            href="/insights?tab=overview#performance"
+            className="text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors"
+          >
+            View all
+          </a>
+
           {/* Sort dropdown */}
           <div className="relative">
             <button
