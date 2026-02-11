@@ -31,8 +31,8 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
   const onlyPosts = posts.filter((p) => !p.is_reply);
   const onlyReplies = posts.filter((p) => p.is_reply);
 
-  const sortedOnlyPosts = sortItems(onlyPosts, postsSortBy).slice(0, 5);
-  const sortedOnlyReplies = sortItems(onlyReplies, repliesSortBy).slice(0, 5);
+  const sortedOnlyPosts = sortItems(onlyPosts, postsSortBy);
+  const sortedOnlyReplies = sortItems(onlyReplies, repliesSortBy);
 
   // Calculate aggregate stats
   const totalViews = posts.reduce((sum, p) => sum + (p.impressions || 0), 0);
@@ -107,7 +107,7 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
       </div>
 
       {/* Posts + Replies */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3" id="performance">
         <Card className="p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -132,7 +132,7 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
           {sortedOnlyPosts.length === 0 ? (
             <div className="text-sm text-slate-500">No posts yet. Upload your analytics CSV.</div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[520px] overflow-auto pr-1">
               {sortedOnlyPosts.map((post, index) => (
                 <div key={post.id || index} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
                   <div className="flex-1 min-w-0">
@@ -182,7 +182,7 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
           {sortedOnlyReplies.length === 0 ? (
             <div className="text-sm text-slate-500">No replies yet.</div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[520px] overflow-auto pr-1">
               {sortedOnlyReplies.map((post, index) => (
                 <div key={post.id || index} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
                   <div className="flex-1 min-w-0">

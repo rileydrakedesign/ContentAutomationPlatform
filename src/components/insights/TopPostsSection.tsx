@@ -70,7 +70,7 @@ export function TopPostsSection() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-white">Top Performing Posts</h2>
         <Link
-          href="/library?filter=my_posts"
+          href="/insights?tab=overview#performance"
           className="text-sm text-amber-400 hover:text-amber-300 transition"
         >
           View all

@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import type { PostingAnalytics, BestTimeRecommendation, HeatmapCell } from "@/types/analytics";
 
 const DAY_ABBREVIATIONS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const KEY_HOURS = [6, 9, 12, 15, 18, 21]; // 6 AM, 9 AM, 12 PM, 3 PM, 6 PM, 9 PM
+// If CSV dates have no explicit time, many rows parse to hour=0.
+// Include 12a so the heatmap still shows meaningful data.
+const KEY_HOURS = [0, 6, 9, 12, 15, 18]; // 12a, 6a, 9a, 12p, 3p, 6p
 
 function formatHourShort(hour: number): string {
   if (hour === 0) return "12a";
