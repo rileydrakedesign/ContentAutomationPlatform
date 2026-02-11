@@ -48,6 +48,7 @@ export function InspirationPostsTab() {
   const [myPosts, setMyPosts] = useState<MyPost[]>([]);
   const [savedPosts, setSavedPosts] = useState<InspirationPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [myView, setMyView] = useState<"posts" | "replies">("posts");
 
   const fetchData = async () => {
     try {
@@ -123,26 +124,40 @@ export function InspirationPostsTab() {
     );
   }
 
+  const visibleMine = myPosts.filter((p) => (myView === "replies" ? p.is_reply : !p.is_reply));
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Left Column: My Posts */}
+      {/* Left Column: My Posts / Replies */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
               <FileText className="w-4 h-4 text-[var(--color-primary-400)]" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">My Posts</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  {myView === "replies" ? "My Replies" : "My Posts"}
+                </h3>
+                <select
+                  value={myView}
+                  onChange={(e) => setMyView(e.target.value as any)}
+                  className="h-7 px-2 text-xs bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-secondary)]"
+                >
+                  <option value="posts">My posts</option>
+                  <option value="replies">My replies</option>
+                </select>
+              </div>
               <p className="text-xs text-[var(--color-text-muted)]">
-                Your posts from X analytics, sorted by engagement
+                From your X analytics CSV, sorted by engagement
               </p>
             </div>
           </div>
-          <Badge variant="primary">{myPosts.length}</Badge>
+          <Badge variant="primary">{visibleMine.length}</Badge>
         </div>
 
-        {myPosts.length === 0 ? (
+        {visibleMine.length === 0 ? (
           <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-6 text-center">
             <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-[var(--color-bg-elevated)] flex items-center justify-center">
               <TrendingUp className="w-5 h-5 text-[var(--color-text-muted)]" />
@@ -154,7 +169,7 @@ export function InspirationPostsTab() {
           </div>
         ) : (
           <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
-            {myPosts.map((post) => (
+            {visibleMine.map((post) => (
               <div
                 key={post.id}
                 className="group rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-4 hover:border-[var(--color-border-default)] transition-colors"
