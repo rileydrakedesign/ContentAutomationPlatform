@@ -5,11 +5,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import {
-  FileText,
+  Bookmark,
   Sparkles,
-  Send,
+  TrendingUp,
   MessageSquare,
-  Repeat2,
+  Zap,
   ShieldCheck,
 } from "lucide-react";
 
@@ -167,8 +167,6 @@ export default function AgentForXLanding() {
   /* scroll-triggered sections */
   const howItWorks = useInView();
   const features = useInView();
-  const finalCta = useInView();
-
   const formProps = { email, setEmail, status, error, canSubmit, submit };
 
   return (
@@ -228,9 +226,9 @@ export default function AgentForXLanding() {
                 animationFillMode: "backwards",
               }}
             >
-              turn your ideas into{" "}
+              an ai agent that lives{" "}
               <span className="gradient-text">
-                x posts that sound like you
+                inside your x timeline
               </span>
             </h1>
 
@@ -242,8 +240,8 @@ export default function AgentForXLanding() {
                 animationFillMode: "backwards",
               }}
             >
-              paste a podcast transcript, voice memo, or notes. get drafts that
-              preserve your voice and skip the cringe.
+              save posts that inspire you with one click. generate replies in
+              your voice. let patterns compound your growth.
             </p>
 
             {/* Inline waitlist form */}
@@ -270,29 +268,25 @@ export default function AgentForXLanding() {
               : "translateY(24px)",
           }}
         >
-          <h2 className="text-center text-2xl font-semibold tracking-tight sm:text-3xl">
-            how it works
-          </h2>
-
-          <div className="mt-10 grid gap-6 sm:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-3">
             {[
               {
                 num: "01",
-                Icon: FileText,
-                title: "paste your source",
-                desc: "drop in a transcript, voice memo, blog post, or raw notes — any length.",
+                Icon: Bookmark,
+                title: "save what inspires you",
+                desc: "install the chrome extension. save any post from your timeline with one click.",
               },
               {
                 num: "02",
-                Icon: Sparkles,
-                title: "we extract the good parts",
-                desc: "key insights get pulled out and shaped into posts that match your voice.",
+                Icon: Zap,
+                title: "generate replies and posts",
+                desc: "pick a tone and get reply options in seconds, or generate full posts and threads from a topic.",
               },
               {
                 num: "03",
-                Icon: Send,
-                title: "review and ship",
-                desc: "tweak if you want, then publish. no scheduling headaches.",
+                Icon: TrendingUp,
+                title: "your system gets smarter",
+                desc: "it learns from your top performing posts to shape your voice and surface what actually works.",
               },
             ].map((step, i) => (
               <div
@@ -331,30 +325,30 @@ export default function AgentForXLanding() {
           }}
         >
           <h2 className="text-center text-2xl font-semibold tracking-tight sm:text-3xl max-w-lg mx-auto">
-            built for people who actually think before they post
+            built for creators who grow through engagement
           </h2>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
             {[
               {
                 Icon: MessageSquare,
-                title: "your voice, not ours",
-                desc: "drafts adapt to how you actually write — no corporate-speak, no hustle-bro energy.",
+                title: "ai reply + post agent",
+                desc: "generate on-voice replies with a tone picker, or create full posts and threads from a topic. all from one system that knows how you write.",
+              },
+              {
+                Icon: Bookmark,
+                title: "one-click save",
+                desc: "see something worth studying? save any post to your inspiration library without ever leaving your timeline.",
               },
               {
                 Icon: Sparkles,
-                title: "smart extraction",
-                desc: "long-form gets distilled into the sharpest points without losing nuance.",
-              },
-              {
-                Icon: Repeat2,
-                title: "posts, threads, hooks",
-                desc: "get multiple formats from one source — single posts, threads, and hook variations.",
+                title: "learns from your best work",
+                desc: "the system analyzes your top performing posts to extract patterns, voice, and structure. the more data it has, the better it writes.",
               },
               {
                 Icon: ShieldCheck,
-                title: "no cringe guardrails",
-                desc: "built-in filters for overused phrases, engagement bait, and anything that sounds fake.",
+                title: "guardrails you control",
+                desc: "block overused phrases, cringe patterns, and topics you would never touch. built-in quality filters.",
               },
             ].map((feat, i) => (
               <div
@@ -375,43 +369,6 @@ export default function AgentForXLanding() {
                 </p>
               </div>
             ))}
-          </div>
-        </section>
-
-        {/* ---- Final CTA ---- */}
-        <section
-          ref={finalCta.ref}
-          className="relative pb-20 transition-all duration-700 ease-out motion-reduce:transition-none"
-          style={{
-            opacity: finalCta.isInView ? 1 : 0,
-            transform: finalCta.isInView
-              ? "translateY(0)"
-              : "translateY(24px)",
-          }}
-        >
-          {/* Subtle gradient wash */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 -mx-4 rounded-2xl sm:-mx-6"
-            style={{
-              background:
-                "linear-gradient(180deg, transparent 0%, rgba(99,102,241,0.04) 40%, rgba(99,102,241,0.04) 60%, transparent 100%)",
-            }}
-          />
-
-          <div className="relative flex flex-col items-center text-center">
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl max-w-md">
-              stop losing good ideas to &ldquo;i&apos;ll tweet that
-              later&rdquo;
-            </h2>
-            <div className="mt-8 w-full max-w-md">
-              <WaitlistForm {...formProps} />
-            </div>
-            <div className="mt-4">
-              <Badge variant="primary" dot>
-                47+ people on the waitlist
-              </Badge>
-            </div>
           </div>
         </section>
 
