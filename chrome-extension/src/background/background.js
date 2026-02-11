@@ -134,6 +134,25 @@ async function savePost(postData) {
   }
 }
 
+// Log a reply the user actually sent via extension
+async function logReplySent(payload) {
+  try {
+    const response = await apiRequest('/api/extension/replies', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      return { success: true };
+    }
+    const data = await response.json().catch(() => ({}));
+    return { success: false, error: data.error || 'Failed to log reply' };
+  } catch (error) {
+    console.error('Log reply sent failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Generate reply options using AI
 async function generateReply(payload) {
   try {
@@ -243,6 +262,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'SYNC_ANALYTICS_DATA') {
     syncAnalyticsData(message.payload)
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
+  if (message.type === 'LOG_REPLY_SENT') {
+    logReplySent(message.payload)
       .then(sendResponse)
       .catch((error) => {
         sendResponse({ success: false, error: error.message });

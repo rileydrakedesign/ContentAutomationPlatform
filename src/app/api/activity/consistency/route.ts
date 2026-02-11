@@ -23,8 +23,10 @@ function isReplyText(text: string): boolean {
 
 // GET /api/activity/consistency
 // Returns daily post/reply activity based on:
-// - user_analytics CSV (sole source of truth for "my posts" and "my replies")
-// - scheduled_posts created via Agent for X publish scheduler
+// - posts actually posted through the app (captured_posts backfill)
+// - replies actually sent through the chrome extension (extension_replies)
+//
+// Scheduled posts are NOT counted until they are posted.
 export async function GET() {
   try {
     const supabase = await createAuthClient();
@@ -45,52 +47,44 @@ export async function GET() {
     const since = new Date(today);
     since.setDate(since.getDate() - 90);
 
-    // 1) user_analytics (CSV)
-    const { data: analyticsRow, error: analyticsErr } = await supabase
-      .from("user_analytics")
-      .select("posts")
+    // 1) captured_posts: count posts that were actually posted through the app
+    // (publish worker backfills captured_posts only after success)
+    const { data: posted, error: postedErr } = await supabase
+      .from("captured_posts")
+      .select("post_timestamp, captured_at, text_content")
       .eq("user_id", user.id)
-      .order("uploaded_at", { ascending: false })
-      .limit(1)
-      .single();
+      .eq("is_own_post", true);
 
-    if (analyticsErr && analyticsErr.code !== "PGRST116") throw analyticsErr;
+    if (postedErr) throw postedErr;
 
-    const csvPosts = (analyticsRow?.posts && Array.isArray(analyticsRow.posts))
-      ? (analyticsRow.posts as Array<Record<string, unknown>>)
-      : [];
-
-    for (const row of csvPosts) {
-      const dateStr = String((row as any).date || "");
-      const dt = safeDate(dateStr);
+    for (const row of posted || []) {
+      const dt = safeDate((row as any).post_timestamp) || safeDate((row as any).captured_at);
       if (!dt) continue;
       if (dt < since) continue;
       const key = dateKey(dt);
       if (!map[key]) map[key] = { posts: 0, replies: 0 };
 
-      const isReply = Boolean((row as any).is_reply);
-      if (isReply) map[key].replies += 1;
-      else map[key].posts += 1;
+      const text = String((row as any).text_content || "");
+      if (!isReplyText(text)) {
+        map[key].posts += 1;
+      }
     }
 
-    // 2) scheduled_posts (count scheduled content as posts on the scheduled_for day)
-    // Note: we do not attempt de-dup against captured_posts.
-    const { data: scheduled, error: scheduledError } = await supabase
-      .from("scheduled_posts")
-      .select("scheduled_for, content_type, status")
-      .eq("user_id", user.id)
-      .in("status", ["scheduled", "publishing", "posted"]);
+    // 2) extension_replies: count replies actually sent via extension
+    const { data: extReplies, error: extErr } = await supabase
+      .from("extension_replies")
+      .select("sent_at")
+      .eq("user_id", user.id);
 
-    // If scheduled_posts table isn't present yet, don't hard-fail the dashboard.
-    if (!scheduledError) {
-      for (const row of scheduled || []) {
-        const dt = safeDate((row as any).scheduled_for);
+    // If table isn't present yet, keep dashboard functional.
+    if (!extErr) {
+      for (const row of extReplies || []) {
+        const dt = safeDate((row as any).sent_at);
         if (!dt) continue;
         if (dt < since) continue;
-        if (dt > today) continue; // don't count future scheduled posts as completed activity
         const key = dateKey(dt);
         if (!map[key]) map[key] = { posts: 0, replies: 0 };
-        map[key].posts += 1;
+        map[key].replies += 1;
       }
     }
 

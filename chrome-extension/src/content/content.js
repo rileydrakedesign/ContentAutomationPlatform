@@ -1256,11 +1256,17 @@ function showReplyPicker(picker, replyButton, replies, articleElement) {
     const selectedReply = replies[currentIndex].text;
     hideReplyPicker(picker);
 
+    // Capture context so we can log the reply when user clicks Post
+    const timeElement = articleElement.querySelector('time');
+    const linkElement = timeElement?.closest('a');
+    const repliedToUrl = linkElement?.href || '';
+    const repliedToId = extractTweetId(repliedToUrl);
+
     // Click X's native reply button to open composer
     const xReplyButton = articleElement.querySelector('[data-testid="reply"]');
     if (xReplyButton) {
       xReplyButton.click();
-      await injectReplyText(selectedReply);
+      await injectReplyText(selectedReply, { repliedToUrl, repliedToId });
     } else {
       alert('Generated reply copied to clipboard:\n\n' + selectedReply);
       navigator.clipboard.writeText(selectedReply);
@@ -1394,7 +1400,7 @@ function hideToneDropdown(dropdown) {
 }
 
 // Wait for composer and inject reply text
-async function injectReplyText(text) {
+async function injectReplyText(text, replyMeta = null) {
   // Wait for the reply modal to appear (max 3 seconds)
   let attempts = 0;
   const maxAttempts = 30;
@@ -1476,6 +1482,9 @@ async function injectReplyText(text) {
         await new Promise(resolve => setTimeout(resolve, 50));
         if (editableDiv.textContent.includes(text.substring(0, Math.min(20, text.length)))) {
           console.log('[Content Pipeline] Reply injected successfully');
+          if (replyMeta && replyMeta.repliedToUrl) {
+            attachReplySendLogger(text, replyMeta);
+          }
           return;
         }
 
@@ -1485,6 +1494,9 @@ async function injectReplyText(text) {
         editableDiv.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
 
         console.log('[Content Pipeline] Reply injected via direct manipulation');
+        if (replyMeta && replyMeta.repliedToUrl) {
+          attachReplySendLogger(text, replyMeta);
+        }
         return;
       }
     }
@@ -1498,6 +1510,41 @@ async function injectReplyText(text) {
   // Show alert to user as fallback
   alert('Generated reply copied to clipboard:\n\n' + text);
   navigator.clipboard.writeText(text);
+}
+
+function attachReplySendLogger(replyText, meta) {
+  // One-shot: when user clicks the reply "Post" button in the modal, log to backend.
+  const startedAt = Date.now();
+  const maxMs = 15_000;
+  const poll = () => {
+    if (Date.now() - startedAt > maxMs) return;
+
+    const dialog = document.querySelector('[role="dialog"]');
+    const tweetButton = dialog?.querySelector('[data-testid="tweetButton"]');
+    if (tweetButton && !tweetButton.dataset.cpLoggedListener) {
+      tweetButton.dataset.cpLoggedListener = 'true';
+      tweetButton.addEventListener('click', async () => {
+        try {
+          await sendMessage({
+            type: 'LOG_REPLY_SENT',
+            payload: {
+              reply_text: replyText,
+              replied_to_post_id: meta?.repliedToId || null,
+              replied_to_post_url: meta?.repliedToUrl || null,
+              sent_at: new Date().toISOString(),
+            },
+          });
+        } catch (e) {
+          console.warn('[Content Pipeline] Failed to log reply sent:', e);
+        }
+      }, { once: true });
+      return;
+    }
+
+    setTimeout(poll, 250);
+  };
+
+  poll();
 }
 
 function injectButtons(articleElement) {
