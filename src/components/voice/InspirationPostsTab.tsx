@@ -28,10 +28,11 @@ interface MyPost {
   is_reply: boolean;
 }
 
-interface NichePost {
+interface InspirationPost {
   id: string;
-  x_post_id: string;
-  text_content: string;
+  raw_content: string;
+  source_url: string | null;
+  author_handle: string | null;
   metrics: {
     views?: number;
     likes?: number;
@@ -39,15 +40,13 @@ interface NichePost {
     replies?: number;
   };
   post_timestamp: string | null;
-  niche_accounts?: {
-    x_username: string;
-    display_name: string | null;
-  };
+  source: string;
+  created_at: string;
 }
 
 export function InspirationPostsTab() {
   const [myPosts, setMyPosts] = useState<MyPost[]>([]);
-  const [savedPosts, setSavedPosts] = useState<NichePost[]>([]);
+  const [savedPosts, setSavedPosts] = useState<InspirationPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
@@ -55,7 +54,7 @@ export function InspirationPostsTab() {
       setLoading(true);
       const [analyticsRes, postsRes] = await Promise.all([
         fetch("/api/analytics/csv"),
-        fetch("/api/niche-posts?limit=100"),
+        fetch("/api/inspiration"),
       ]);
 
       if (analyticsRes.ok) {
@@ -67,7 +66,10 @@ export function InspirationPostsTab() {
       }
       if (postsRes.ok) {
         const data = await postsRes.json();
-        setSavedPosts(data);
+        // Filter to only chrome extension saves for the "Saved Posts" column
+        setSavedPosts(
+          data.filter((p: InspirationPost) => p.source === "chrome_extension")
+        );
       }
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -82,7 +84,7 @@ export function InspirationPostsTab() {
 
   const handleDeletePost = async (id: string) => {
     try {
-      const res = await fetch(`/api/niche-posts/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/inspiration/${id}`, { method: "DELETE" });
       if (res.ok) {
         setSavedPosts((prev) => prev.filter((p) => p.id !== id));
       }
@@ -242,29 +244,28 @@ export function InspirationPostsTab() {
                 className="group rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-4 hover:border-[var(--color-border-default)] transition-colors"
               >
                 <div className="flex items-start justify-between gap-3 mb-2">
-                  <a
-                    href={`https://x.com/${post.niche_accounts?.x_username}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-[var(--color-accent-400)] hover:text-[var(--color-accent-300)] transition-colors"
-                  >
-                    <span className="font-medium">
-                      {post.niche_accounts?.display_name || post.niche_accounts?.x_username}
-                    </span>
-                    <span className="text-[var(--color-text-muted)]">
-                      @{post.niche_accounts?.x_username}
-                    </span>
-                  </a>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                  {post.author_handle && (
                     <a
-                      href={`https://x.com/${post.niche_accounts?.x_username}/status/${post.x_post_id}`}
+                      href={`https://x.com/${post.author_handle.replace(/^@/, "")}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
-                      title="View on X"
+                      className="flex items-center gap-1.5 text-xs text-[var(--color-accent-400)] hover:text-[var(--color-accent-300)] transition-colors"
                     >
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span className="font-medium">{post.author_handle}</span>
                     </a>
+                  )}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    {post.source_url && (
+                      <a
+                        href={post.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+                        title="View on X"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
                     <button
                       onClick={() => handleDeletePost(post.id)}
                       className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger-400)] transition-colors"
@@ -276,7 +277,7 @@ export function InspirationPostsTab() {
                 </div>
 
                 <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-line line-clamp-4">
-                  {post.text_content}
+                  {post.raw_content}
                 </p>
 
                 <div className="flex items-center justify-between mt-2">

@@ -7,7 +7,9 @@
  */
 
 import { createChatCompletion, AIProvider } from "@/lib/ai";
-import type { DraftType, SourceType } from "../db/schema";
+
+type SourceType = "VOICE_MEMO" | "INSPIRATION" | "NEWS";
+type DraftType = "X_POST" | "X_THREAD" | "REEL_SCRIPT";
 import { analyzeVoiceMemo, type AnalysisResult } from "./analyzer";
 import { routeToFramework, routeWithOverride } from "./router";
 import type { FrameworkType } from "./prompts/frameworks";

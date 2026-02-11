@@ -160,12 +160,20 @@ async function generateReply(payload) {
   }
 }
 
-// Watch a niche account for pattern tracking
-async function watchAccount(accountData) {
+// Save an inspiration post (from Chrome extension)
+async function saveInspirationPost(postData) {
   try {
-    const response = await apiRequest('/api/niche-accounts', {
+    const url = `https://x.com/${postData.x_username}/status/${postData.x_post_id}`;
+    const response = await apiRequest('/api/inspiration', {
       method: 'POST',
-      body: JSON.stringify(accountData),
+      body: JSON.stringify({
+        content: postData.text_content,
+        url,
+        authorHandle: `@${postData.x_username}`,
+        metrics: postData.metrics || {},
+        post_timestamp: postData.post_timestamp || null,
+        source: 'chrome_extension',
+      }),
     });
 
     const data = await response.json();
@@ -175,33 +183,10 @@ async function watchAccount(accountData) {
     } else if (response.status === 409) {
       return { success: false, error: 'DUPLICATE' };
     } else {
-      return { success: false, error: data.error || 'Failed to watch account' };
+      return { success: false, error: data.error || 'Failed to save inspiration post' };
     }
   } catch (error) {
-    console.error('Watch account failed:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-// Save a niche post for pattern reference
-async function saveNichePost(postData) {
-  try {
-    const response = await apiRequest('/api/niche-posts', {
-      method: 'POST',
-      body: JSON.stringify(postData),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      return { success: true, data };
-    } else if (response.status === 409) {
-      return { success: false, error: 'DUPLICATE' };
-    } else {
-      return { success: false, error: data.error || 'Failed to save niche post' };
-    }
-  } catch (error) {
-    console.error('Save niche post failed:', error);
+    console.error('Save inspiration post failed:', error);
     return { success: false, error: error.message };
   }
 }
@@ -247,17 +232,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === 'WATCH_ACCOUNT') {
-    watchAccount(message.payload)
-      .then(sendResponse)
-      .catch((error) => {
-        sendResponse({ success: false, error: error.message });
-      });
-    return true;
-  }
-
   if (message.type === 'SAVE_NICHE_POST') {
-    saveNichePost(message.payload)
+    saveInspirationPost(message.payload)
       .then(sendResponse)
       .catch((error) => {
         sendResponse({ success: false, error: error.message });

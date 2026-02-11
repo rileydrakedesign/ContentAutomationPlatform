@@ -8,10 +8,8 @@ const SAVED_CLASS = 'cp-saved';
 const SAVING_CLASS = 'cp-saving';
 const GENERATING_CLASS = 'cp-generating';
 
-// Niche account/post tracking classes
-const WATCH_BUTTON_CLASS = 'cp-watch-button';
+// Inspiration post save button class
 const NICHE_SAVE_BUTTON_CLASS = 'cp-niche-save-button';
-const WATCHED_CLASS = 'cp-watched';
 
 // Opportunity scoring classes
 const OPP_PILL_CLASS = 'xgo-opp-pill';
@@ -21,9 +19,7 @@ const OPP_BORDER_CLASS = 'xgo-opp-border';
 const processedPosts = new Set();
 // Track saved post URLs
 let savedPostUrls = new Set();
-// Track watched accounts
-let watchedAccounts = new Set();
-// Track saved niche post IDs
+// Track saved inspiration post IDs
 let savedNichePostIds = new Set();
 
 // Cache for opportunity scores (tweet_id -> score data)
@@ -259,12 +255,9 @@ function showRefreshNotice() {
 
 // Load saved posts and watched accounts from storage on init
 if (isExtensionContextValid()) {
-  chrome.storage.local.get(['savedPostUrls', 'watchedAccounts', 'savedNichePostIds'], (result) => {
+  chrome.storage.local.get(['savedPostUrls', 'savedNichePostIds'], (result) => {
     if (result.savedPostUrls) {
       savedPostUrls = new Set(result.savedPostUrls);
-    }
-    if (result.watchedAccounts) {
-      watchedAccounts = new Set(result.watchedAccounts);
     }
     if (result.savedNichePostIds) {
       savedNichePostIds = new Set(result.savedNichePostIds);
@@ -279,10 +272,6 @@ if (isExtensionContextValid()) {
       if (changes.savedPostUrls) {
         savedPostUrls = new Set(changes.savedPostUrls.newValue || []);
         updateAllSaveButtons();
-      }
-      if (changes.watchedAccounts) {
-        watchedAccounts = new Set(changes.watchedAccounts.newValue || []);
-        updateAllWatchButtons();
       }
       if (changes.savedNichePostIds) {
         savedNichePostIds = new Set(changes.savedNichePostIds.newValue || []);
@@ -334,15 +323,7 @@ function getDropdownArrow() {
   return `<span style="font-size: 10px; line-height: 1; opacity: 0.7;">▾</span>`;
 }
 
-// Eye icon for watching accounts
-function getEyeIcon() {
-  return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-    <circle cx="12" cy="12" r="3"></circle>
-  </svg>`;
-}
-
-// Bookmark icon for saving niche posts
+// Bookmark icon for saving inspiration posts
 function getBookmarkIcon() {
   return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
@@ -354,18 +335,6 @@ function getBookmarkFilledIcon() {
   return `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" stroke-width="2">
     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
   </svg>`;
-}
-
-// Update all watch buttons
-function updateAllWatchButtons() {
-  document.querySelectorAll(`.${WATCH_BUTTON_CLASS}`).forEach(button => {
-    const username = button.dataset.username;
-    if (username && watchedAccounts.has(username.toLowerCase())) {
-      button.classList.add(WATCHED_CLASS);
-      button.querySelector('.cp-icon').innerHTML = getCheckIcon();
-      button.title = 'Account is being watched';
-    }
-  });
 }
 
 // Update all niche save buttons
@@ -1058,95 +1027,6 @@ async function handleSaveClick(event, button) {
   }
 }
 
-// Create watch account button (for niche tracking)
-function createWatchButton(username, displayName) {
-  const button = document.createElement('button');
-  button.className = WATCH_BUTTON_CLASS;
-  button.dataset.username = username.toLowerCase();
-  button.title = 'Watch this account for patterns';
-
-  const iconSpan = document.createElement('span');
-  iconSpan.className = 'cp-icon';
-  iconSpan.innerHTML = getEyeIcon();
-  button.appendChild(iconSpan);
-
-  const textSpan = document.createElement('span');
-  textSpan.className = 'cp-text';
-  textSpan.textContent = 'Watch';
-  button.appendChild(textSpan);
-
-  // Check if already watched
-  if (watchedAccounts.has(username.toLowerCase())) {
-    button.classList.add(WATCHED_CLASS);
-    iconSpan.innerHTML = getCheckIcon();
-    textSpan.textContent = 'Watching';
-    button.title = 'Account is being watched';
-  }
-
-  return button;
-}
-
-// Handle watch account button click
-async function handleWatchClick(event, button, username, displayName, followerCount) {
-  event.preventDefault();
-  event.stopPropagation();
-
-  if (button.classList.contains(WATCHED_CLASS) || button.classList.contains(SAVING_CLASS)) {
-    return;
-  }
-
-  const iconSpan = button.querySelector('.cp-icon');
-  const textSpan = button.querySelector('.cp-text');
-
-  button.classList.add(SAVING_CLASS);
-  iconSpan.innerHTML = getSpinnerIcon();
-  textSpan.textContent = 'Adding...';
-  button.title = 'Adding to watched accounts...';
-
-  try {
-    const response = await sendMessage({
-      type: 'WATCH_ACCOUNT',
-      payload: {
-        x_username: username,
-        display_name: displayName,
-        follower_count: followerCount,
-      },
-    });
-
-    if (response.success) {
-      button.classList.remove(SAVING_CLASS);
-      button.classList.add(WATCHED_CLASS);
-      iconSpan.innerHTML = getCheckIcon();
-      textSpan.textContent = 'Watching';
-      button.title = 'Account is being watched';
-
-      watchedAccounts.add(username.toLowerCase());
-      chrome.storage.local.set({ watchedAccounts: Array.from(watchedAccounts) });
-    } else {
-      throw new Error(response.error || 'Failed to watch account');
-    }
-  } catch (error) {
-    console.error('Watch account failed:', error);
-    button.classList.remove(SAVING_CLASS);
-    iconSpan.innerHTML = getEyeIcon();
-    textSpan.textContent = 'Watch';
-
-    if (error.message === 'DUPLICATE') {
-      button.classList.add(WATCHED_CLASS);
-      iconSpan.innerHTML = getCheckIcon();
-      textSpan.textContent = 'Watching';
-      button.title = 'Account is already being watched';
-    } else if (error.message === 'NOT_LOGGED_IN') {
-      button.title = 'Click extension icon to log in';
-    } else if (error.message === 'EXTENSION_RELOADED') {
-      button.title = 'Extension updated - please refresh page';
-      showRefreshNotice();
-    } else {
-      button.title = 'Failed to add - try again';
-    }
-  }
-}
-
 // Create save niche post button
 function createNicheSaveButton(postUrl, postId) {
   const button = document.createElement('button');
@@ -1723,75 +1603,9 @@ function injectButtons(articleElement) {
   }
 }
 
-// Inject watch button on profile pages
-function injectWatchButton() {
-  // Check if we're on a profile page
-  const profilePath = window.location.pathname;
-  const profileMatch = profilePath.match(/^\/([^/]+)\/?$/);
-
-  if (!profileMatch) return;
-
-  const username = profileMatch[1];
-
-  // Skip if it's a reserved path
-  const reservedPaths = ['home', 'explore', 'notifications', 'messages', 'i', 'settings', 'compose', 'search'];
-  if (reservedPaths.includes(username.toLowerCase())) return;
-
-  // Find the profile header area
-  const profileHeader = document.querySelector('[data-testid="UserName"]');
-  if (!profileHeader) return;
-
-  // Check if button already exists
-  if (document.querySelector(`.${WATCH_BUTTON_CLASS}`)) return;
-
-  // Extract display name and follower count
-  let displayName = '';
-  let followerCount = null;
-
-  // Get display name
-  const nameElement = profileHeader.querySelector('span');
-  if (nameElement) {
-    displayName = nameElement.textContent?.trim() || '';
-  }
-
-  // Try to get follower count
-  const followerLinks = document.querySelectorAll('a[href*="/verified_followers"], a[href*="/followers"]');
-  for (const link of followerLinks) {
-    const countSpan = link.querySelector('span span');
-    if (countSpan) {
-      const count = parseCount(countSpan.textContent);
-      if (count !== null) {
-        followerCount = count;
-        break;
-      }
-    }
-  }
-
-  // Create watch button
-  const watchButton = createWatchButton(username, displayName);
-  watchButton.addEventListener('click', (e) => handleWatchClick(e, watchButton, username, displayName, followerCount));
-
-  // Insert the button after the profile header
-  // Look for the follow button or similar action buttons
-  const actionButtons = profileHeader.closest('[data-testid="UserName"]')?.parentElement?.querySelector('[data-testid="placementTracking"]');
-
-  if (actionButtons) {
-    actionButtons.appendChild(watchButton);
-  } else {
-    // Fallback: insert after the name element
-    const headerParent = profileHeader.parentElement;
-    if (headerParent) {
-      headerParent.appendChild(watchButton);
-    }
-  }
-}
-
 function processVisiblePosts() {
   const articles = document.querySelectorAll('article[data-testid="tweet"]');
   articles.forEach(injectButtons);
-
-  // Also try to inject watch button on profile pages
-  injectWatchButton();
 }
 
 // ===========================================
