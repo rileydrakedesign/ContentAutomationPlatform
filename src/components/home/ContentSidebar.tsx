@@ -280,7 +280,7 @@ function TopPostsContent({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-end mb-1">
         <Link
           href="/insights?tab=overview#performance"
           className="text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors"
