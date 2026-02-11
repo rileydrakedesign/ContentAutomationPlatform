@@ -109,6 +109,7 @@ export async function POST(request: NextRequest) {
       .select("content_text")
       .eq("user_id", user.id)
       .eq("is_excluded", false)
+      .eq("content_type", "post")
       .order("engagement_score", { ascending: false })
       .limit(5);
 
@@ -162,13 +163,17 @@ Return a JSON array with ${generateCount} options. Each option should have:
 
 Return ONLY the JSON array, no other text.`;
 
+    // Use the same voice prompt assembler used across the app
+    const { getAssembledPromptForUser } = await import("@/lib/openai/prompts/prompt-assembler");
+    const systemPrompt = await getAssembledPromptForUser(supabase, user.id, "post");
+
     const result = await createChatCompletion({
       provider: aiProvider,
       modelTier: "fast",
       messages: [
         {
           role: "system",
-          content: "You are an expert X/Twitter content creator. Generate engaging, authentic posts that match the user's voice and apply the specified patterns. Return valid JSON only.",
+          content: `${systemPrompt}\n\nReturn valid JSON only.`,
         },
         {
           role: "user",
