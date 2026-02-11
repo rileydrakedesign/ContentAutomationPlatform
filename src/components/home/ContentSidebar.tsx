@@ -280,14 +280,6 @@ function TopPostsContent({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-end mb-1">
-        <Link
-          href="/insights?tab=overview#performance"
-          className="text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors"
-        >
-          View all
-        </Link>
-      </div>
       {posts.map((post, index) => (
         <div
           key={post.post_id}
@@ -329,6 +321,13 @@ function TopPostsContent({
           </div>
         </div>
       ))}
+
+      <Link
+        href="/insights?tab=overview#performance"
+        className="block text-center text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] py-2 transition-colors"
+      >
+        View all posts
+      </Link>
     </div>
   );
 }
