@@ -112,7 +112,14 @@ export function VoiceSection() {
 
   // Examples state
   const [examples, setExamples] = useState<Array<{ id: string; content_text: string }>>([]);
-  const [newExample, setNewExample] = useState("");
+  const [examplePickerOpen, setExamplePickerOpen] = useState(false);
+  const [exampleSearch, setExampleSearch] = useState("");
+  const [analyticsPosts, setAnalyticsPosts] = useState<Array<{ id: string; text: string; is_reply: boolean; impressions: number; engagement_score: number }>>([]);
+  const [loadingAnalyticsPosts, setLoadingAnalyticsPosts] = useState(false);
+
+  // Inspiration picker
+  const [inspirationPickerOpen, setInspirationPickerOpen] = useState(false);
+  const [inspirationSearch, setInspirationSearch] = useState("");
 
   // Inspiration posts (saved)
   const [inspirations, setInspirations] = useState<Array<{ id: string; raw_content: string; author_handle: string | null; include_in_post_voice?: boolean; include_in_reply_voice?: boolean; created_at: string; is_pinned?: boolean | null }>>([]);
@@ -160,6 +167,50 @@ export function VoiceSection() {
     }
   };
 
+  const ensureAnalyticsPostsLoaded = async () => {
+    if (loadingAnalyticsPosts) return;
+    if (analyticsPosts.length > 0) return;
+    try {
+      setLoadingAnalyticsPosts(true);
+      const res = await fetch("/api/analytics/csv");
+      if (!res.ok) return;
+      const json = await res.json();
+      const posts = (json.data?.posts || []) as Array<any>;
+      setAnalyticsPosts(
+        posts.map((p) => ({
+          id: p.id,
+          text: p.text,
+          is_reply: !!p.is_reply,
+          impressions: Number(p.impressions || 0),
+          engagement_score: Number(p.engagement_score || 0),
+        }))
+      );
+    } catch (err) {
+      console.error("Failed to fetch analytics CSV:", err);
+    } finally {
+      setLoadingAnalyticsPosts(false);
+    }
+  };
+
+  const setInspirationIncluded = async (id: string, included: boolean) => {
+    try {
+      const payload = voiceType === "reply"
+        ? { include_in_reply_voice: included }
+        : { include_in_post_voice: included };
+      const res = await fetch(`/api/inspiration/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setInspirations((prev) => prev.map((p) => (p.id === id ? { ...p, ...updated } : p)));
+      }
+    } catch (err) {
+      console.error("Failed to toggle inspiration include:", err);
+    }
+  };
+
   useEffect(() => {
     fetchSettings();
     fetchExamples();
@@ -182,16 +233,16 @@ export function VoiceSection() {
     }
   };
 
-  const addExample = async () => {
-    if (!newExample.trim()) return;
+  const addExampleFromText = async (text: string) => {
+    const trimmed = (text || "").trim();
+    if (!trimmed) return;
     try {
       const res = await fetch("/api/voice/examples", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content_text: newExample.trim(), content_type: voiceType }),
+        body: JSON.stringify({ content_text: trimmed, content_type: voiceType }),
       });
       if (res.ok) {
-        setNewExample("");
         fetchExamples();
       }
     } catch (err) {
@@ -368,6 +419,33 @@ export function VoiceSection() {
               </CardContent>
             </Card>
 
+            {/* Special Instructions */}
+            <Card>
+              <CardContent>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-warning-500)]/10 flex items-center justify-center">
+                    <StickyNote className="w-4 h-4 text-[var(--color-warning-400)]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                      Special Instructions
+                    </h3>
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      Guidance the AI should always follow
+                    </p>
+                  </div>
+                </div>
+
+                <textarea
+                  value={s.special_notes || ""}
+                  onChange={(e) => updateSettings({ special_notes: e.target.value || null })}
+                  placeholder="What should the AI do (or avoid) every time?"
+                  rows={4}
+                  className="w-full px-3 py-2 text-sm resize-none"
+                />
+              </CardContent>
+            </Card>
+
             {/* Voice Personality Sliders */}
             <Card>
               <CardContent>
@@ -478,9 +556,23 @@ export function VoiceSection() {
                       Manually include saved posts in your {voiceType === "reply" ? "response" : "post"} voice
                     </p>
                   </div>
-                  {inspirations.length > 0 && (
-                    <Badge variant="accent">{inspirations.length}</Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={async () => {
+                        setInspirationPickerOpen(true);
+                        setInspirationSearch("");
+                        await fetchInspirations();
+                      }}
+                      icon={<Plus className="w-4 h-4" />}
+                    >
+                      Add
+                    </Button>
+                    <Badge variant="accent">
+                      {inspirations.filter((p) => (voiceType === "reply" ? p.include_in_reply_voice : p.include_in_post_voice)).length}
+                    </Badge>
+                  </div>
                 </div>
 
                 {loadingInspirations ? (
@@ -490,23 +582,21 @@ export function VoiceSection() {
                   </div>
                 ) : inspirations.length === 0 ? (
                   <div className="text-sm text-[var(--color-text-muted)]">
-                    No inspiration posts yet. Save posts in the app, then toggle inclusion here.
+                    No saved inspiration yet. Save posts with the Chrome extension.
+                  </div>
+                ) : inspirations.filter((p) => (voiceType === "reply" ? p.include_in_reply_voice : p.include_in_post_voice)).length === 0 ? (
+                  <div className="text-sm text-[var(--color-text-muted)]">
+                    none selected
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-56 overflow-y-auto">
-                    {inspirations.slice(0, 30).map((post) => {
-                      const included = voiceType === "reply"
-                        ? (post.include_in_reply_voice === true)
-                        : (post.include_in_post_voice === true);
-
-                      return (
+                    {inspirations
+                      .filter((post) => (voiceType === "reply" ? post.include_in_reply_voice : post.include_in_post_voice))
+                      .slice(0, 30)
+                      .map((post) => (
                         <div
                           key={post.id}
-                          className={`p-3 rounded-lg border transition-colors ${
-                            included
-                              ? "bg-[var(--color-primary-500)]/10 border-[var(--color-primary-500)]/30"
-                              : "bg-[var(--color-bg-elevated)] border-[var(--color-border-subtle)]"
-                          }`}
+                          className="group p-3 rounded-lg border bg-[var(--color-bg-elevated)] border-[var(--color-border-subtle)]"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
@@ -526,33 +616,16 @@ export function VoiceSection() {
                               </p>
                             </div>
 
-                            <Button
-                              variant={included ? "primary" : "secondary"}
-                              size="sm"
-                              onClick={async () => {
-                                const next = !included;
-                                const payload = voiceType === "reply"
-                                  ? { include_in_reply_voice: next }
-                                  : { include_in_post_voice: next };
-                                const res = await fetch(`/api/inspiration/${post.id}`, {
-                                  method: "PATCH",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify(payload),
-                                });
-                                if (res.ok) {
-                                  const updated = await res.json();
-                                  setInspirations((prev) => prev.map((p) => (p.id === post.id ? { ...p, ...updated } : p)));
-                                }
-                              }}
+                            <button
+                              onClick={() => setInspirationIncluded(post.id, false)}
+                              className="opacity-0 group-hover:opacity-100 p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger-400)] transition-all"
+                              title="Remove"
                             >
-                              {included
-                                ? (voiceType === "reply" ? "included" : "included")
-                                : (voiceType === "reply" ? "include" : "include")}
-                            </Button>
+                              <X className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
-                      );
-                    })}
+                      ))}
                   </div>
                 )}
               </CardContent>
@@ -573,9 +646,11 @@ export function VoiceSection() {
                       {voiceType === "reply" ? "Replies" : "Posts"} that represent your style
                     </p>
                   </div>
-                  {examples.length > 0 && (
-                    <Badge variant="success">{examples.length}</Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {examples.length > 0 && (
+                      <Badge variant="success">{examples.length}</Badge>
+                    )}
+                  </div>
                 </div>
 
                 {examples.length > 0 && (
@@ -599,54 +674,151 @@ export function VoiceSection() {
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <textarea
-                    value={newExample}
-                    onChange={(e) => setNewExample(e.target.value)}
-                    placeholder={`Paste a ${voiceType === "reply" ? "reply" : "post"} example...`}
-                    rows={3}
-                    className="w-full px-3 py-2 text-sm resize-none"
-                  />
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={addExample}
-                    disabled={!newExample.trim()}
-                    icon={<Plus className="w-4 h-4" />}
-                    fullWidth
-                  >
-                    Add Example
-                  </Button>
-                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={async () => {
+                    setExamplePickerOpen(true);
+                    setExampleSearch("");
+                    await ensureAnalyticsPostsLoaded();
+                  }}
+                  icon={<Plus className="w-4 h-4" />}
+                  fullWidth
+                >
+                  Add example from my {voiceType === "reply" ? "replies" : "posts"}
+                </Button>
               </CardContent>
             </Card>
 
-            {/* Special Instructions */}
-            <Card>
-              <CardContent>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--color-warning-500)]/10 flex items-center justify-center">
-                    <StickyNote className="w-4 h-4 text-[var(--color-warning-400)]" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                      Special Instructions
-                    </h3>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      Additional guidance for the AI
-                    </p>
-                  </div>
-                </div>
+          </div>
+        </div>
+      )}
 
-                <textarea
-                  value={s.special_notes || ""}
-                  onChange={(e) => updateSettings({ special_notes: e.target.value || null })}
-                  placeholder="Any specific instructions for how your content should be written..."
-                  rows={4}
-                  className="w-full px-3 py-2 text-sm resize-none"
-                />
-              </CardContent>
-            </Card>
+      {/* Inspiration Picker Modal */}
+      {inspirationPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-3xl rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-subtle)]">
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Add inspiration</h3>
+                <p className="text-xs text-[var(--color-text-muted)]">choose from saved inspirations</p>
+              </div>
+              <button
+                onClick={() => setInspirationPickerOpen(false)}
+                className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <input
+                value={inspirationSearch}
+                onChange={(e) => setInspirationSearch(e.target.value)}
+                placeholder="Search..."
+                className="w-full h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg"
+              />
+
+              <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-1">
+                {inspirations
+                  .filter((p) => !(voiceType === "reply" ? p.include_in_reply_voice : p.include_in_post_voice))
+                  .filter((p) => {
+                    if (!inspirationSearch.trim()) return true;
+                    const q = inspirationSearch.toLowerCase();
+                    return (
+                      (p.raw_content || "").toLowerCase().includes(q) ||
+                      (p.author_handle || "").toLowerCase().includes(q)
+                    );
+                  })
+                  .slice(0, 60)
+                  .map((post) => (
+                    <button
+                      key={post.id}
+                      onClick={async () => {
+                        await setInspirationIncluded(post.id, true);
+                        setInspirationPickerOpen(false);
+                      }}
+                      className="w-full text-left p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] hover:border-[var(--color-border-default)] transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-3 mb-1">
+                        <div className="flex items-center gap-2">
+                          {post.author_handle && (
+                            <span className="text-xs text-[var(--color-text-muted)]">
+                              {post.author_handle.startsWith("@") ? post.author_handle : `@${post.author_handle}`}
+                            </span>
+                          )}
+                          <span className="text-xs text-[var(--color-text-muted)]">
+                            {new Date(post.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <span className="text-xs text-[var(--color-text-muted)]">click to include</span>
+                      </div>
+                      <p className="text-sm text-[var(--color-text-secondary)] line-clamp-3">{post.raw_content}</p>
+                    </button>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Example Picker Modal */}
+      {examplePickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-3xl rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-subtle)]">
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Add voice example</h3>
+                <p className="text-xs text-[var(--color-text-muted)]">pick from your analytics CSV</p>
+              </div>
+              <button
+                onClick={() => setExamplePickerOpen(false)}
+                className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <input
+                value={exampleSearch}
+                onChange={(e) => setExampleSearch(e.target.value)}
+                placeholder="Search..."
+                className="w-full h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg"
+              />
+
+              {loadingAnalyticsPosts ? (
+                <div className="h-10 skeleton" />
+              ) : (
+                <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-1">
+                  {analyticsPosts
+                    .filter((p) => (voiceType === "reply" ? p.is_reply : !p.is_reply))
+                    .filter((p) => {
+                      if (!exampleSearch.trim()) return true;
+                      const q = exampleSearch.toLowerCase();
+                      return (p.text || "").toLowerCase().includes(q);
+                    })
+                    .sort((a, b) => (b.impressions || 0) - (a.impressions || 0))
+                    .slice(0, 60)
+                    .map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={async () => {
+                          await addExampleFromText(p.text);
+                          setExamplePickerOpen(false);
+                        }}
+                        className="w-full text-left p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] hover:border-[var(--color-border-default)] transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-3 mb-1">
+                          <span className="text-xs text-[var(--color-text-muted)]">{p.is_reply ? "reply" : "post"}</span>
+                          <span className="text-xs text-[var(--color-text-muted)]">{(p.impressions || 0).toLocaleString()} impressions</span>
+                        </div>
+                        <p className="text-sm text-[var(--color-text-secondary)] line-clamp-3 whitespace-pre-line">{p.text}</p>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

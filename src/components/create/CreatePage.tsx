@@ -53,6 +53,8 @@ export function CreatePage() {
   const [inspirationPost, setInspirationPost] = useState<InspirationPost | null>(null);
   const [loadingInspiration, setLoadingInspiration] = useState(false);
   const [inspirationList, setInspirationList] = useState<Array<{ id: string; raw_content: string; author_handle: string | null; created_at: string }>>([]);
+  const [inspirationPickerOpen, setInspirationPickerOpen] = useState(false);
+  const [inspirationSearch, setInspirationSearch] = useState("");
   const [loadingInspirationList, setLoadingInspirationList] = useState(false);
 
   // Fetch available inspiration posts (for manual selection)
@@ -325,34 +327,22 @@ export function CreatePage() {
                     ) : inspirationList.length === 0 ? (
                       <p className="text-xs text-[var(--color-text-muted)]">No saved inspiration yet.</p>
                     ) : (
-                      <select
-                        className="w-full h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg"
-                        value={inspirationPost?.id || ""}
-                        onChange={(e) => {
-                          const id = e.target.value;
-                          const found = inspirationList.find((p) => p.id === id) || null;
-                          if (found) {
-                            // Fetch full post so we have raw_content/author_handle
-                            setLoadingInspiration(true);
-                            fetch(`/api/inspiration/${id}`)
-                              .then((r) => r.json())
-                              .then((d) => setInspirationPost(d && !d.error ? d : null))
-                              .finally(() => setLoadingInspiration(false));
-                          } else {
-                            setInspirationPost(null);
-                          }
-                        }}
-                      >
-                        <option value="">No inspiration</option>
-                        {inspirationList.slice(0, 50).map((p) => {
-                          const label = `${p.author_handle ? (p.author_handle.startsWith("@") ? p.author_handle : `@${p.author_handle}`) : "unknown"}: ${p.raw_content.slice(0, 60).replace(/\s+/g, " ")}`;
-                          return (
-                            <option key={p.id} value={p.id}>
-                              {label}
-                            </option>
-                          );
-                        })}
-                      </select>
+                      <div className="space-y-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          fullWidth
+                          onClick={() => {
+                            setInspirationPickerOpen(true);
+                            setInspirationSearch("");
+                          }}
+                        >
+                          {inspirationPost ? "Change inspiration" : "Add inspiration"}
+                        </Button>
+                        <p className="text-[11px] text-[var(--color-text-muted)]">
+                          pick from your saved inspirations (searchable)
+                        </p>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -476,6 +466,75 @@ export function CreatePage() {
           <DraftsList />
         </TabsContent>
       </Tabs>
+
+      {/* Inspiration Picker Modal */}
+      {inspirationPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-3xl rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-subtle)]">
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Select inspiration</h3>
+                <p className="text-xs text-[var(--color-text-muted)]">choose one post to inject into this draft</p>
+              </div>
+              <button
+                onClick={() => setInspirationPickerOpen(false)}
+                className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <input
+                value={inspirationSearch}
+                onChange={(e) => setInspirationSearch(e.target.value)}
+                placeholder="Search..."
+                className="w-full h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg"
+              />
+
+              <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-1">
+                {inspirationList
+                  .filter((p) => {
+                    if (!inspirationSearch.trim()) return true;
+                    const q = inspirationSearch.toLowerCase();
+                    return (
+                      (p.raw_content || "").toLowerCase().includes(q) ||
+                      (p.author_handle || "").toLowerCase().includes(q)
+                    );
+                  })
+                  .slice(0, 80)
+                  .map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={async () => {
+                        setLoadingInspiration(true);
+                        try {
+                          const res = await fetch(`/api/inspiration/${p.id}`);
+                          const d = await res.json();
+                          setInspirationPost(d && !d.error ? d : null);
+                          setInspirationPickerOpen(false);
+                        } finally {
+                          setLoadingInspiration(false);
+                        }
+                      }}
+                      className="w-full text-left p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] hover:border-[var(--color-border-default)] transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-3 mb-1">
+                        <span className="text-xs text-[var(--color-text-muted)]">
+                          {p.author_handle ? (p.author_handle.startsWith("@") ? p.author_handle : `@${p.author_handle}`) : "unknown"}
+                        </span>
+                        <span className="text-xs text-[var(--color-text-muted)]">click to select</span>
+                      </div>
+                      <p className="text-sm text-[var(--color-text-secondary)] line-clamp-3">
+                        {p.raw_content}
+                      </p>
+                    </button>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
