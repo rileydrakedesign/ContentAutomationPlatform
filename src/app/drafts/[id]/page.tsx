@@ -7,7 +7,7 @@ import Link from "next/link";
 type Draft = {
   id: string;
   type: "X_POST" | "X_THREAD" | "REEL_SCRIPT";
-  status: "PENDING" | "GENERATED" | "APPROVED" | "REJECTED";
+  status: "DRAFT" | "POSTED" | "SCHEDULED" | "REJECTED";
   content: Record<string, unknown>;
   source_ids: string[] | null;
   edited_content: Record<string, unknown> | null;
@@ -188,22 +188,6 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
     fetchDraft();
   }, [id]);
 
-  async function updateStatus(status: "APPROVED" | "REJECTED") {
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/drafts/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, editedContent }),
-      });
-      if (res.ok) {
-        router.push("/drafts");
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function saveEdits() {
     setSaving(true);
     try {
@@ -233,6 +217,7 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          draftId: draft.id,
           contentType: draft.type,
           payload: editedContent,
         }),
@@ -240,7 +225,8 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
 
       const data = await res.json();
       if (res.ok) {
-        setPublishMessage(`Posted (${(data.postedIds || []).length} item${(data.postedIds || []).length === 1 ? "" : "s"}).`);
+        router.push("/create?tab=drafts");
+        return;
       } else {
         setPublishMessage(data.error || "Failed to publish");
       }
@@ -277,8 +263,8 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
 
       const data = await res.json();
       if (res.ok) {
-        setPublishMessage("Scheduled.");
-        setScheduleAt("");
+        router.push("/create?tab=drafts");
+        return;
       } else {
         setPublishMessage(data.error || "Failed to schedule");
       }
@@ -303,10 +289,10 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
     REEL_SCRIPT: "Reel Script",
   };
 
-  const statusColors = {
-    PENDING: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-    GENERATED: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    APPROVED: "bg-teal-500/10 text-teal-400 border-teal-500/20",
+  const statusColors: Record<string, string> = {
+    DRAFT: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    POSTED: "bg-teal-500/10 text-teal-400 border-teal-500/20",
+    SCHEDULED: "bg-blue-500/10 text-blue-400 border-blue-500/20",
     REJECTED: "bg-red-500/10 text-red-400 border-red-500/20",
   };
 
@@ -358,7 +344,7 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
         )}
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center">
         <button
           onClick={saveEdits}
           disabled={saving}
@@ -366,23 +352,6 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
         >
           {saving ? "Saving..." : "Save Edits"}
         </button>
-
-        <div className="flex gap-3">
-          <button
-            onClick={() => updateStatus("REJECTED")}
-            disabled={saving}
-            className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30 rounded-md text-sm transition"
-          >
-            Reject
-          </button>
-          <button
-            onClick={() => updateStatus("APPROVED")}
-            disabled={saving}
-            className="px-4 py-2 bg-teal-600 hover:bg-teal-500 rounded-md text-sm transition"
-          >
-            Approve
-          </button>
-        </div>
       </div>
 
       {(draft.type === "X_POST" || draft.type === "X_THREAD") && (

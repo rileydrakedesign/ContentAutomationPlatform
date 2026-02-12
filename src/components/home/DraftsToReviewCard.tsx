@@ -10,7 +10,7 @@ import { FileText, ArrowRight } from "lucide-react";
 type Draft = {
   id: string;
   type: "X_POST" | "X_THREAD";
-  status: "PENDING" | "GENERATED" | "APPROVED" | "REJECTED";
+  status: "DRAFT" | "POSTED" | "SCHEDULED" | "REJECTED";
   content: Record<string, unknown>;
   edited_content: Record<string, unknown> | null;
   created_at: string;
@@ -28,8 +28,7 @@ function getPreview(draft: Draft): string {
 }
 
 export function DraftsToReviewCard({ drafts }: DraftsToReviewCardProps) {
-  // Filter to only GENERATED status (pending review)
-  const pendingDrafts = drafts.filter((d) => d.status === "GENERATED");
+  const pendingDrafts = drafts.filter((d) => d.status === "DRAFT");
 
   if (pendingDrafts.length === 0) {
     return (
@@ -41,7 +40,7 @@ export function DraftsToReviewCard({ drafts }: DraftsToReviewCardProps) {
             </div>
             <div>
               <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
-                No drafts to review
+                No drafts
               </h3>
               <p className="text-xs text-[var(--color-text-muted)]">
                 Generate drafts from inspiration or topics
@@ -59,7 +58,7 @@ export function DraftsToReviewCard({ drafts }: DraftsToReviewCardProps) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
-              Drafts to Review
+              Drafts
             </h3>
             <Badge variant="warning" size="sm">
               {pendingDrafts.length}

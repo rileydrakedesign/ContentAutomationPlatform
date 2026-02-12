@@ -6,8 +6,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { PerformanceTab } from "./PerformanceTab";
 import { PatternsTab } from "./PatternsTab";
 import { SuggestionsTab } from "./SuggestionsTab";
-import { BestTimesSection } from "./BestTimesSection";
 import { AssistantTab } from "./AssistantTab";
+import { GrowthTrendChart } from "./overview/GrowthTrendChart";
+import { BestDayIndicator } from "./overview/BestDayIndicator";
+import { EngagementFunnel } from "./overview/EngagementFunnel";
+import { PostLengthSweetSpot } from "./overview/PostLengthSweetSpot";
 import { CsvUploadDrawer } from "@/components/home/CsvUploadDrawer";
 import type { UserAnalyticsData } from "@/types/analytics";
 
@@ -53,7 +56,18 @@ export function InsightsPage() {
 
         <TabsContent value="overview">
           <div className="space-y-6">
-            <BestTimesSection />
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+              <div className="lg:col-span-3">
+                <GrowthTrendChart posts={analyticsData?.posts || []} />
+              </div>
+              <div className="lg:col-span-1">
+                <BestDayIndicator posts={analyticsData?.posts || []} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <EngagementFunnel posts={analyticsData?.posts || []} />
+              <PostLengthSweetSpot posts={analyticsData?.posts || []} />
+            </div>
             <PerformanceTab
               posts={analyticsData?.posts || []}
               uploadedAt={analyticsData?.uploaded_at}

@@ -15,7 +15,7 @@ import { InspirationPost } from "@/types/inspiration";
 type Draft = {
   id: string;
   type: "X_POST" | "X_THREAD";
-  status: "PENDING" | "GENERATED" | "APPROVED" | "REJECTED";
+  status: "DRAFT" | "POSTED" | "SCHEDULED" | "REJECTED";
   content: Record<string, unknown>;
   edited_content: Record<string, unknown> | null;
   created_at: string;
@@ -76,9 +76,6 @@ export function HomePage() {
       .catch(console.error);
   };
 
-  // Draft counts (used in sidebar)
-  const generatedDrafts = drafts.filter((d) => d.status === "GENERATED");
-  const approvedDrafts = drafts.filter((d) => d.status === "APPROVED");
   const postedCount = analyticsData?.total_posts || 0;
 
   if (loading) {

@@ -26,12 +26,14 @@ import {
 type DraftType = "X_POST" | "X_THREAD";
 
 interface GeneratedDraft {
-  id: string;
+  type: string;
   content: {
     text?: string;
+    tweets?: string[];
     posts?: string[];
   };
   topic: string;
+  applied_patterns?: string[];
   metadata?: {
     hook_type?: string;
     patterns_applied?: string[];
@@ -132,7 +134,7 @@ export function CreatePage() {
       }
 
       const data = await res.json();
-      setGeneratedDrafts(data.drafts || []);
+      setGeneratedDrafts(data.options || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate");
     } finally {
@@ -140,8 +142,33 @@ export function CreatePage() {
     }
   };
 
-  const handleUseDraft = (draft: GeneratedDraft) => {
-    router.push(`/drafts/${draft.id}`);
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  const handleUseDraft = async (draft: GeneratedDraft) => {
+    setSavingDraft(true);
+    try {
+      const res = await fetch("/api/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: draft.type,
+          content: draft.content,
+          topic: draft.topic,
+          appliedPatterns: draft.applied_patterns,
+          metadata: draft.metadata,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save draft");
+      }
+      const saved = await res.json();
+      router.push(`/drafts/${saved.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save draft");
+    } finally {
+      setSavingDraft(false);
+    }
   };
 
   return (
@@ -407,7 +434,7 @@ export function CreatePage() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {generatedDrafts.map((draft, index) => (
-                  <Card key={draft.id} hover className="group">
+                  <Card key={index} hover className="group">
                     <CardContent>
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-xs font-medium text-[var(--color-text-muted)]">
@@ -449,10 +476,11 @@ export function CreatePage() {
                         size="sm"
                         fullWidth
                         onClick={() => handleUseDraft(draft)}
+                        disabled={savingDraft}
                         icon={<ArrowRight className="w-4 h-4" />}
                         iconPosition="right"
                       >
-                        Edit & Use
+                        {savingDraft ? "Saving..." : "Select & Edit"}
                       </Button>
                     </CardContent>
                   </Card>

@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
-import { Badge, StatusBadge, TypeBadge } from "@/components/ui/Badge";
+import { StatusBadge, TypeBadge } from "@/components/ui/Badge";
 import { formatRelativeTime } from "@/lib/utils/formatting";
 
 type Draft = {
   id: string;
   type: "X_POST" | "X_THREAD" | "REEL_SCRIPT";
-  status: "PENDING" | "GENERATED" | "APPROVED" | "REJECTED";
+  status: "DRAFT" | "POSTED" | "SCHEDULED" | "REJECTED";
   content: Record<string, unknown>;
   edited_content: Record<string, unknown> | null;
   created_at: string;
@@ -16,11 +16,10 @@ type Draft = {
 
 interface DraftCardProps {
   draft: Draft;
-  onStatusChange?: (id: string, status: Draft["status"]) => void;
   onDelete?: (id: string) => void;
 }
 
-export function DraftCard({ draft, onStatusChange, onDelete }: DraftCardProps) {
+export function DraftCard({ draft, onDelete }: DraftCardProps) {
   function getPreview() {
     const content = draft.edited_content || draft.content;
     if ("text" in content) return content.text as string;
@@ -54,23 +53,6 @@ export function DraftCard({ draft, onStatusChange, onDelete }: DraftCardProps) {
         >
           Edit
         </Link>
-
-        {draft.status === "GENERATED" && onStatusChange && (
-          <>
-            <button
-              onClick={() => onStatusChange(draft.id, "APPROVED")}
-              className="text-sm text-teal-400 hover:text-teal-300 transition"
-            >
-              Approve
-            </button>
-            <button
-              onClick={() => onStatusChange(draft.id, "REJECTED")}
-              className="text-sm text-red-400 hover:text-red-300 transition"
-            >
-              Reject
-            </button>
-          </>
-        )}
 
         {onDelete && (
           <button

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 
-type DraftStatus = "PENDING" | "GENERATED" | "APPROVED" | "REJECTED";
+type DraftStatus = "DRAFT" | "POSTED" | "SCHEDULED" | "REJECTED";
 
 export async function GET(
   request: NextRequest,
@@ -63,7 +63,7 @@ export async function PATCH(
     };
 
     // Validate status if provided
-    if (status && !["PENDING", "GENERATED", "APPROVED", "REJECTED"].includes(status)) {
+    if (status && !["DRAFT", "POSTED", "SCHEDULED", "REJECTED"].includes(status)) {
       return NextResponse.json(
         { error: "Invalid status value" },
         { status: 400 }

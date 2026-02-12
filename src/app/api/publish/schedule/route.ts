@@ -69,6 +69,19 @@ export async function POST(request: NextRequest) {
       .eq("id", row.id)
       .eq("user_id", user.id);
 
+    // Mark linked draft as SCHEDULED (best-effort)
+    if (draftId) {
+      try {
+        await supabase
+          .from("drafts")
+          .update({ status: "SCHEDULED", updated_at: new Date().toISOString() })
+          .eq("id", draftId)
+          .eq("user_id", user.id);
+      } catch (e) {
+        console.warn("schedule: failed to mark draft as SCHEDULED", e);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       id: row.id,

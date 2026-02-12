@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Load post
     const { data: post, error } = await supabase
       .from("scheduled_posts")
-      .select("id, status, job_id")
+      .select("id, status, job_id, draft_id")
       .eq("id", id)
       .eq("user_id", user.id)
       .single();
@@ -51,6 +51,19 @@ export async function POST(request: NextRequest) {
       .update({ status: "cancelled", updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("user_id", user.id);
+
+    // Revert linked draft back to DRAFT (best-effort)
+    if (post.draft_id) {
+      try {
+        await supabase
+          .from("drafts")
+          .update({ status: "DRAFT", updated_at: new Date().toISOString() })
+          .eq("id", post.draft_id)
+          .eq("user_id", user.id);
+      } catch (e) {
+        console.warn("cancel: failed to revert draft to DRAFT", e);
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

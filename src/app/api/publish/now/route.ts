@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const contentType: ContentType = body?.contentType;
     const payload = body?.payload;
+    const draftId = body?.draftId ? String(body.draftId) : null;
 
     if (!contentType || !["X_POST", "X_THREAD"].includes(contentType)) {
       return NextResponse.json({ error: "Invalid contentType" }, { status: 400 });
@@ -77,6 +78,19 @@ export async function POST(request: NextRequest) {
       } catch (e) {
         // best-effort; don't fail publishing on backfill issues
         console.warn("publish now: failed to backfill captured_posts", e);
+      }
+
+      // Mark draft as POSTED (best-effort)
+      if (draftId) {
+        try {
+          await supabase
+            .from("drafts")
+            .update({ status: "POSTED", updated_at: new Date().toISOString() })
+            .eq("id", draftId)
+            .eq("user_id", user.id);
+        } catch (e) {
+          console.warn("publish now: failed to mark draft as POSTED", e);
+        }
       }
 
       return NextResponse.json({ success: true, postedIds: [posted.id_str] });
@@ -138,6 +152,19 @@ export async function POST(request: NextRequest) {
       await supabase.from("captured_posts").insert(rows);
     } catch (e) {
       console.warn("publish now: failed to backfill captured_posts (thread)", e);
+    }
+
+    // Mark draft as POSTED (best-effort)
+    if (draftId) {
+      try {
+        await supabase
+          .from("drafts")
+          .update({ status: "POSTED", updated_at: new Date().toISOString() })
+          .eq("id", draftId)
+          .eq("user_id", user.id);
+      } catch (e) {
+        console.warn("publish now: failed to mark draft as POSTED", e);
+      }
     }
 
     return NextResponse.json({ success: true, postedIds });

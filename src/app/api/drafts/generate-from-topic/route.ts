@@ -201,11 +201,9 @@ Return ONLY the JSON array, no other text.`;
       );
     }
 
-    // Save drafts
-    const draftsToInsert = generatedOptions.map((option: { content: unknown; hook_type?: string; patterns_applied?: string[] }) => ({
-      user_id: user.id,
+    // Return options in memory — nothing saved to DB yet
+    const options = generatedOptions.map((option: { content: unknown; hook_type?: string; patterns_applied?: string[] }) => ({
       type: draftType,
-      status: "GENERATED",
       content: draftType === "X_THREAD"
         ? { tweets: Array.isArray(option.content) ? option.content : [option.content] }
         : { text: option.content },
@@ -219,20 +217,13 @@ Return ONLY the JSON array, no other text.`;
       },
     }));
 
-    const { data: insertedDrafts, error: insertError } = await supabase
-      .from("drafts")
-      .insert(draftsToInsert)
-      .select();
-
-    if (insertError) throw insertError;
-
     return NextResponse.json(
       {
-        drafts: insertedDrafts,
+        options,
         patterns_used: patterns,
         topic,
       },
-      { status: 201, headers: corsHeaders }
+      { status: 200, headers: corsHeaders }
     );
   } catch (error) {
     console.error("Failed to generate from topic:", error);

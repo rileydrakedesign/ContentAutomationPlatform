@@ -69,6 +69,9 @@ export function Badge({
 // Predefined status badges
 export function StatusBadge({ status }: { status: string }) {
   const statusVariants: Record<string, BadgeVariant> = {
+    DRAFT: "warning",
+    POSTED: "success",
+    SCHEDULED: "primary",
     PENDING: "warning",
     GENERATED: "primary",
     APPROVED: "success",
@@ -81,6 +84,9 @@ export function StatusBadge({ status }: { status: string }) {
   };
 
   const labels: Record<string, string> = {
+    DRAFT: "Draft",
+    POSTED: "Posted",
+    SCHEDULED: "Scheduled",
     PENDING: "Pending",
     GENERATED: "Generated",
     APPROVED: "Approved",

@@ -13,26 +13,23 @@ import {
   ArrowRight,
   ChevronDown,
   Lightbulb,
-  CheckCircle,
   TrendingUp,
   Eye,
   Heart,
   MessageCircle,
   ExternalLink,
-  Copy,
-  Pencil,
 } from "lucide-react";
 
 type Draft = {
   id: string;
   type: "X_POST" | "X_THREAD";
-  status: "PENDING" | "GENERATED" | "APPROVED" | "REJECTED";
+  status: "DRAFT" | "POSTED" | "SCHEDULED" | "REJECTED";
   content: Record<string, unknown>;
   edited_content: Record<string, unknown> | null;
   created_at: string;
 };
 
-type ContentType = "drafts" | "top_posts" | "inspiration" | "approved";
+type ContentType = "drafts" | "top_posts" | "inspiration";
 
 interface ContentSidebarProps {
   drafts: Draft[];
@@ -42,10 +39,9 @@ interface ContentSidebarProps {
 }
 
 const contentOptions: { value: ContentType; label: string; icon: React.ElementType }[] = [
-  { value: "drafts", label: "Drafts to Review", icon: FileText },
+  { value: "drafts", label: "Drafts", icon: FileText },
   { value: "top_posts", label: "Top Posts", icon: TrendingUp },
   { value: "inspiration", label: "Saved Inspiration", icon: Lightbulb },
-  { value: "approved", label: "Approved & Ready", icon: CheckCircle },
 ];
 
 function getPreview(draft: Draft): string {
@@ -64,8 +60,7 @@ export function ContentSidebar({
   const [contentType, setContentType] = useState<ContentType>("drafts");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const pendingDrafts = drafts.filter((d) => d.status === "GENERATED");
-  const approvedDrafts = drafts.filter((d) => d.status === "APPROVED");
+  const activeDrafts = drafts.filter((d) => d.status === "DRAFT");
   const topPosts = [...posts]
     .filter((p) => !p.is_reply)
     .sort((a, b) => b.impressions - a.impressions)
@@ -77,18 +72,12 @@ export function ContentSidebar({
   const getCount = () => {
     switch (contentType) {
       case "drafts":
-        return pendingDrafts.length;
+        return activeDrafts.length;
       case "top_posts":
         return topPosts.length;
       case "inspiration":
         return inspirationPosts.length;
-      case "approved":
-        return approvedDrafts.length;
     }
-  };
-
-  const handleCopy = async (text: string) => {
-    await navigator.clipboard.writeText(text);
   };
 
   return (
@@ -125,12 +114,10 @@ export function ContentSidebar({
                 const Icon = option.icon;
                 const count =
                   option.value === "drafts"
-                    ? pendingDrafts.length
+                    ? activeDrafts.length
                     : option.value === "top_posts"
                     ? topPosts.length
-                    : option.value === "inspiration"
-                    ? inspirationPosts.length
-                    : approvedDrafts.length;
+                    : inspirationPosts.length;
 
                 return (
                   <button
@@ -180,16 +167,13 @@ export function ContentSidebar({
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto -mx-4 px-4">
           {contentType === "drafts" && (
-            <DraftsContent drafts={pendingDrafts} />
+            <DraftsContent drafts={activeDrafts} />
           )}
           {contentType === "top_posts" && (
             <TopPostsContent posts={topPosts} onUploadClick={onUploadClick} />
           )}
           {contentType === "inspiration" && (
             <InspirationContent posts={inspirationPosts} />
-          )}
-          {contentType === "approved" && (
-            <ApprovedContent drafts={approvedDrafts} onCopy={handleCopy} />
           )}
         </div>
       </CardContent>
@@ -387,71 +371,3 @@ function InspirationContent({ posts }: { posts: InspirationPost[] }) {
   );
 }
 
-function ApprovedContent({
-  drafts,
-  onCopy,
-}: {
-  drafts: Draft[];
-  onCopy: (text: string) => void;
-}) {
-  if (drafts.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
-        <div className="w-12 h-12 rounded-xl bg-[var(--color-bg-elevated)] flex items-center justify-center mb-3">
-          <CheckCircle className="w-6 h-6 text-[var(--color-text-muted)]" />
-        </div>
-        <p className="text-sm text-[var(--color-text-muted)]">
-          No approved drafts yet
-        </p>
-        <p className="text-xs text-[var(--color-text-muted)] mt-1">
-          Review and approve drafts to see them here
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {drafts.slice(0, 5).map((draft) => {
-        const text = getPreview(draft);
-        return (
-          <div
-            key={draft.id}
-            className="p-3 bg-[var(--color-bg-elevated)] rounded-lg"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant="success" size="sm">
-                {draft.type === "X_POST" ? "Post" : "Thread"}
-              </Badge>
-              <span className="text-xs text-[var(--color-text-muted)]">
-                Approved {formatRelativeTime(draft.created_at)}
-              </span>
-            </div>
-            <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">
-              {text}
-            </p>
-            <div className="flex items-center gap-2 mt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<Copy className="w-3 h-3" />}
-                onClick={() => onCopy(text)}
-              >
-                Copy
-              </Button>
-              <Link href={`/drafts/${draft.id}`}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={<Pencil className="w-3 h-3" />}
-                >
-                  Edit
-                </Button>
-              </Link>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}

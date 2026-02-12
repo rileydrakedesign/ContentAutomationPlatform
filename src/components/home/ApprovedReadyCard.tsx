@@ -11,7 +11,7 @@ import { CheckCircle, Copy, Check, ExternalLink } from "lucide-react";
 type Draft = {
   id: string;
   type: "X_POST" | "X_THREAD";
-  status: "PENDING" | "GENERATED" | "APPROVED" | "REJECTED";
+  status: "DRAFT" | "POSTED" | "SCHEDULED" | "REJECTED";
   content: Record<string, unknown>;
   edited_content: Record<string, unknown> | null;
   created_at: string;
@@ -40,8 +40,7 @@ function getPreview(draft: Draft): string {
 export function ApprovedReadyCard({ drafts, onMarkPosted }: ApprovedReadyCardProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Filter to only APPROVED status
-  const approvedDrafts = drafts.filter((d) => d.status === "APPROVED");
+  const approvedDrafts = drafts.filter((d) => d.status === "DRAFT");
 
   const handleCopy = async (draft: Draft) => {
     const text = getContent(draft);
