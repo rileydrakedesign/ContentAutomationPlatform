@@ -11,6 +11,7 @@ import {
   MessageCircle,
   FileText,
   TrendingUp,
+  ChevronDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 
@@ -48,7 +49,14 @@ export function InspirationPostsTab() {
   const [myPosts, setMyPosts] = useState<MyPost[]>([]);
   const [savedPosts, setSavedPosts] = useState<InspirationPost[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Column filters
   const [myView, setMyView] = useState<"posts" | "replies">("posts");
+  const [savedView, setSavedView] = useState<"posts" | "replies">("posts");
+
+  // Dropdown UI state
+  const [myMenuOpen, setMyMenuOpen] = useState(false);
+  const [savedMenuOpen, setSavedMenuOpen] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -125,6 +133,10 @@ export function InspirationPostsTab() {
   }
 
   const visibleMine = myPosts.filter((p) => (myView === "replies" ? p.is_reply : !p.is_reply));
+  const visibleSaved = savedPosts.filter((p: any) => {
+    const isReply = (p?.is_reply === true) || (p?.metrics?.is_reply === true);
+    return savedView === "replies" ? isReply : !isReply;
+  });
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -136,18 +148,47 @@ export function InspirationPostsTab() {
               <FileText className="w-4 h-4 text-[var(--color-primary-400)]" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  {myView === "replies" ? "My Replies" : "My Posts"}
-                </h3>
-                <select
-                  value={myView}
-                  onChange={(e) => setMyView(e.target.value as any)}
-                  className="h-7 px-2 text-xs bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-secondary)]"
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setMyMenuOpen((v) => !v);
+                    setSavedMenuOpen(false);
+                  }}
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-text-primary)]"
                 >
-                  <option value="posts">My posts</option>
-                  <option value="replies">My replies</option>
-                </select>
+                  {myView === "replies" ? "My Replies" : "My Posts"}
+                  <ChevronDown className="w-4 h-4 text-[var(--color-text-muted)]" />
+                </button>
+
+                {myMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setMyMenuOpen(false)} />
+                    <div className="absolute left-0 top-full mt-2 z-20 min-w-[160px] rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] shadow-lg overflow-hidden">
+                      <button
+                        onClick={() => {
+                          setMyView("posts");
+                          setMyMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-bg-hover)] transition-colors ${
+                          myView === "posts" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"
+                        }`}
+                      >
+                        My posts
+                      </button>
+                      <button
+                        onClick={() => {
+                          setMyView("replies");
+                          setMyMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-bg-hover)] transition-colors ${
+                          myView === "replies" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"
+                        }`}
+                      >
+                        My replies
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
               <p className="text-xs text-[var(--color-text-muted)]">
                 From your X analytics CSV, sorted by engagement
@@ -226,22 +267,64 @@ export function InspirationPostsTab() {
 
       {/* Right Column: Saved Posts */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
               <Bookmark className="w-4 h-4 text-[var(--color-accent-400)]" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Saved Posts</h3>
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setSavedMenuOpen((v) => !v);
+                    setMyMenuOpen(false);
+                  }}
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-text-primary)]"
+                >
+                  {savedView === "replies" ? "Saved Replies" : "Saved Posts"}
+                  <ChevronDown className="w-4 h-4 text-[var(--color-text-muted)]" />
+                </button>
+
+                {savedMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setSavedMenuOpen(false)} />
+                    <div className="absolute left-0 top-full mt-2 z-20 min-w-[180px] rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] shadow-lg overflow-hidden">
+                      <button
+                        onClick={() => {
+                          setSavedView("posts");
+                          setSavedMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-bg-hover)] transition-colors ${
+                          savedView === "posts" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"
+                        }`}
+                      >
+                        Saved posts
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSavedView("replies");
+                          setSavedMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-bg-hover)] transition-colors ${
+                          savedView === "replies" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"
+                        }`}
+                      >
+                        Saved replies
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
               <p className="text-xs text-[var(--color-text-muted)]">
-                Posts saved from X via Chrome extension
+                Saved from X via Chrome extension
               </p>
             </div>
           </div>
-          <Badge variant="accent">{savedPosts.length}</Badge>
+          <Badge variant="accent">{visibleSaved.length}</Badge>
         </div>
 
-        {savedPosts.length === 0 ? (
+        {visibleSaved.length === 0 ? (
           <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-6 text-center">
             <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-[var(--color-bg-elevated)] flex items-center justify-center">
               <Bookmark className="w-5 h-5 text-[var(--color-text-muted)]" />
@@ -253,7 +336,7 @@ export function InspirationPostsTab() {
           </div>
         ) : (
           <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
-            {savedPosts.map((post) => (
+            {visibleSaved.map((post) => (
               <div
                 key={post.id}
                 className="group rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-4 hover:border-[var(--color-border-default)] transition-colors"
