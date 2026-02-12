@@ -1,164 +1,66 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { PostingAnalytics, BestTimeRecommendation, HeatmapCell } from "@/types/analytics";
+import type { DayOfWeekAnalytics, DayOfWeekStats } from "@/types/analytics";
 
-const DAY_ABBREVIATIONS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-// If CSV dates have no explicit time, many rows parse to hour=0.
-// Include 12a so the heatmap still shows meaningful data.
-const KEY_HOURS = [0, 6, 9, 12, 15, 18]; // 12a, 6a, 9a, 12p, 3p, 6p
+const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function formatHourShort(hour: number): string {
-  if (hour === 0) return "12a";
-  if (hour === 12) return "12p";
-  if (hour < 12) return `${hour}a`;
-  return `${hour - 12}p`;
+function getBarColor(value: number, isBest: boolean): string {
+  if (isBest) return "rgb(99, 102, 241)"; // indigo-500
+  if (value === 0) return "rgba(255,255,255,0.05)";
+  // scale from muted to bright
+  const alpha = 0.2 + value * 0.6;
+  return `rgba(99, 102, 241, ${alpha})`;
 }
 
-function getConfidenceBadgeClass(confidence: "high" | "medium" | "low"): string {
-  switch (confidence) {
-    case "high":
-      return "bg-teal-900/50 text-teal-400 border-teal-800";
-    case "medium":
-      return "bg-yellow-900/50 text-yellow-400 border-yellow-800";
-    case "low":
-      return "bg-slate-800 text-slate-400 border-slate-700";
-  }
+function ConfidenceDot({ confidence }: { confidence: "high" | "medium" | "low" }) {
+  const color = confidence === "high" ? "bg-teal-400" : confidence === "medium" ? "bg-yellow-400" : "bg-slate-500";
+  return <span className={`inline-block w-1.5 h-1.5 rounded-full ${color}`} />;
 }
 
-function getHeatmapColor(value: number): string {
-  if (value === 0) return "bg-slate-800";
-  if (value < 0.25) return "bg-amber-900/30";
-  if (value < 0.5) return "bg-amber-800/50";
-  if (value < 0.75) return "bg-amber-700/70";
-  return "bg-amber-500";
-}
-
-interface HeatmapGridProps {
-  data: HeatmapCell[];
-}
-
-function HeatmapGrid({ data }: HeatmapGridProps) {
-  const dataMap = new Map<string, HeatmapCell>();
-  for (const cell of data) {
-    dataMap.set(`${cell.dayOfWeek}-${cell.hour}`, cell);
-  }
-
+function DayDetail({ day }: { day: DayOfWeekStats }) {
   return (
-    <div className="mt-4">
-      <div className="flex gap-1">
-        <div className="flex flex-col gap-1 pr-2">
-          <div className="h-5" />
-          {DAY_ABBREVIATIONS.map((day) => (
-            <div key={day} className="h-8 flex items-center text-xs text-slate-500">
-              {day}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex-1">
-          <div className="flex gap-1 mb-1">
-            {KEY_HOURS.map((hour) => (
-              <div
-                key={hour}
-                className="flex-1 text-center text-xs text-slate-500"
-              >
-                {formatHourShort(hour)}
-              </div>
-            ))}
-          </div>
-
-          {[0, 1, 2, 3, 4, 5, 6].map((day) => (
-            <div key={day} className="flex gap-1 mb-1">
-              {KEY_HOURS.map((hour) => {
-                const cell = dataMap.get(`${day}-${hour}`);
-                const value = cell?.value || 0;
-                return (
-                  <div
-                    key={hour}
-                    className={`flex-1 h-8 rounded ${getHeatmapColor(value)} transition-colors cursor-default`}
-                    title={
-                      cell
-                        ? `${DAY_ABBREVIATIONS[day]} ${formatHourShort(hour)}: ${cell.postCount} post${cell.postCount !== 1 ? "s" : ""}`
-                        : "No data"
-                    }
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
+    <div className="grid grid-cols-4 gap-3 text-center">
+      <div>
+        <p className="text-xs text-slate-500">Avg Impressions</p>
+        <p className="text-sm font-medium text-white">{day.avgImpressions.toLocaleString()}</p>
       </div>
-
-      <div className="flex items-center justify-end gap-2 mt-4 text-xs text-slate-500">
-        <span>Lower engagement</span>
-        <div className="flex gap-0.5">
-          <div className="w-4 h-4 rounded bg-slate-800" />
-          <div className="w-4 h-4 rounded bg-amber-900/30" />
-          <div className="w-4 h-4 rounded bg-amber-800/50" />
-          <div className="w-4 h-4 rounded bg-amber-700/70" />
-          <div className="w-4 h-4 rounded bg-amber-500" />
-        </div>
-        <span>Higher engagement</span>
+      <div>
+        <p className="text-xs text-slate-500">Avg Likes</p>
+        <p className="text-sm font-medium text-white">{day.avgLikes}</p>
       </div>
-    </div>
-  );
-}
-
-interface TimeSlotCardProps {
-  recommendation: BestTimeRecommendation;
-  rank: number;
-}
-
-function TimeSlotCard({ recommendation, rank }: TimeSlotCardProps) {
-  return (
-    <div className="bg-slate-800 rounded-lg p-4">
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="w-6 h-6 flex items-center justify-center rounded-full bg-slate-700 text-slate-300 text-sm font-medium">
-            {rank}
-          </span>
-          <div>
-            <p className="text-white font-medium">{recommendation.dayName}</p>
-            <p className="text-slate-400 text-sm">{recommendation.timeDisplay}</p>
-          </div>
-        </div>
-        <span
-          className={`px-2 py-0.5 text-xs rounded border ${getConfidenceBadgeClass(recommendation.confidence)}`}
-        >
-          {recommendation.confidence}
-        </span>
+      <div>
+        <p className="text-xs text-slate-500">Avg Reposts</p>
+        <p className="text-sm font-medium text-white">{day.avgReposts}</p>
       </div>
-      <div className="text-sm text-slate-500">
-        Avg engagement: <span className="text-slate-300">{recommendation.avgEngagement}</span>
-        <span className="mx-2">·</span>
-        {recommendation.postCount} post{recommendation.postCount !== 1 ? "s" : ""}
+      <div>
+        <p className="text-xs text-slate-500">Avg Replies</p>
+        <p className="text-sm font-medium text-white">{day.avgReplies}</p>
       </div>
     </div>
   );
 }
 
 export function BestTimesSection() {
-  const [analytics, setAnalytics] = useState<PostingAnalytics | null>(null);
+  const [analytics, setAnalytics] = useState<DayOfWeekAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchAnalytics() {
       try {
         const res = await fetch("/api/analytics/best-times");
-        if (!res.ok) {
-          throw new Error("Failed to fetch analytics");
-        }
-        const data: PostingAnalytics = await res.json();
+        if (!res.ok) throw new Error("Failed to fetch analytics");
+        const data: DayOfWeekAnalytics = await res.json();
         setAnalytics(data);
+        if (data.bestDay) setSelectedDay(data.bestDay.dayOfWeek);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
         setLoading(false);
       }
     }
-
     fetchAnalytics();
   }, []);
 
@@ -166,13 +68,12 @@ export function BestTimesSection() {
     return (
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
         <div className="animate-pulse">
-          <div className="h-6 bg-slate-800 rounded w-48 mb-4" />
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div className="h-24 bg-slate-800 rounded" />
-            <div className="h-24 bg-slate-800 rounded" />
-            <div className="h-24 bg-slate-800 rounded" />
+          <div className="h-5 bg-slate-800 rounded w-48 mb-4" />
+          <div className="flex gap-2 items-end h-32 mb-4">
+            {[65, 45, 80, 55, 70, 90, 50].map((h, i) => (
+              <div key={i} className="flex-1 bg-slate-800 rounded" style={{ height: `${h}%` }} />
+            ))}
           </div>
-          <div className="h-48 bg-slate-800 rounded" />
         </div>
       </div>
     );
@@ -181,8 +82,8 @@ export function BestTimesSection() {
   if (error) {
     return (
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-        <h2 className="text-sm font-semibold text-white mb-2">Best Times to Post</h2>
-        <p className="text-red-400">Failed to load analytics: {error}</p>
+        <h2 className="text-sm font-semibold text-white mb-2">Best Days to Post</h2>
+        <p className="text-red-400 text-sm">Failed to load analytics: {error}</p>
       </div>
     );
   }
@@ -190,58 +91,96 @@ export function BestTimesSection() {
   if (!analytics || !analytics.hasEnoughData) {
     return (
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-        <h2 className="text-sm font-semibold text-white mb-2">Best Times to Post</h2>
-        <p className="text-slate-500">
-          Not enough data yet. Upload your analytics CSV with at least 5 posts to see posting time recommendations.
+        <h2 className="text-sm font-semibold text-white mb-2">Best Days to Post</h2>
+        <p className="text-slate-500 text-sm">
+          Not enough data yet. Upload your analytics CSV with at least 5 posts to see day-of-week performance.
         </p>
-        {analytics && analytics.totalPostsAnalyzed > 0 && (
-          <p className="text-sm text-slate-600 mt-2">
-            Currently analyzing {analytics.totalPostsAnalyzed} post{analytics.totalPostsAnalyzed !== 1 ? "s" : ""}.
-          </p>
-        )}
       </div>
     );
   }
 
-  const topThree = analytics.bestTimes.slice(0, 3);
-  const topTimesSummary = topThree
-    .map((t) => `${t.dayName.slice(0, 3)} ${t.timeDisplay}`)
-    .join(" · ");
+  const { days, bestDay, totalPostsAnalyzed } = analytics;
+  const activeDayData = selectedDay !== null ? days[selectedDay] : null;
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-white">Best Times to Post</h2>
-        <span className="text-sm text-slate-500">
-          Based on {analytics.totalPostsAnalyzed} posts
+        <div>
+          <h2 className="text-sm font-semibold text-white">Best Days to Post</h2>
+          {bestDay && (
+            <p className="text-xs text-slate-500 mt-0.5">
+              {bestDay.dayName}s perform best with {bestDay.avgImpressions.toLocaleString()} avg impressions
+            </p>
+          )}
+        </div>
+        <span className="text-xs text-slate-500">
+          {totalPostsAnalyzed} posts analyzed
         </span>
       </div>
 
-      {/* Top 3 recommendations */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        {topThree.map((rec, index) => (
-          <TimeSlotCard
-            key={`${rec.dayOfWeek}-${rec.hour}`}
-            recommendation={rec}
-            rank={index + 1}
-          />
-        ))}
+      {/* Bar chart */}
+      <div className="flex gap-2 items-end" style={{ height: 120 }}>
+        {days.map((day) => {
+          const isBest = bestDay?.dayOfWeek === day.dayOfWeek;
+          const isSelected = selectedDay === day.dayOfWeek;
+          const barHeight = Math.max(day.value * 100, day.postCount > 0 ? 8 : 4);
+
+          return (
+            <button
+              key={day.dayOfWeek}
+              onClick={() => setSelectedDay(isSelected ? null : day.dayOfWeek)}
+              className="flex-1 flex flex-col items-center justify-end gap-1 group"
+              style={{ height: "100%" }}
+            >
+              {/* Post count label */}
+              <span className="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                {day.postCount}
+              </span>
+              {/* Bar */}
+              <div
+                className="w-full rounded-t transition-all"
+                style={{
+                  height: `${barHeight}%`,
+                  backgroundColor: getBarColor(day.value, isBest),
+                  outline: isSelected ? "1.5px solid rgba(99,102,241,0.7)" : "none",
+                  outlineOffset: 1,
+                }}
+              />
+            </button>
+          );
+        })}
       </div>
 
-      {/* Summary */}
-      <div className="p-3 bg-slate-800 rounded-lg text-sm mb-4">
-        <span className="text-slate-400">Top times: </span>
-        <span className="text-white">{topTimesSummary}</span>
+      {/* Day labels */}
+      <div className="flex gap-2 mt-1.5 mb-3">
+        {days.map((day) => {
+          const isBest = bestDay?.dayOfWeek === day.dayOfWeek;
+          const isSelected = selectedDay === day.dayOfWeek;
+          return (
+            <div
+              key={day.dayOfWeek}
+              className={`flex-1 text-center text-xs ${
+                isSelected ? "text-indigo-400 font-medium" : isBest ? "text-white" : "text-slate-500"
+              }`}
+            >
+              {DAY_SHORT[day.dayOfWeek]}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Heatmap (collapsible) */}
-      {analytics.heatmapData.length > 0 && (
-        <details className="pt-4 border-t border-slate-800">
-          <summary className="text-sm font-medium text-slate-400 mb-2 cursor-pointer select-none">
-            Engagement heatmap
-          </summary>
-          <HeatmapGrid data={analytics.heatmapData} />
-        </details>
+      {/* Selected day detail */}
+      {activeDayData && activeDayData.postCount > 0 && (
+        <div className="pt-3 border-t border-slate-800">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-medium text-white">{activeDayData.dayName}</span>
+            <ConfidenceDot confidence={activeDayData.confidence} />
+            <span className="text-[10px] text-slate-500">
+              {activeDayData.postCount} post{activeDayData.postCount !== 1 ? "s" : ""} · {activeDayData.confidence} confidence
+            </span>
+          </div>
+          <DayDetail day={activeDayData} />
+        </div>
       )}
     </div>
   );

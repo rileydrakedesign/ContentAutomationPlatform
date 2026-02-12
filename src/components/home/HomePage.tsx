@@ -127,7 +127,7 @@ export function HomePage() {
       </div>
 
       {/* Main Layout: Left stacked items | Right sidebar */}
-      <div className="flex gap-5 items-stretch">
+      <div className="flex gap-5 items-start">
         {/* Left */}
         <div className="flex-1 flex flex-col gap-4">
           <SetupChecklist
@@ -145,7 +145,6 @@ export function HomePage() {
           />
           {/* removed: content bar looked out of place */}
           <ConsistencyTracker
-            className="flex-1"
             activityDays={activityDays}
             posts={analyticsData?.posts || []}
             dateRange={analyticsData?.date_range}

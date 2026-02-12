@@ -132,7 +132,7 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
           {sortedOnlyPosts.length === 0 ? (
             <div className="text-sm text-slate-500">No posts yet. Upload your analytics CSV.</div>
           ) : (
-            <div className="space-y-2 max-h-[520px] overflow-auto pr-1">
+            <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: '520px' }}>
               {sortedOnlyPosts.map((post, index) => (
                 <div key={post.id || index} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
                   <div className="flex-1 min-w-0">
@@ -182,7 +182,7 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
           {sortedOnlyReplies.length === 0 ? (
             <div className="text-sm text-slate-500">No replies yet.</div>
           ) : (
-            <div className="space-y-2 max-h-[520px] overflow-auto pr-1">
+            <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: '520px' }}>
               {sortedOnlyReplies.map((post, index) => (
                 <div key={post.id || index} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
                   <div className="flex-1 min-w-0">

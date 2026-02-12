@@ -1,31 +1,20 @@
-export interface TimeSlot {
+export interface DayOfWeekStats {
   dayOfWeek: number; // 0 = Sunday, 6 = Saturday
-  hour: number; // 0-23
-  postCount: number;
-  avgEngagement: number;
-  totalEngagement: number;
-}
-
-export interface BestTimeRecommendation {
-  dayOfWeek: number;
-  hour: number;
   dayName: string;
-  timeDisplay: string;
-  avgEngagement: number;
   postCount: number;
+  avgEngagement: number;
+  avgImpressions: number;
+  avgLikes: number;
+  avgReposts: number;
+  avgReplies: number;
+  totalEngagement: number;
+  value: number; // normalized 0-1 for bar height
   confidence: "high" | "medium" | "low";
 }
 
-export interface HeatmapCell {
-  dayOfWeek: number;
-  hour: number;
-  value: number; // normalized 0-1
-  postCount: number;
-}
-
-export interface PostingAnalytics {
-  bestTimes: BestTimeRecommendation[];
-  heatmapData: HeatmapCell[];
+export interface DayOfWeekAnalytics {
+  days: DayOfWeekStats[];
+  bestDay: DayOfWeekStats | null;
   totalPostsAnalyzed: number;
   hasEnoughData: boolean;
 }

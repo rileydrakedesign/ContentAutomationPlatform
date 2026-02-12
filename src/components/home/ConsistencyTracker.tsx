@@ -40,7 +40,7 @@ function formatDateKey(date: Date): string {
 }
 
 export function ConsistencyTracker({ posts = [], activityDays, dateRange, className }: ConsistencyTrackerProps) {
-  const [weeksToShow, setWeeksToShow] = useState(4);
+  const [weeksToShow, setWeeksToShow] = useState(12);
 
   // Build activity map from either activityDays (preferred) or CSV posts (legacy)
   const activityMap = useMemo(() => {
@@ -224,7 +224,7 @@ export function ConsistencyTracker({ posts = [], activityDays, dateRange, classN
 
   return (
     <Card className={className}>
-      <CardContent className="h-full flex flex-col">
+      <CardContent>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
@@ -242,7 +242,7 @@ export function ConsistencyTracker({ posts = [], activityDays, dateRange, classN
           <div className="flex items-center gap-1">
             <button
               onClick={() => setWeeksToShow(Math.max(4, weeksToShow - 4))}
-              disabled={weeksToShow <= 4}
+              disabled={weeksToShow <= 8}
               className="p-1 rounded hover:bg-[var(--color-bg-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4 text-[var(--color-text-muted)]" />
@@ -260,46 +260,63 @@ export function ConsistencyTracker({ posts = [], activityDays, dateRange, classN
           </div>
         </div>
 
-        <div className="flex-1 flex gap-1">
-          {/* Day labels */}
-          <div className="flex flex-col gap-1 mr-1">
-            {dayLabels.map((label, i) => (
-              <div
-                key={i}
-                className="w-3 h-3 flex items-center justify-center text-[8px] text-[var(--color-text-muted)]"
-              >
-                {i % 2 === 1 ? label : ""}
+        {(() => {
+          const todayKey = formatDateKey(new Date());
+          const gap = 3;
+          return (
+            <div style={{ display: "flex", gap }}>
+              {/* Day labels */}
+              <div style={{ display: "flex", flexDirection: "column", gap, marginRight: 2 }}>
+                {dayLabels.map((label, i) => (
+                  <div
+                    key={i}
+                    style={{ height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, lineHeight: 1 }}
+                    className="text-[var(--color-text-muted)]"
+                  >
+                    {i % 2 === 1 ? label : ""}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Weeks grid */}
-          <div className="flex gap-1 overflow-x-auto">
-            {weeksGrid.map((week, weekIdx) => (
-              <div key={weekIdx} className="flex flex-col gap-1">
-                {week.days.map((day, dayIdx) => {
-                  const isToday = formatDateKey(day.date) === formatDateKey(new Date());
-                  const isFuture = day.date > new Date();
+              {/* Weeks grid */}
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${weeksToShow}, 1fr)`, gridTemplateRows: "repeat(7, 16px)", gap, gridAutoFlow: "column", flex: 1 }}>
+                {weeksGrid.flatMap((week) =>
+                  week.days.map((day, dayIdx) => {
+                    const dayKey = formatDateKey(day.date);
+                    const isToday = dayKey === todayKey;
+                    const isFuture = dayKey > todayKey;
+                    const isEmpty = day.posts === 0 && day.replies === 0;
 
-                  return (
-                    <div
-                      key={dayIdx}
-                      className={`w-3 h-3 rounded-sm transition-all ${
-                        isFuture
-                          ? "bg-[var(--color-bg-primary)] opacity-30"
-                          : isToday
-                          ? "ring-1 ring-[var(--color-primary-400)]"
-                          : ""
-                      }`}
-                      style={!isFuture ? getCellStyle(day.posts, day.replies) : {}}
-                      title={`${day.date.toLocaleDateString()}: ${day.posts} posts, ${day.replies} replies`}
-                    />
-                  );
-                })}
+                    const cellStyle: React.CSSProperties = {
+                      borderRadius: 3,
+                    };
+
+                    if (isFuture) {
+                      cellStyle.backgroundColor = "rgba(255,255,255,0.03)";
+                    } else if (isEmpty) {
+                      cellStyle.backgroundColor = "rgba(255,255,255,0.07)";
+                    } else {
+                      Object.assign(cellStyle, getCellStyle(day.posts, day.replies));
+                    }
+
+                    if (isToday) {
+                      cellStyle.outline = "1.5px solid var(--color-primary-400)";
+                      cellStyle.outlineOffset = -1;
+                    }
+
+                    return (
+                      <div
+                        key={dayKey}
+                        style={cellStyle}
+                        title={`${day.date.toLocaleDateString()}: ${day.posts} posts, ${day.replies} replies`}
+                      />
+                    );
+                  })
+                )}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          );
+        })()}
 
         {/* Legend */}
         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-[var(--color-border)]">

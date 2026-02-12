@@ -1,39 +1,13 @@
 import { NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
-import type {
-  PostingAnalytics,
-  PostAnalytics,
-  TimeSlot,
-  BestTimeRecommendation,
-  HeatmapCell,
-} from "@/types/analytics";
+import type { PostAnalytics, DayOfWeekAnalytics, DayOfWeekStats } from "@/types/analytics";
 
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MINIMUM_POSTS = 5;
 
-const MINIMUM_POSTS_FOR_ANALYSIS = 5;
-const MINIMUM_POSTS_FOR_HIGH_CONFIDENCE = 10;
-const MINIMUM_POSTS_FOR_MEDIUM_CONFIDENCE = 5;
-
-function formatHour(hour: number): string {
-  if (hour === 0) return "12 AM";
-  if (hour === 12) return "12 PM";
-  if (hour < 12) return `${hour} AM`;
-  return `${hour - 12} PM`;
-}
-
-function getConfidence(
-  postCount: number
-): "high" | "medium" | "low" {
-  if (postCount >= MINIMUM_POSTS_FOR_HIGH_CONFIDENCE) return "high";
-  if (postCount >= MINIMUM_POSTS_FOR_MEDIUM_CONFIDENCE) return "medium";
+function getConfidence(postCount: number): "high" | "medium" | "low" {
+  if (postCount >= 10) return "high";
+  if (postCount >= 5) return "medium";
   return "low";
 }
 
@@ -41,17 +15,12 @@ function getConfidence(
 export async function GET() {
   try {
     const supabase = await createAuthClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch CSV-uploaded analytics data
     const { data: row, error } = await supabase
       .from("user_analytics")
       .select("posts")
@@ -61,81 +30,74 @@ export async function GET() {
     if (error && error.code !== "PGRST116") throw error;
 
     const allPosts: PostAnalytics[] = row?.posts || [];
-    const validPosts = allPosts.filter((p) => p.date);
+    const validPosts = allPosts.filter((p) => p.date && !p.is_reply);
 
-    // Not enough data for analysis
-    if (validPosts.length < MINIMUM_POSTS_FOR_ANALYSIS) {
-      const response: PostingAnalytics = {
-        bestTimes: [],
-        heatmapData: [],
+    if (validPosts.length < MINIMUM_POSTS) {
+      const response: DayOfWeekAnalytics = {
+        days: [],
+        bestDay: null,
         totalPostsAnalyzed: validPosts.length,
         hasEnoughData: false,
       };
       return NextResponse.json(response);
     }
 
-    // Group posts by day-of-week and hour
-    const timeSlotMap = new Map<string, TimeSlot>();
+    // Group by day-of-week only (hours are unreliable from CSV)
+    const dayMap = new Map<number, { count: number; engagement: number; impressions: number; likes: number; reposts: number; replies: number }>();
 
     for (const post of validPosts) {
       const postDate = new Date(post.date);
       if (isNaN(postDate.getTime())) continue;
-      const dayOfWeek = postDate.getDay();
-      const hour = postDate.getHours();
-      const key = `${dayOfWeek}-${hour}`;
-      const engagement = post.engagement_score || 0;
+      const dow = postDate.getDay();
+      const existing = dayMap.get(dow);
+      const eng = post.engagement_score || 0;
 
-      const existing = timeSlotMap.get(key);
       if (existing) {
-        existing.postCount++;
-        existing.totalEngagement += engagement;
-        existing.avgEngagement = existing.totalEngagement / existing.postCount;
+        existing.count++;
+        existing.engagement += eng;
+        existing.impressions += post.impressions || 0;
+        existing.likes += post.likes || 0;
+        existing.reposts += post.reposts || 0;
+        existing.replies += post.replies || 0;
       } else {
-        timeSlotMap.set(key, {
-          dayOfWeek,
-          hour,
-          postCount: 1,
-          totalEngagement: engagement,
-          avgEngagement: engagement,
+        dayMap.set(dow, {
+          count: 1,
+          engagement: eng,
+          impressions: post.impressions || 0,
+          likes: post.likes || 0,
+          reposts: post.reposts || 0,
+          replies: post.replies || 0,
         });
       }
     }
 
-    // Convert to array and sort by average engagement
-    const timeSlots = Array.from(timeSlotMap.values());
-    const sortedSlots = [...timeSlots].sort(
-      (a, b) => b.avgEngagement - a.avgEngagement
-    );
+    // Build stats for all 7 days
+    const maxAvgEng = Math.max(...Array.from(dayMap.values()).map((d) => d.count > 0 ? d.engagement / d.count : 0), 1);
 
-    // Get top 5 best times
-    const bestTimes: BestTimeRecommendation[] = sortedSlots
-      .slice(0, 5)
-      .map((slot) => ({
-        dayOfWeek: slot.dayOfWeek,
-        hour: slot.hour,
-        dayName: DAY_NAMES[slot.dayOfWeek],
-        timeDisplay: formatHour(slot.hour),
-        avgEngagement: Math.round(slot.avgEngagement),
-        postCount: slot.postCount,
-        confidence: getConfidence(slot.postCount),
-      }));
+    const days: DayOfWeekStats[] = Array.from({ length: 7 }, (_, i) => {
+      const data = dayMap.get(i);
+      const count = data?.count || 0;
+      const avgEng = count > 0 ? data!.engagement / count : 0;
+      return {
+        dayOfWeek: i,
+        dayName: DAY_NAMES[i],
+        postCount: count,
+        avgEngagement: Math.round(avgEng),
+        avgImpressions: count > 0 ? Math.round(data!.impressions / count) : 0,
+        avgLikes: count > 0 ? Math.round((data!.likes / count) * 10) / 10 : 0,
+        avgReposts: count > 0 ? Math.round((data!.reposts / count) * 10) / 10 : 0,
+        avgReplies: count > 0 ? Math.round((data!.replies / count) * 10) / 10 : 0,
+        totalEngagement: Math.round(data?.engagement || 0),
+        value: maxAvgEng > 0 ? avgEng / maxAvgEng : 0,
+        confidence: getConfidence(count),
+      };
+    });
 
-    // Create heatmap data (normalize engagement values)
-    const maxEngagement = Math.max(
-      ...timeSlots.map((s) => s.avgEngagement),
-      1
-    );
+    const bestDay = [...days].sort((a, b) => b.avgEngagement - a.avgEngagement).find((d) => d.postCount > 0) || null;
 
-    const heatmapData: HeatmapCell[] = timeSlots.map((slot) => ({
-      dayOfWeek: slot.dayOfWeek,
-      hour: slot.hour,
-      value: slot.avgEngagement / maxEngagement,
-      postCount: slot.postCount,
-    }));
-
-    const response: PostingAnalytics = {
-      bestTimes,
-      heatmapData,
+    const response: DayOfWeekAnalytics = {
+      days,
+      bestDay,
       totalPostsAnalyzed: validPosts.length,
       hasEnoughData: true,
     };
@@ -143,9 +105,6 @@ export async function GET() {
     return NextResponse.json(response);
   } catch (error) {
     console.error("Failed to fetch best times analytics:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch analytics" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch analytics" }, { status: 500 });
   }
 }

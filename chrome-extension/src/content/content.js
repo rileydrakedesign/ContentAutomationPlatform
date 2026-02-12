@@ -1482,9 +1482,7 @@ async function injectReplyText(text, replyMeta = null) {
         await new Promise(resolve => setTimeout(resolve, 50));
         if (editableDiv.textContent.includes(text.substring(0, Math.min(20, text.length)))) {
           console.log('[Content Pipeline] Reply injected successfully');
-          if (replyMeta && replyMeta.repliedToUrl) {
-            attachReplySendLogger(text, replyMeta);
-          }
+          attachReplySendLogger(text, replyMeta);
           return;
         }
 
@@ -1494,9 +1492,7 @@ async function injectReplyText(text, replyMeta = null) {
         editableDiv.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
 
         console.log('[Content Pipeline] Reply injected via direct manipulation');
-        if (replyMeta && replyMeta.repliedToUrl) {
-          attachReplySendLogger(text, replyMeta);
-        }
+        attachReplySendLogger(text, replyMeta);
         return;
       }
     }
@@ -1517,14 +1513,20 @@ function attachReplySendLogger(replyText, meta) {
   const startedAt = Date.now();
   const maxMs = 15_000;
   const poll = () => {
-    if (Date.now() - startedAt > maxMs) return;
+    if (Date.now() - startedAt > maxMs) {
+      console.warn('[Content Pipeline] Reply send logger timed out — Post button not found');
+      return;
+    }
 
-    const dialog = document.querySelector('[role="dialog"]');
-    const tweetButton = dialog?.querySelector('[data-testid="tweetButton"]');
+    // X's reply modal lives in #layers; fall back to [role="dialog"]
+    const container = document.querySelector('#layers') || document.querySelector('[role="dialog"]');
+    const tweetButton = container?.querySelector('[data-testid="tweetButton"]');
     if (tweetButton && !tweetButton.dataset.cpLoggedListener) {
+      console.log('[Content Pipeline] Attached reply send logger to Post button');
       tweetButton.dataset.cpLoggedListener = 'true';
       tweetButton.addEventListener('click', async () => {
         try {
+          console.log('[Content Pipeline] Post button clicked — logging reply');
           await sendMessage({
             type: 'LOG_REPLY_SENT',
             payload: {
@@ -1534,6 +1536,7 @@ function attachReplySendLogger(replyText, meta) {
               sent_at: new Date().toISOString(),
             },
           });
+          console.log('[Content Pipeline] Reply logged successfully');
         } catch (e) {
           console.warn('[Content Pipeline] Failed to log reply sent:', e);
         }
