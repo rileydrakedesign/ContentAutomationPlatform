@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { PatternControlsTab } from "./PatternControlsTab";
-import { InspirationPostsTab } from "./InspirationPostsTab";
 import { VoiceSection } from "./VoiceSection";
-import { Mic2, Layers, Bookmark } from "lucide-react";
+import { Mic2, Layers } from "lucide-react";
 
 export function VoicePage() {
   const [activeTab, setActiveTab] = useState<string>("voice");
@@ -31,9 +30,6 @@ export function VoicePage() {
               <TabsTrigger value="patterns" icon={<Layers className="w-4 h-4" />}>
                 Patterns
               </TabsTrigger>
-              <TabsTrigger value="niche" icon={<Bookmark className="w-4 h-4" />}>
-                Inspiration Posts
-              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -44,10 +40,6 @@ export function VoicePage() {
 
         <TabsContent value="patterns">
           <PatternControlsTab />
-        </TabsContent>
-
-        <TabsContent value="niche">
-          <InspirationPostsTab />
         </TabsContent>
       </Tabs>
     </div>
