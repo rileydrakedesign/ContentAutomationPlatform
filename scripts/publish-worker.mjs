@@ -47,7 +47,7 @@ function buildOAuthHeader(oauthParams) {
 }
 
 async function postTweet(accessToken, accessTokenSecret, status, options) {
-  const url = `${X_API_BASE}/1.1/statuses/update.json`;
+  const url = `${X_API_BASE}/2/tweets`;
 
   const apiKey = options.apiKey;
   const apiSecret = options.apiSecret;
@@ -61,30 +61,32 @@ async function postTweet(accessToken, accessTokenSecret, status, options) {
     oauth_version: '1.0',
   };
 
-  const queryParams = { status };
-  if (options.inReplyToStatusId) {
-    queryParams.in_reply_to_status_id = options.inReplyToStatusId;
-    queryParams.auto_populate_reply_metadata = 'true';
-  }
+  // For v2 JSON body requests, only OAuth params go into the signature
+  oauthParams.oauth_signature = generateOAuthSignature('POST', url, oauthParams, apiSecret, accessTokenSecret);
 
-  const allParams = { ...oauthParams, ...queryParams };
-  oauthParams.oauth_signature = generateOAuthSignature('POST', url, allParams, apiSecret, accessTokenSecret);
+  // Build JSON body (v2 format)
+  const body = { text: status };
+  if (options.inReplyToStatusId) {
+    body.reply = { in_reply_to_tweet_id: options.inReplyToStatusId };
+  }
 
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: buildOAuthHeader(oauthParams),
-      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Type': 'application/json',
     },
-    body: new URLSearchParams(queryParams),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Failed to post tweet: ${text}`);
+    throw new Error(`Failed to post tweet (${response.status}): ${text}`);
   }
 
-  return response.json();
+  // v2 response: { data: { id: "...", text: "..." } }
+  const data = await response.json();
+  return { id_str: data.data.id };
 }
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';

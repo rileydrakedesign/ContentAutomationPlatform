@@ -143,6 +143,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, postedIds });
   } catch (error) {
     console.error("Failed to publish now:", error);
-    return NextResponse.json({ error: "Failed to publish" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Failed to publish";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

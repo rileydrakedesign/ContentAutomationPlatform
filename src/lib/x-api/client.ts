@@ -333,7 +333,7 @@ export async function getTweet(
   return response.json();
 }
 
-// Post a tweet (or reply) using OAuth 1.0a (v1.1)
+// Post a tweet (or reply) using OAuth 1.0a with X API v2
 export async function postTweet(
   accessToken: string,
   accessTokenSecret: string,
@@ -344,32 +344,51 @@ export async function postTweet(
     apiSecret?: string;
   }
 ): Promise<{ id_str: string }> {
-  const url = `${X_API_BASE}/1.1/statuses/update.json`;
+  const apiKey = options?.apiKey || process.env.X_API_KEY!;
+  const apiSecret = options?.apiSecret || process.env.X_API_SECRET!;
+  const url = `${X_API_BASE}/2/tweets`;
 
-  const queryParams: Record<string, string> = {
-    status,
+  const oauthParams: Record<string, string> = {
+    oauth_consumer_key: apiKey,
+    oauth_token: accessToken,
+    oauth_signature_method: "HMAC-SHA1",
+    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+    oauth_nonce: generateNonce(),
+    oauth_version: "1.0",
   };
 
-  if (options?.inReplyToStatusId) {
-    queryParams.in_reply_to_status_id = options.inReplyToStatusId;
-    queryParams.auto_populate_reply_metadata = "true";
-  }
-
-  const response = await makeAuthenticatedRequest(
+  // For v2 JSON body requests, only OAuth params go into the signature
+  oauthParams.oauth_signature = generateOAuthSignature(
     "POST",
     url,
-    accessToken,
-    accessTokenSecret,
-    queryParams,
-    { apiKey: options?.apiKey, apiSecret: options?.apiSecret }
+    oauthParams,
+    apiSecret,
+    accessTokenSecret
   );
+
+  // Build JSON body (v2 format)
+  const body: Record<string, unknown> = { text: status };
+  if (options?.inReplyToStatusId) {
+    body.reply = { in_reply_to_tweet_id: options.inReplyToStatusId };
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: buildOAuthHeader(oauthParams),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Failed to post tweet: ${text}`);
+    throw new Error(`Failed to post tweet (${response.status}): ${text}`);
   }
 
-  return response.json();
+  // v2 response: { data: { id: "...", text: "..." } }
+  const data = await response.json();
+  return { id_str: data.data.id };
 }
 
 // Extract tweet ID from URL
