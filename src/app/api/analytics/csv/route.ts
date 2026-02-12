@@ -65,6 +65,7 @@ function parseXAnalyticsCsv(csvContent: string): CsvRow[] {
   // Find column indices
   const idIndex = header.findIndex((h) => h.includes("post id") || h === "id");
   const dateIndex = header.findIndex((h) => h.includes("date"));
+  const timeIndex = header.findIndex((h) => h === "time" || h.includes("time"));
   const textIndex = header.findIndex((h) => h.includes("post text") || h.includes("text"));
   const linkIndex = header.findIndex((h) => h.includes("link"));
   const impressionsIndex = header.findIndex((h) => h.includes("impressions"));
@@ -89,9 +90,16 @@ function parseXAnalyticsCsv(csvContent: string): CsvRow[] {
       const text = textIndex >= 0 ? values[textIndex] : "";
       if (!text || text.length < 5) continue;
 
+      const date = dateIndex >= 0 ? values[dateIndex] : "";
+      const time = timeIndex >= 0 ? values[timeIndex] : "";
+
+      // If the CSV splits date + time into separate columns, combine them.
+      // If date already has a time component, keep it.
+      const combinedDate = (date && time && !date.includes(":")) ? `${date} ${time}` : date;
+
       rows.push({
         id: idIndex >= 0 ? values[idIndex] : String(i),
-        date: dateIndex >= 0 ? values[dateIndex] : "",
+        date: combinedDate,
         text,
         link: linkIndex >= 0 ? values[linkIndex] : "",
         impressions: impressionsIndex >= 0 ? parseInt(values[impressionsIndex]) || 0 : 0,
@@ -115,13 +123,31 @@ function parseXAnalyticsCsv(csvContent: string): CsvRow[] {
 }
 
 function parseDate(dateStr: string): Date | null {
-  // Handle format: "Thu, Jan 22, 2026"
+  // X analytics CSV formats vary. We try a few best-effort parses.
+  // Examples seen:
+  // - "Thu, Jan 22, 2026"
+  // - "Thu, Jan 22, 2026 7:34 PM"
+  // - ISO strings
   try {
     const parsed = new Date(dateStr);
     if (!isNaN(parsed.getTime())) return parsed;
   } catch {
-    // Continue to other formats
+    // ignore
   }
+
+  // Try MM/DD/YYYY hh:mm AM/PM
+  const m = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (m) {
+    const [, mm, dd, yyyy, hh, min, ap] = m;
+    let hour = Number(hh);
+    const minute = Number(min);
+    const isPm = ap.toUpperCase() === "PM";
+    if (hour === 12) hour = isPm ? 12 : 0;
+    else hour = isPm ? hour + 12 : hour;
+    const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd), hour, minute, 0, 0);
+    if (!isNaN(d.getTime())) return d;
+  }
+
   return null;
 }
 
@@ -195,25 +221,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert to PostAnalytics format
-    const posts: PostAnalytics[] = rows.map((row) => ({
-      id: row.id,
-      post_id: row.id,
-      text: row.text,
-      date: row.date,
-      post_url: row.link,
-      impressions: row.impressions,
-      likes: row.likes,
-      replies: row.replies,
-      reposts: row.reposts,
-      bookmarks: row.bookmarks,
-      shares: row.shares,
-      new_follows: row.newFollows,
-      profile_visits: row.profileVisits,
-      detail_expands: row.detailExpands,
-      url_clicks: row.urlClicks,
-      engagement_score: calculateEngagementScore(row),
-      is_reply: isReply(row.text),
-    }));
+    const posts: PostAnalytics[] = rows.map((row) => {
+      const parsed = parseDate(row.date);
+      return {
+        id: row.id,
+        post_id: row.id,
+        text: row.text,
+        // Store ISO when possible so downstream (best-times) can compute hours.
+        date: parsed ? parsed.toISOString() : row.date,
+        post_url: row.link,
+        impressions: row.impressions,
+        likes: row.likes,
+        replies: row.replies,
+        reposts: row.reposts,
+        bookmarks: row.bookmarks,
+        shares: row.shares,
+        new_follows: row.newFollows,
+        profile_visits: row.profileVisits,
+        detail_expands: row.detailExpands,
+        url_clicks: row.urlClicks,
+        engagement_score: calculateEngagementScore(row),
+        is_reply: isReply(row.text),
+      };
+    });
 
     // Calculate date range
     const dates = posts
