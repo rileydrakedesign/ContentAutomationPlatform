@@ -11,7 +11,7 @@ export function SidebarLogo() {
 
   const xBox = (
     <div
-      className="bg-amber-500 flex items-center justify-center flex-shrink-0 -skew-x-12 overflow-hidden"
+      className="bg-amber-500 flex items-center justify-center flex-shrink-0 rounded overflow-hidden"
       style={{ width: BOX_H, height: BOX_H }}
     >
       <Image
@@ -19,14 +19,13 @@ export function SidebarLogo() {
         alt="X"
         width={24}
         height={24}
-        className="skew-x-12"
       />
     </div>
   );
 
   return (
     <div className="px-4 py-4 border-b border-slate-800">
-      <Link href="/" className="flex items-end gap-0.5">
+      <Link href="/" className="flex items-center gap-1">
         {isCollapsed ? (
           xBox
         ) : (
