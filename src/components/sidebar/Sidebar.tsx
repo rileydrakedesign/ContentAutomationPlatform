@@ -21,7 +21,7 @@ export function Sidebar() {
   return (
     <aside
       className={`
-        flex flex-col
+        flex flex-col h-screen sticky top-0
         bg-[var(--color-bg-base)]
         border-r border-[var(--color-border-subtle)]
         transition-all duration-300 ease-in-out
@@ -32,7 +32,7 @@ export function Sidebar() {
 
       {user && <SidebarNav />}
 
-      <div className="border-t border-[var(--color-border-subtle)] p-2">
+      <div className="mt-auto border-t border-[var(--color-border-subtle)] p-2">
         <SidebarToggle />
         {!loading && user && <SidebarUserMenu />}
       </div>
