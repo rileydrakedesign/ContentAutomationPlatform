@@ -94,13 +94,13 @@ export function HomePage() {
         </div>
 
         {/* Main layout skeleton */}
-        <div className="flex gap-5">
-          <div className="flex-1 space-y-4">
+        <div className="grid grid-cols-[1fr_360px] gap-5">
+          <div className="space-y-4">
             <div className="h-40 skeleton" />
             <div className="h-12 skeleton" />
             <div className="h-36 skeleton" />
           </div>
-          <div className="w-[360px] shrink-0">
+          <div>
             <div className="h-96 skeleton" />
           </div>
         </div>
@@ -124,9 +124,9 @@ export function HomePage() {
       </div>
 
       {/* Main Layout: Left stacked items | Right sidebar */}
-      <div className="flex gap-5 items-start">
+      <div className="grid grid-cols-[1fr_360px] gap-5">
         {/* Left */}
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <SetupChecklist
             xStatus={xStatus}
             byoStatus={byoStatus}
@@ -148,14 +148,16 @@ export function HomePage() {
           />
         </div>
 
-        {/* Right: Content Sidebar with dropdown toggle */}
-        <div className="w-[360px] shrink-0">
-          <ContentSidebar
-            drafts={drafts}
-            posts={analyticsData?.posts || []}
-            inspirationPosts={inspirationPosts}
-            onUploadClick={() => setShowUploadDrawer(true)}
-          />
+        {/* Right: Content Sidebar — height capped to left column */}
+        <div className="relative">
+          <div className="absolute inset-0">
+            <ContentSidebar
+              drafts={drafts}
+              posts={analyticsData?.posts || []}
+              inspirationPosts={inspirationPosts}
+              onUploadClick={() => setShowUploadDrawer(true)}
+            />
+          </div>
         </div>
       </div>
 

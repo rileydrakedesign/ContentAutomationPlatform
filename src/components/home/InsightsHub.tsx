@@ -275,15 +275,15 @@ export function InsightsHub({ posts, uploadedAt, onUploadClick, compact }: Insig
             return (
               <div
                 key={insight.id}
-                className="p-3 bg-[var(--color-bg-elevated)] rounded-lg"
+                className="p-3 bg-[var(--color-bg-elevated)] rounded-lg overflow-hidden"
               >
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center shrink-0">
-                    <Icon className="w-4 h-4 text-[var(--color-primary-400)]" />
+                <div className="flex items-start gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center shrink-0">
+                    <Icon className="w-3.5 h-3.5 text-[var(--color-primary-400)]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider truncate">
                         {insight.title}
                       </span>
                       {getTrendIcon(insight.trend)}
