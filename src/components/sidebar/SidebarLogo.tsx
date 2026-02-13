@@ -39,7 +39,7 @@ export function SidebarLogo() {
                 className="font-extrabold text-white uppercase tracking-tight whitespace-nowrap block"
                 style={{ fontSize: 24, lineHeight: 1, marginTop: -4 }}
               >
-                Agent For
+                Agents For
               </span>
             </div>
             {xBox}
