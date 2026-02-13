@@ -1,9 +1,24 @@
 import { NextResponse } from "next/server";
-import fs from "node:fs";
-import path from "node:path";
+import { createAdminClient } from "@/lib/supabase/server";
+
+const BASE_COUNT = 47;
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+export async function GET() {
+  try {
+    const sb = createAdminClient();
+    const { count, error } = await sb
+      .from("waitlist_signups")
+      .select("*", { count: "exact", head: true });
+
+    if (error) throw error;
+    return NextResponse.json({ count: BASE_COUNT + (count ?? 0) });
+  } catch {
+    return NextResponse.json({ count: BASE_COUNT });
+  }
 }
 
 export async function POST(request: Request) {
@@ -13,19 +28,24 @@ export async function POST(request: Request) {
       | null;
 
     const email = (body?.email || "").trim().toLowerCase();
-    const product = (body?.product || "agent-for-x").trim();
 
     if (!email || !isValidEmail(email)) {
       return NextResponse.json({ error: "invalid email" }, { status: 400 });
     }
 
-    // Dev-friendly: append to a local file so the landing page works without any backend setup.
-    // This is intended for local preview only.
-    const line = JSON.stringify({ email, product, createdAt: new Date().toISOString() });
-    const out = path.resolve(process.cwd(), "waitlist_signups.dev.jsonl");
-    fs.appendFileSync(out, line + "\n", "utf8");
+    const sb = createAdminClient();
+    const { error } = await sb
+      .from("waitlist_signups")
+      .insert({ email });
 
-    return NextResponse.json({ ok: true, stored: "file" });
+    if (error) {
+      if (error.code === "23505") {
+        return NextResponse.json({ error: "already on the waitlist" }, { status: 409 });
+      }
+      throw error;
+    }
+
+    return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("waitlist error", err);
     return NextResponse.json({ error: "server error" }, { status: 500 });

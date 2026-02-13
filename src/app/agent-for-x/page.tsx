@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 /* ------------------------------------------------------------------ */
@@ -13,7 +12,7 @@ function isValidEmail(email: string) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  WaitlistForm — shared between hero and final CTA                  */
+/*  WaitlistForm                                                       */
 /* ------------------------------------------------------------------ */
 function WaitlistForm({
   email,
@@ -94,7 +93,17 @@ export default function AgentForXLanding() {
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [error, setError] = useState<string | null>(null);
+  const [waitlistCount, setWaitlistCount] = useState(47);
   const canSubmit = useMemo(() => isValidEmail(email), [email]);
+
+  useEffect(() => {
+    fetch("/api/waitlist")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.count) setWaitlistCount(d.count);
+      })
+      .catch(() => {});
+  }, []);
 
   const submit = useCallback(
     async (e: React.FormEvent) => {
@@ -119,6 +128,7 @@ export default function AgentForXLanding() {
           throw new Error(data?.error || "failed to join waitlist");
         }
 
+        setWaitlistCount((c) => c + 1);
         setStatus("success");
       } catch (err) {
         setStatus("error");
@@ -134,34 +144,28 @@ export default function AgentForXLanding() {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-auto bg-[var(--color-bg-base)] text-[var(--color-text-primary)]">
-      {/* ---- Sticky Nav ---- */}
+      {/* ---- Nav (logo only) ---- */}
       <nav className="sticky top-0 z-10 flex-shrink-0 bg-[var(--color-bg-base)]/80 backdrop-blur-xl border-b border-[var(--color-border-subtle)]">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-          <span className="flex items-center gap-1">
+        <div className="mx-auto flex max-w-5xl items-center px-4 py-4 sm:px-6">
+          <span className="flex items-center gap-1.5">
             <span
               className="overflow-hidden flex-shrink-0"
-              style={{ height: 18 }}
+              style={{ height: 24 }}
             >
               <span
                 className="font-extrabold text-white uppercase tracking-tight whitespace-nowrap block"
-                style={{ fontSize: 24, lineHeight: 1, marginTop: -4 }}
+                style={{ fontSize: 32, lineHeight: 1, marginTop: -5 }}
               >
                 Agents For
               </span>
             </span>
             <span
               className="bg-amber-500 flex items-center justify-center flex-shrink-0 rounded overflow-hidden"
-              style={{ width: 18, height: 18 }}
+              style={{ width: 24, height: 24 }}
             >
-              <Image src="/x-logo.png" alt="X" width={24} height={24} />
+              <Image src="/x-logo.png" alt="X" width={30} height={30} />
             </span>
           </span>
-          <Link
-            href="/login"
-            className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
-          >
-            sign in
-          </Link>
         </div>
       </nav>
 
@@ -192,7 +196,7 @@ export default function AgentForXLanding() {
             style={{ animationDelay: "0ms", animationFillMode: "backwards" }}
           >
             <Badge variant="primary" dot>
-              47+ people on the waitlist
+              {waitlistCount}+ people on the waitlist
             </Badge>
           </div>
 
@@ -237,7 +241,7 @@ export default function AgentForXLanding() {
 
       {/* ---- Footer ---- */}
       <footer className="flex-shrink-0 border-t border-[var(--color-border-subtle)] px-4 sm:px-6">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 py-8 text-sm text-[var(--color-text-muted)] sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex max-w-5xl items-center justify-center py-6 text-sm text-[var(--color-text-muted)]">
           <div className="flex items-center gap-1">
             &copy; {new Date().getFullYear()}
             <span
@@ -257,26 +261,6 @@ export default function AgentForXLanding() {
             >
               <Image src="/x-logo.png" alt="X" width={18} height={18} />
             </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              className="rounded-md px-3 py-2 hover:bg-white/5 hover:text-[var(--color-text-secondary)]"
-              href="/agent-for-x/privacy"
-            >
-              privacy
-            </Link>
-            <Link
-              className="rounded-md px-3 py-2 hover:bg-white/5 hover:text-[var(--color-text-secondary)]"
-              href="/agent-for-x/terms"
-            >
-              terms
-            </Link>
-            <Link
-              className="rounded-md px-3 py-2 hover:bg-white/5 hover:text-[var(--color-text-secondary)]"
-              href="/login"
-            >
-              sign in
-            </Link>
           </div>
         </div>
       </footer>
