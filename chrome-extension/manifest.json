@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Content Pipeline - X Post Saver",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Save X posts to your Content Pipeline dashboard for inspiration and learning",
   "permissions": [
     "storage",
@@ -11,6 +11,7 @@
     "https://x.com/*",
     "https://twitter.com/*",
     "http://localhost:3000/*",
+    "https://app.agentsforx.com/*",
     "https://contentautomationplatform-production.up.railway.app/*"
   ],
   "background": {

@@ -37,7 +37,7 @@ const oppYellowThresholdInput = document.getElementById('opp-yellow-threshold');
 const oppMaxRepliesInput = document.getElementById('opp-max-replies');
 const oppMaxAgeInput = document.getElementById('opp-max-age');
 
-let currentApiUrl = 'https://contentautomationplatform-production.up.railway.app';
+let currentApiUrl = 'https://app.agentsforx.com';
 
 // Default opportunity settings
 let currentOppSettings = {
@@ -55,7 +55,7 @@ async function init() {
   try {
     // Get config
     const response = await chrome.runtime.sendMessage({ type: 'GET_CONFIG' });
-    currentApiUrl = response.apiUrl || 'https://contentautomationplatform-production.up.railway.app';
+    currentApiUrl = response.apiUrl || 'https://app.agentsforx.com';
     apiUrlInput.value = currentApiUrl;
 
     // Load opportunity settings

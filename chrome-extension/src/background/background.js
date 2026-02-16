@@ -2,7 +2,7 @@
 // Handles API communication and auth state
 
 // Default API URL - can be configured in extension settings
-const DEFAULT_API_URL = 'https://contentautomationplatform-production.up.railway.app';
+const DEFAULT_API_URL = 'https://app.agentsforx.com';
 
 // Get stored configuration
 async function getConfig() {
