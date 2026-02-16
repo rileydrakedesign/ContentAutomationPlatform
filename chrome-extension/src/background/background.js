@@ -3,12 +3,19 @@
 
 // Default API URL - can be configured in extension settings
 const DEFAULT_API_URL = 'https://app.agentsforx.com';
+const OLD_API_URL = 'https://contentautomationplatform-production.up.railway.app';
 
 // Get stored configuration
 async function getConfig() {
   const result = await chrome.storage.local.get(['apiUrl', 'authToken', 'refreshToken']);
+  // Migrate cached old URL to new domain
+  let apiUrl = result.apiUrl || DEFAULT_API_URL;
+  if (apiUrl === OLD_API_URL) {
+    apiUrl = DEFAULT_API_URL;
+    chrome.storage.local.set({ apiUrl });
+  }
   return {
-    apiUrl: result.apiUrl || DEFAULT_API_URL,
+    apiUrl,
     authToken: result.authToken || null,
     refreshToken: result.refreshToken || null,
   };
