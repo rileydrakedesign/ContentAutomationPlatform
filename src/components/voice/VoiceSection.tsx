@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { UserVoiceSettings, VoiceType, DEFAULT_VOICE_SETTINGS } from "@/types/voice";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -109,6 +110,8 @@ export function VoiceSection() {
   const [settings, setSettings] = useState<UserVoiceSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [specialNotes, setSpecialNotes] = useState("");
+  const specialNotesFocused = useRef(false);
 
   // Examples state
   const [examples, setExamples] = useState<Array<{ id: string; content_text: string }>>([]);
@@ -216,6 +219,12 @@ export function VoiceSection() {
     fetchExamples();
     fetchInspirations();
   }, [voiceType]);
+
+  useEffect(() => {
+    if (!specialNotesFocused.current) {
+      setSpecialNotes(settings?.special_notes || "");
+    }
+  }, [settings?.special_notes]);
 
   const updateSettings = async (updates: Partial<UserVoiceSettings>): Promise<void> => {
     try {
@@ -437,8 +446,15 @@ export function VoiceSection() {
                 </div>
 
                 <textarea
-                  value={s.special_notes || ""}
-                  onChange={(e) => updateSettings({ special_notes: e.target.value || null })}
+                  value={specialNotes}
+                  onChange={(e) => setSpecialNotes(e.target.value)}
+                  onFocus={() => { specialNotesFocused.current = true; }}
+                  onBlur={() => {
+                    specialNotesFocused.current = false;
+                    if (specialNotes !== (s.special_notes || "")) {
+                      updateSettings({ special_notes: specialNotes || null });
+                    }
+                  }}
                   placeholder="What should the AI do (or avoid) every time?"
                   rows={4}
                   className="w-full px-3 py-2 text-sm resize-none"
@@ -557,21 +573,11 @@ export function VoiceSection() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={async () => {
-                        setInspirationPickerOpen(true);
-                        setInspirationSearch("");
-                        await fetchInspirations();
-                      }}
-                      icon={<Plus className="w-4 h-4" />}
-                    >
-                      Add
-                    </Button>
-                    <Badge variant="accent">
-                      {inspirations.filter((p) => (voiceType === "reply" ? p.include_in_reply_voice : p.include_in_post_voice)).length}
-                    </Badge>
+                    {inspirations.filter((p) => (voiceType === "reply" ? p.include_in_reply_voice : p.include_in_post_voice)).length > 0 && (
+                      <Badge variant="accent">
+                        {inspirations.filter((p) => (voiceType === "reply" ? p.include_in_reply_voice : p.include_in_post_voice)).length}
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
@@ -580,16 +586,10 @@ export function VoiceSection() {
                     <div className="h-16 skeleton" />
                     <div className="h-16 skeleton" />
                   </div>
-                ) : inspirations.length === 0 ? (
-                  <div className="text-sm text-[var(--color-text-muted)]">
-                    No saved inspiration yet. Save posts with the Chrome extension.
-                  </div>
-                ) : inspirations.filter((p) => (voiceType === "reply" ? p.include_in_reply_voice : p.include_in_post_voice)).length === 0 ? (
-                  <div className="text-sm text-[var(--color-text-muted)]">
-                    none selected
-                  </div>
                 ) : (
-                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                  <>
+                  {inspirations.filter((p) => (voiceType === "reply" ? p.include_in_reply_voice : p.include_in_post_voice)).length > 0 && (
+                  <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
                     {inspirations
                       .filter((post) => (voiceType === "reply" ? post.include_in_reply_voice : post.include_in_post_voice))
                       .slice(0, 30)
@@ -627,6 +627,22 @@ export function VoiceSection() {
                         </div>
                       ))}
                   </div>
+                  )}
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={async () => {
+                      setInspirationPickerOpen(true);
+                      setInspirationSearch("");
+                      await fetchInspirations();
+                    }}
+                    icon={<Plus className="w-4 h-4" />}
+                    fullWidth
+                  >
+                    Add from saved inspirations
+                  </Button>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -694,11 +710,11 @@ export function VoiceSection() {
         </div>
       )}
 
-      {/* Inspiration Picker Modal */}
-      {inspirationPickerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-3xl rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-2xl">
-            <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-subtle)]">
+      {/* Inspiration Picker Modal — portaled to body to escape CSS containment */}
+      {inspirationPickerOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.6)", padding: 16 }} onClick={() => setInspirationPickerOpen(false)}>
+          <div className="w-full flex flex-col rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-2xl" style={{ maxWidth: 768, maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-subtle)]" style={{ flexShrink: 0 }}>
               <div>
                 <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Add inspiration</h3>
                 <p className="text-xs text-[var(--color-text-muted)]">choose from saved inspirations</p>
@@ -711,15 +727,16 @@ export function VoiceSection() {
               </button>
             </div>
 
-            <div className="p-4 space-y-3">
+            <div className="flex flex-col" style={{ padding: 16, gap: 12, overflow: "hidden", minHeight: 0 }}>
               <input
                 value={inspirationSearch}
                 onChange={(e) => setInspirationSearch(e.target.value)}
                 placeholder="Search..."
                 className="w-full h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg"
+                style={{ flexShrink: 0 }}
               />
 
-              <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-1">
+              <div style={{ overflowY: "auto", minHeight: 0 }} className="space-y-2 pr-1">
                 {inspirations
                   .filter((p) => !(voiceType === "reply" ? p.include_in_reply_voice : p.include_in_post_voice))
                   .filter((p) => {
@@ -738,7 +755,7 @@ export function VoiceSection() {
                         await setInspirationIncluded(post.id, true);
                         setInspirationPickerOpen(false);
                       }}
-                      className="w-full text-left p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] hover:border-[var(--color-border-default)] transition-colors"
+                      className="picker-item w-full text-left p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]"
                     >
                       <div className="flex items-center justify-between gap-3 mb-1">
                         <div className="flex items-center gap-2">
@@ -759,14 +776,15 @@ export function VoiceSection() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Example Picker Modal */}
-      {examplePickerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-3xl rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-2xl">
-            <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-subtle)]">
+      {/* Example Picker Modal — portaled to body to escape CSS containment */}
+      {examplePickerOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.6)", padding: 16 }} onClick={() => setExamplePickerOpen(false)}>
+          <div className="w-full flex flex-col rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-2xl" style={{ maxWidth: 768, maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-subtle)]" style={{ flexShrink: 0 }}>
               <div>
                 <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Add voice example</h3>
                 <p className="text-xs text-[var(--color-text-muted)]">pick from your analytics CSV</p>
@@ -779,18 +797,19 @@ export function VoiceSection() {
               </button>
             </div>
 
-            <div className="p-4 space-y-3">
+            <div className="flex flex-col" style={{ padding: 16, gap: 12, overflow: "hidden", minHeight: 0 }}>
               <input
                 value={exampleSearch}
                 onChange={(e) => setExampleSearch(e.target.value)}
                 placeholder="Search..."
                 className="w-full h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg"
+                style={{ flexShrink: 0 }}
               />
 
               {loadingAnalyticsPosts ? (
                 <div className="h-10 skeleton" />
               ) : (
-                <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-1">
+                <div style={{ overflowY: "auto", minHeight: 0 }} className="space-y-2 pr-1">
                   {analyticsPosts
                     .filter((p) => (voiceType === "reply" ? p.is_reply : !p.is_reply))
                     .filter((p) => {
@@ -807,7 +826,7 @@ export function VoiceSection() {
                           await addExampleFromText(p.text);
                           setExamplePickerOpen(false);
                         }}
-                        className="w-full text-left p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] hover:border-[var(--color-border-default)] transition-colors"
+                        className="picker-item w-full text-left p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]"
                       >
                         <div className="flex items-center justify-between gap-3 mb-1">
                           <span className="text-xs text-[var(--color-text-muted)]">{p.is_reply ? "reply" : "post"}</span>
@@ -820,7 +839,8 @@ export function VoiceSection() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
