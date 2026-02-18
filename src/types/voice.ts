@@ -235,6 +235,7 @@ export interface TokenBreakdown {
   controls_tokens: number;
   voice_examples_tokens: number;
   inspiration_tokens: number;
+  feedback_tokens: number;
 }
 
 export interface AssembledPrompt {

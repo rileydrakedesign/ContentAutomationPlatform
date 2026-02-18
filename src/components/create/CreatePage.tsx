@@ -21,6 +21,8 @@ import {
   Wand2,
   X,
   Quote,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 
 type DraftType = "X_POST" | "X_THREAD";
@@ -54,6 +56,7 @@ export function CreatePage() {
   const [error, setError] = useState<string | null>(null);
   const [inspirationPost, setInspirationPost] = useState<InspirationPost | null>(null);
   const [loadingInspiration, setLoadingInspiration] = useState(false);
+  const [feedbackMap, setFeedbackMap] = useState<Record<number, 'like' | 'dislike' | null>>({});
   const [inspirationList, setInspirationList] = useState<Array<{ id: string; raw_content: string; author_handle: string | null; created_at: string }>>([]);
   const [inspirationPickerOpen, setInspirationPickerOpen] = useState(false);
   const [inspirationSearch, setInspirationSearch] = useState("");
@@ -105,6 +108,7 @@ export function CreatePage() {
     setGenerating(true);
     setError(null);
     setGeneratedDrafts([]);
+    setFeedbackMap({});
 
     try {
       const requestBody: Record<string, unknown> = {
@@ -168,6 +172,39 @@ export function CreatePage() {
       setError(err instanceof Error ? err.message : "Failed to save draft");
     } finally {
       setSavingDraft(false);
+    }
+  };
+
+  const handleFeedback = async (index: number, feedbackType: 'like' | 'dislike') => {
+    const current = feedbackMap[index];
+    const newVal = current === feedbackType ? null : feedbackType;
+    setFeedbackMap((prev) => ({ ...prev, [index]: newVal }));
+
+    if (!newVal) return;
+
+    const draft = generatedDrafts[index];
+    const contentText =
+      draft.content.text ||
+      (Array.isArray(draft.content.tweets) ? draft.content.tweets.join('\n\n') : '') ||
+      (Array.isArray(draft.content.posts) ? draft.content.posts.join('\n\n') : '');
+
+    try {
+      await fetch("/api/generation-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          feedback_type: newVal,
+          generation_type: "post",
+          content_text: contentText,
+          context_prompt: topic,
+          metadata: {
+            hook_type: draft.metadata?.hook_type,
+            patterns_applied: draft.metadata?.patterns_applied || draft.applied_patterns,
+          },
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to submit feedback:", err);
     }
   };
 
@@ -470,6 +507,31 @@ export function CreatePage() {
                           </>
                         );
                       })()}
+
+                      <div className="flex items-center gap-2 mb-3">
+                        <button
+                          onClick={() => handleFeedback(index, 'like')}
+                          className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${
+                            feedbackMap[index] === 'like'
+                              ? 'border-green-500/50 bg-green-500/10 text-green-400'
+                              : 'border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-secondary)]'
+                          }`}
+                          title="Like this generation"
+                        >
+                          <ThumbsUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(index, 'dislike')}
+                          className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${
+                            feedbackMap[index] === 'dislike'
+                              ? 'border-red-500/50 bg-red-500/10 text-red-400'
+                              : 'border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-secondary)]'
+                          }`}
+                          title="Dislike this generation"
+                        >
+                          <ThumbsDown className="w-4 h-4" />
+                        </button>
+                      </div>
 
                       <Button
                         variant="secondary"

@@ -102,6 +102,14 @@ export function PromptPreviewTab() {
               </p>
               <p className="text-xs text-slate-500 mt-1">Inspiration</p>
             </div>
+            {assembled.breakdown.feedback_tokens > 0 && (
+              <div className="bg-slate-800/50 rounded-lg p-4">
+                <p className="text-xl font-semibold text-rose-400">
+                  {assembled.breakdown.feedback_tokens.toLocaleString()}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">Feedback</p>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 flex items-center gap-4 text-sm text-slate-400">

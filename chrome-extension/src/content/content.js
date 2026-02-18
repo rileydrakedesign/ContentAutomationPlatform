@@ -1205,6 +1205,30 @@ function createReplyPicker() {
   return picker;
 }
 
+// Submit feedback for a generated reply
+function submitReplyFeedback(reply, feedbackType, articleElement) {
+  const postData = extractPostData(articleElement);
+  sendMessage({
+    type: 'SUBMIT_FEEDBACK',
+    payload: {
+      feedback_type: feedbackType,
+      generation_type: 'reply',
+      content_text: reply.text,
+      context_prompt: postData?.text_content || '',
+      metadata: {
+        approach: reply.approach,
+        parent_post: {
+          text: postData?.text_content || '',
+          author_handle: postData?.author_handle || '',
+          url: postData?.post_url || '',
+        },
+      },
+    },
+  }).catch((err) => {
+    console.error('[Content Pipeline] Feedback submission failed:', err);
+  });
+}
+
 // Show reply picker with generated options
 function showReplyPicker(picker, replyButton, replies, articleElement) {
   let currentIndex = 0;
@@ -1216,15 +1240,54 @@ function showReplyPicker(picker, replyButton, replies, articleElement) {
   const useBtn = picker.querySelector('.cp-picker-use');
   const closeBtn = picker.querySelector('.cp-picker-close');
 
+  // Track feedback state per reply
+  const feedbackState = {};
+
   // Render current option
   function renderOption() {
     const reply = replies[currentIndex];
+    const fb = feedbackState[currentIndex] || null;
     optionsContainer.innerHTML = `
       <div class="cp-reply-option">
         <span class="cp-reply-approach">${reply.approach}</span>
         <p class="cp-reply-text">${reply.text}</p>
+        <div class="cp-feedback-row">
+          <button class="cp-feedback-btn cp-feedback-like${fb === 'like' ? ' cp-feedback-active' : ''}" title="Like this generation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+          </button>
+          <button class="cp-feedback-btn cp-feedback-dislike${fb === 'dislike' ? ' cp-feedback-active' : ''}" title="Dislike this generation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
+          </button>
+        </div>
       </div>
     `;
+
+    // Attach feedback click handlers
+    const likeBtn = optionsContainer.querySelector('.cp-feedback-like');
+    const dislikeBtn = optionsContainer.querySelector('.cp-feedback-dislike');
+
+    likeBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const newVal = feedbackState[currentIndex] === 'like' ? null : 'like';
+      feedbackState[currentIndex] = newVal;
+      renderOption();
+      if (newVal) {
+        submitReplyFeedback(reply, newVal, articleElement);
+      }
+    };
+
+    dislikeBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const newVal = feedbackState[currentIndex] === 'dislike' ? null : 'dislike';
+      feedbackState[currentIndex] = newVal;
+      renderOption();
+      if (newVal) {
+        submitReplyFeedback(reply, newVal, articleElement);
+      }
+    };
+
     indicator.textContent = `${currentIndex + 1} / ${replies.length}`;
     prevBtn.disabled = currentIndex === 0;
     nextBtn.disabled = currentIndex === replies.length - 1;

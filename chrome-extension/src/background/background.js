@@ -276,6 +276,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'SUBMIT_FEEDBACK') {
+    apiRequest('/api/generation-feedback', {
+      method: 'POST',
+      body: JSON.stringify(message.payload),
+    })
+      .then((res) => res.json())
+      .then((data) => sendResponse({ success: true, data }))
+      .catch((error) => {
+        console.error('Submit feedback failed:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
   if (message.type === 'LOG_REPLY_SENT') {
     logReplySent(message.payload)
       .then(sendResponse)

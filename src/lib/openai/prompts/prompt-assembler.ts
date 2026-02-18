@@ -31,10 +31,18 @@ import { estimateTokens } from '@/lib/utils/tokens';
 import { REPLY_SYSTEM_PROMPT } from './reply-prompt';
 import { POST_SYSTEM_PROMPT } from './post-prompt';
 
+interface FeedbackItem {
+  content_text: string;
+  feedback_type: 'like' | 'dislike';
+  context_prompt?: string;
+  metadata: Record<string, unknown>;
+}
+
 interface AssemblyContext {
   settings: Partial<UserVoiceSettings>;
   examples: UserVoiceExample[];
   inspirations: InspirationForPrompt[];
+  feedback?: FeedbackItem[];
   mode: VoiceType;
 }
 
@@ -269,10 +277,68 @@ ${included.join('\n\n')}`;
 }
 
 /**
+ * Build feedback section with token budgeting (~400 tokens)
+ */
+function buildFeedbackSection(
+  feedback: FeedbackItem[],
+  maxTokens: number = 400
+): { section: string; tokensUsed: number } {
+  if (!feedback || feedback.length === 0) {
+    return { section: '', tokensUsed: 0 };
+  }
+
+  const liked = feedback.filter(f => f.feedback_type === 'like');
+  const disliked = feedback.filter(f => f.feedback_type === 'dislike');
+
+  if (liked.length === 0 && disliked.length === 0) {
+    return { section: '', tokensUsed: 0 };
+  }
+
+  const parts: string[] = ['## GENERATION FEEDBACK'];
+  let tokensUsed = estimateTokens('## GENERATION FEEDBACK\n\n');
+
+  // Liked examples (60% of budget)
+  const likedBudget = Math.floor(maxTokens * 0.6);
+  if (liked.length > 0) {
+    const likedHeader = 'The user LIKED these past generations. Generate more with similar style/approach:';
+    parts.push(likedHeader);
+    tokensUsed += estimateTokens(likedHeader + '\n');
+
+    for (const item of liked) {
+      const contextLine = item.context_prompt ? `\n(in reply to: "${item.context_prompt}")` : '';
+      const block = `\`\`\`text\n${item.content_text}${contextLine}\n\`\`\``;
+      const blockTokens = estimateTokens(block + '\n');
+      if (tokensUsed + blockTokens > likedBudget) break;
+      parts.push(block);
+      tokensUsed += blockTokens;
+    }
+  }
+
+  // Disliked examples (40% of budget)
+  const dislikedBudget = maxTokens;
+  if (disliked.length > 0) {
+    const dislikedHeader = 'The user DISLIKED these past generations. Avoid this style/approach:';
+    parts.push(dislikedHeader);
+    tokensUsed += estimateTokens(dislikedHeader + '\n');
+
+    for (const item of disliked) {
+      const contextLine = item.context_prompt ? `\n(in reply to: "${item.context_prompt}")` : '';
+      const block = `\`\`\`text\n${item.content_text}${contextLine}\n\`\`\``;
+      const blockTokens = estimateTokens(block + '\n');
+      if (tokensUsed + blockTokens > dislikedBudget) break;
+      parts.push(block);
+      tokensUsed += blockTokens;
+    }
+  }
+
+  return { section: parts.join('\n\n'), tokensUsed };
+}
+
+/**
  * Assemble the complete prompt with token budgeting
  */
 export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
-  const { settings, examples, inspirations, mode } = context;
+  const { settings, examples, inspirations, feedback, mode } = context;
 
   // Use defaults for missing settings
   const effectiveSettings = { ...DEFAULT_VOICE_SETTINGS, ...settings };
@@ -302,6 +368,9 @@ export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
     mode
   );
 
+  // Build feedback section
+  const feedbackResult = buildFeedbackSection(feedback || []);
+
   // Assemble final prompt (insert controls and examples after base prompt)
   const sections = [
     basePrompt,
@@ -309,6 +378,7 @@ export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
     specialNotesSection,
     examplesResult.section,
     inspirationResult.section,
+    feedbackResult.section,
   ].filter(Boolean);
 
   const fullPrompt = sections.join('\n\n');
@@ -322,6 +392,7 @@ export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
       controls_tokens: controlsTokens,
       voice_examples_tokens: examplesResult.tokensUsed,
       inspiration_tokens: inspirationResult.tokensUsed,
+      feedback_tokens: feedbackResult.tokensUsed,
     },
     examples_included: examplesResult.included,
     examples_omitted: examplesResult.omitted,
@@ -370,10 +441,20 @@ export async function getAssembledPromptForUser(
 
   const { data: inspirations } = await inspQuery;
 
+  // Fetch recent generation feedback for this voice type
+  const { data: feedback } = await supabase
+    .from('generation_feedback')
+    .select('content_text, feedback_type, context_prompt, metadata')
+    .eq('user_id', userId)
+    .eq('generation_type', voiceType)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
   const assembled = assemblePrompt({
     settings: settings || {},
     examples: examples || [],
     inspirations: inspirations || [],
+    feedback: (feedback as FeedbackItem[]) || [],
     mode: voiceType,
   });
 
