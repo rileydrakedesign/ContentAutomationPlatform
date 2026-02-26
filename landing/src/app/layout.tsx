@@ -21,8 +21,29 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://agentsforx.com"),
   title: "Agents For X",
   description: "AI agents that live inside your X timeline",
+  openGraph: {
+    type: "website",
+    url: "https://agentsforx.com/",
+    title: "Agents For X",
+    description: "AI agents that live inside your X timeline",
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "Agents For X",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Agents For X",
+    description: "AI agents that live inside your X timeline",
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({
