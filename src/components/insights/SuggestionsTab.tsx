@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Sparkles, TrendingUp, Clock, Zap, ArrowRight, Lightbulb } from "lucide-react";
+import { BoostOpportunitiesPanel } from "./BoostOpportunitiesPanel";
 
 interface Suggestion {
   id: string;
@@ -109,6 +110,8 @@ export function SuggestionsTab() {
 
   return (
     <div className="space-y-6">
+      <BoostOpportunitiesPanel />
+
       {/* Condensed stats */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
