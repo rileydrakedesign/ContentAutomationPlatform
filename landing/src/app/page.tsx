@@ -93,7 +93,7 @@ export default function AgentForXLanding() {
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [error, setError] = useState<string | null>(null);
-  const [waitlistCount, setWaitlistCount] = useState(47);
+  const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
   const canSubmit = useMemo(() => isValidEmail(email), [email]);
 
   useEffect(() => {
@@ -196,7 +196,7 @@ export default function AgentForXLanding() {
             style={{ animationDelay: "0ms", animationFillMode: "backwards" }}
           >
             <Badge variant="primary" dot>
-              {waitlistCount}+ people on the waitlist
+              {waitlistCount !== null ? `${waitlistCount}+ people on the waitlist` : '\u00A0'}
             </Badge>
           </div>
 
