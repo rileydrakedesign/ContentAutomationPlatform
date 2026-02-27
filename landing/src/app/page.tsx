@@ -128,7 +128,7 @@ export default function AgentForXLanding() {
           throw new Error(data?.error || "failed to join waitlist");
         }
 
-        setWaitlistCount((c) => c + 1);
+        setWaitlistCount((c) => (c ?? 0) + 1);
         setStatus("success");
       } catch (err) {
         setStatus("error");
