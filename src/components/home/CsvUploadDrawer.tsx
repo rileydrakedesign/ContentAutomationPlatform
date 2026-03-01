@@ -32,6 +32,9 @@ export function CsvUploadDrawer({
     total_posts: number;
     total_replies: number;
     total_rows: number;
+    csv_rows?: number;
+    newly_added?: number;
+    updated_metrics?: number;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -237,13 +240,13 @@ export function CsvUploadDrawer({
                 </p>
               </div>
 
-              <div className="bg-[var(--color-bg-secondary)] rounded-xl p-4 border border-[var(--color-border)]">
+              <div className="bg-[var(--color-bg-secondary)] rounded-xl p-4 border border-[var(--color-border)] space-y-4">
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
                     <p className="text-2xl font-semibold text-[var(--color-text-primary)] font-mono">
                       {result.total_rows}
                     </p>
-                    <p className="text-xs text-[var(--color-text-muted)]">Total</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">Total stored</p>
                   </div>
                   <div>
                     <p className="text-2xl font-semibold text-blue-400 font-mono">
@@ -258,6 +261,25 @@ export function CsvUploadDrawer({
                     <p className="text-xs text-[var(--color-text-muted)]">Replies</p>
                   </div>
                 </div>
+
+                {result.newly_added != null && result.updated_metrics != null && (
+                  <div className="border-t border-[var(--color-border)] pt-3">
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div>
+                        <p className="text-lg font-semibold text-[var(--color-primary-400)] font-mono">
+                          {result.newly_added}
+                        </p>
+                        <p className="text-xs text-[var(--color-text-muted)]">New posts added</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold text-[var(--color-text-secondary)] font-mono">
+                          {result.updated_metrics}
+                        </p>
+                        <p className="text-xs text-[var(--color-text-muted)]">Metrics updated</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Button variant="primary" fullWidth onClick={handleClose} glow>

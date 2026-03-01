@@ -266,18 +266,55 @@ export async function POST(request: NextRequest) {
       csv_filename: file.name,
     };
 
-    // Upsert analytics data (replace existing)
+    // Upsert analytics data — merge with existing posts, deduplicating by post_id
     const { data: existing } = await supabase
       .from("user_analytics")
-      .select("id")
+      .select("*")
       .eq("user_id", user.id)
       .single();
 
     let result;
     if (existing) {
+      // Build a map of existing posts keyed by post_id
+      const existingPosts: PostAnalytics[] = existing.posts ?? [];
+      const postMap = new Map<string, PostAnalytics>();
+
+      // Add existing posts first
+      for (const post of existingPosts) {
+        postMap.set(post.post_id, post);
+      }
+
+      // New CSV posts overwrite duplicates (they may have updated metrics)
+      for (const post of posts) {
+        postMap.set(post.post_id, post);
+      }
+
+      const mergedPosts = Array.from(postMap.values());
+
+      // Recalculate date range across all posts
+      const allDates = mergedPosts
+        .map((p) => parseDate(p.date))
+        .filter((d): d is Date => d !== null)
+        .sort((a, b) => a.getTime() - b.getTime());
+
+      const mergedDateRange = {
+        start: allDates.length > 0 ? allDates[0].toISOString() : dateRange.start,
+        end: allDates.length > 0 ? allDates[allDates.length - 1].toISOString() : dateRange.end,
+      };
+
+      const mergedData: Omit<UserAnalyticsData, "id"> = {
+        user_id: user.id,
+        posts: mergedPosts,
+        total_posts: mergedPosts.filter((p) => !p.is_reply).length,
+        total_replies: mergedPosts.filter((p) => p.is_reply).length,
+        date_range: mergedDateRange,
+        uploaded_at: new Date().toISOString(),
+        csv_filename: file.name,
+      };
+
       result = await supabase
         .from("user_analytics")
-        .update(analyticsData)
+        .update(mergedData)
         .eq("id", existing.id)
         .select()
         .single();
@@ -291,13 +328,22 @@ export async function POST(request: NextRequest) {
 
     if (result.error) throw result.error;
 
+    const finalData = result.data as UserAnalyticsData;
+    const newPostIds = new Set(posts.map((p) => p.post_id));
+    const existingPostIds = new Set((existing?.posts ?? []).map((p: PostAnalytics) => p.post_id));
+    const newlyAdded = posts.filter((p) => !existingPostIds.has(p.post_id)).length;
+    const updated = posts.filter((p) => existingPostIds.has(p.post_id)).length;
+
     return NextResponse.json({
-      data: result.data,
+      data: finalData,
       summary: {
-        total_posts: analyticsData.total_posts,
-        total_replies: analyticsData.total_replies,
-        total_rows: posts.length,
-        date_range: dateRange,
+        total_posts: finalData.total_posts,
+        total_replies: finalData.total_replies,
+        total_rows: finalData.posts.length,
+        csv_rows: posts.length,
+        newly_added: newlyAdded,
+        updated_metrics: updated,
+        date_range: finalData.date_range,
       },
     });
   } catch (error) {

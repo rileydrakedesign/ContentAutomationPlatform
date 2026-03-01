@@ -7,7 +7,7 @@ const OLD_API_URL = 'https://contentautomationplatform-production.up.railway.app
 
 // Get stored configuration
 async function getConfig() {
-  const result = await chrome.storage.local.get(['apiUrl', 'authToken', 'refreshToken']);
+  const result = await chrome.storage.local.get(['apiUrl', 'authToken', 'refreshToken', 'tokenExpiresAt']);
   // Migrate cached old URL to new domain
   let apiUrl = result.apiUrl || DEFAULT_API_URL;
   if (apiUrl === OLD_API_URL) {
@@ -18,21 +18,71 @@ async function getConfig() {
     apiUrl,
     authToken: result.authToken || null,
     refreshToken: result.refreshToken || null,
+    tokenExpiresAt: result.tokenExpiresAt || null,
   };
 }
 
-// Save auth tokens
+// Parse JWT to extract expiry time
+function getTokenExpiry(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp ? payload.exp * 1000 : null; // Convert to ms
+  } catch {
+    return null;
+  }
+}
+
+// Save auth tokens with expiry tracking
 async function saveTokens(accessToken, refreshToken) {
+  const expiresAt = getTokenExpiry(accessToken);
   await chrome.storage.local.set({
     authToken: accessToken,
     refreshToken: refreshToken,
+    tokenExpiresAt: expiresAt,
   });
+  // Schedule proactive refresh
+  if (expiresAt) {
+    scheduleTokenRefresh(expiresAt);
+  }
 }
 
 // Clear auth tokens
 async function clearTokens() {
-  await chrome.storage.local.remove(['authToken', 'refreshToken']);
+  await chrome.storage.local.remove(['authToken', 'refreshToken', 'tokenExpiresAt']);
 }
+
+// Proactive token refresh - refresh 5 minutes before expiry
+let refreshTimer = null;
+function scheduleTokenRefresh(expiresAt) {
+  if (refreshTimer) clearTimeout(refreshTimer);
+  const now = Date.now();
+  const refreshAt = expiresAt - 5 * 60 * 1000; // 5 min before expiry
+  const delay = Math.max(0, refreshAt - now);
+
+  if (delay > 0) {
+    refreshTimer = setTimeout(async () => {
+      console.log('[Content Pipeline] Proactively refreshing token');
+      await refreshAccessToken();
+    }, delay);
+  }
+}
+
+// On startup, check if token needs refresh soon
+async function initTokenRefresh() {
+  const config = await getConfig();
+  if (config.tokenExpiresAt && config.refreshToken) {
+    const now = Date.now();
+    if (now >= config.tokenExpiresAt - 5 * 60 * 1000) {
+      // Token expired or about to — refresh now
+      console.log('[Content Pipeline] Token expired or expiring soon, refreshing');
+      await refreshAccessToken();
+    } else {
+      scheduleTokenRefresh(config.tokenExpiresAt);
+    }
+  }
+}
+
+initTokenRefresh();
 
 // Check if we're logged in
 async function isLoggedIn() {
@@ -42,10 +92,18 @@ async function isLoggedIn() {
 
 // Make authenticated API request
 async function apiRequest(endpoint, options = {}) {
-  const config = await getConfig();
+  let config = await getConfig();
 
   if (!config.authToken) {
     throw new Error('NOT_LOGGED_IN');
+  }
+
+  // Proactively refresh if token expires within 2 minutes
+  if (config.tokenExpiresAt && Date.now() >= config.tokenExpiresAt - 2 * 60 * 1000) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      config = await getConfig();
+    }
   }
 
   const url = `${config.apiUrl}${endpoint}`;
@@ -83,37 +141,59 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 // Refresh access token using refresh token
+let isRefreshing = false;
+let refreshPromise = null;
+
 async function refreshAccessToken() {
-  const config = await getConfig();
+  // Deduplicate concurrent refresh attempts
+  if (isRefreshing) return refreshPromise;
 
-  if (!config.refreshToken) {
-    await clearTokens();
-    return false;
-  }
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    const config = await getConfig();
 
-  try {
-    const response = await fetch(`${config.apiUrl}/api/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        refresh_token: config.refreshToken,
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      await saveTokens(data.access_token, data.refresh_token);
-      return true;
-    } else {
+    if (!config.refreshToken) {
       await clearTokens();
       return false;
     }
-  } catch (error) {
-    console.error('Token refresh failed:', error);
-    await clearTokens();
-    return false;
+
+    try {
+      const response = await fetch(`${config.apiUrl}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          refresh_token: config.refreshToken,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        await saveTokens(data.access_token, data.refresh_token);
+        return true;
+      } else if (response.status === 401 || response.status === 403) {
+        // Refresh token is invalid/revoked — clear and require re-login
+        console.error('Refresh token rejected by server, clearing auth');
+        await clearTokens();
+        return false;
+      } else {
+        // Server error (500, 503, etc.) — keep tokens, retry later
+        console.warn('Token refresh server error:', response.status);
+        return false;
+      }
+    } catch (error) {
+      // Network error — do NOT clear tokens, user might just be offline
+      console.warn('Token refresh network error (keeping tokens):', error.message);
+      return false;
+    }
+  })();
+
+  try {
+    return await refreshPromise;
+  } finally {
+    isRefreshing = false;
+    refreshPromise = null;
   }
 }
 
@@ -300,10 +380,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'CHECK_AUTH') {
-    isLoggedIn()
-      .then((loggedIn) => {
-        sendResponse({ loggedIn });
-      })
+    (async () => {
+      const config = await getConfig();
+      if (!config.authToken) {
+        return { loggedIn: false };
+      }
+      // If token is expired but we have a refresh token, try refreshing
+      if (config.tokenExpiresAt && Date.now() >= config.tokenExpiresAt && config.refreshToken) {
+        const refreshed = await refreshAccessToken();
+        return { loggedIn: refreshed };
+      }
+      return { loggedIn: true };
+    })()
+      .then(sendResponse)
       .catch((error) => {
         sendResponse({ loggedIn: false, error: error.message });
       });

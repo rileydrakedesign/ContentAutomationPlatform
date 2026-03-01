@@ -323,17 +323,21 @@ function getDropdownArrow() {
   return `<span style="font-size: 10px; line-height: 1; opacity: 0.7;">▾</span>`;
 }
 
-// Bookmark icon for saving inspiration posts
-function getBookmarkIcon() {
-  return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+// Lightbulb icon for saving inspiration posts
+function getInspirationIcon() {
+  return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 18h6"></path>
+    <path d="M10 22h4"></path>
+    <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"></path>
   </svg>`;
 }
 
-// Bookmark filled icon
-function getBookmarkFilledIcon() {
-  return `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" stroke-width="2">
-    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+// Lightbulb filled icon
+function getInspirationFilledIcon() {
+  return `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 18h6"></path>
+    <path d="M10 22h4"></path>
+    <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"></path>
   </svg>`;
 }
 
@@ -343,7 +347,7 @@ function updateAllNicheSaveButtons() {
     const postId = button.dataset.postId;
     if (postId && savedNichePostIds.has(postId)) {
       button.classList.add(SAVED_CLASS);
-      button.querySelector('.cp-icon').innerHTML = getBookmarkFilledIcon();
+      button.querySelector('.cp-icon').innerHTML = getInspirationFilledIcon();
       button.title = 'Saved as niche post';
     }
   });
@@ -1037,13 +1041,13 @@ function createNicheSaveButton(postUrl, postId) {
 
   const iconSpan = document.createElement('span');
   iconSpan.className = 'cp-icon';
-  iconSpan.innerHTML = getBookmarkIcon();
+  iconSpan.innerHTML = getInspirationIcon();
   button.appendChild(iconSpan);
 
   // Check if already saved
   if (savedNichePostIds.has(postId)) {
     button.classList.add(SAVED_CLASS);
-    iconSpan.innerHTML = getBookmarkFilledIcon();
+    iconSpan.innerHTML = getInspirationFilledIcon();
     button.title = 'Saved as niche post';
   }
 
@@ -1097,7 +1101,7 @@ async function handleNicheSaveClick(event, button) {
     if (response.success) {
       button.classList.remove(SAVING_CLASS);
       button.classList.add(SAVED_CLASS);
-      iconSpan.innerHTML = getBookmarkFilledIcon();
+      iconSpan.innerHTML = getInspirationFilledIcon();
       button.title = 'Saved as niche post';
 
       savedNichePostIds.add(postId);
@@ -1108,11 +1112,11 @@ async function handleNicheSaveClick(event, button) {
   } catch (error) {
     console.error('Save niche post failed:', error);
     button.classList.remove(SAVING_CLASS);
-    iconSpan.innerHTML = getBookmarkIcon();
+    iconSpan.innerHTML = getInspirationIcon();
 
     if (error.message === 'DUPLICATE') {
       button.classList.add(SAVED_CLASS);
-      iconSpan.innerHTML = getBookmarkFilledIcon();
+      iconSpan.innerHTML = getInspirationFilledIcon();
       button.title = 'Already saved';
     } else if (error.message === 'NOT_LOGGED_IN') {
       button.title = 'Click extension icon to log in';

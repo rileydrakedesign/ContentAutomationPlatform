@@ -20,13 +20,13 @@ const openDashboardBtn = document.getElementById('open-dashboard');
 const logoutBtn = document.getElementById('logout-btn');
 
 const showSettingsBtn = document.getElementById('show-settings-btn');
+const showSettingsLoggedInBtn = document.getElementById('show-settings-logged-in-btn');
 const settingsForm = document.getElementById('settings-form');
 const apiUrlInput = document.getElementById('api-url');
 const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
 
-// Analytics sync elements
-const syncAnalyticsBtn = document.getElementById('sync-analytics-btn');
-const syncStatus = document.getElementById('sync-status');
+// Track where settings was opened from so cancel returns to the right view
+let settingsOpenedFrom = 'login';
 
 // Opportunity settings elements
 const oppEnabledInput = document.getElementById('opp-enabled');
@@ -207,13 +207,23 @@ openDashboardBtn.addEventListener('click', (e) => {
 });
 
 showSettingsBtn.addEventListener('click', () => {
+  settingsOpenedFrom = 'login';
+  showSettings();
+});
+
+showSettingsLoggedInBtn.addEventListener('click', () => {
+  settingsOpenedFrom = 'loggedIn';
   showSettings();
 });
 
 cancelSettingsBtn.addEventListener('click', () => {
   apiUrlInput.value = currentApiUrl;
   loadOppSettingsToForm(); // Reset opportunity settings form
-  showLogin();
+  if (settingsOpenedFrom === 'loggedIn') {
+    showLoggedIn();
+  } else {
+    showLogin();
+  }
 });
 
 settingsForm.addEventListener('submit', async (e) => {
@@ -236,80 +246,10 @@ settingsForm.addEventListener('submit', async (e) => {
   currentOppSettings = newOppSettings;
 
   currentApiUrl = newApiUrl;
-  showLogin();
-});
-
-// Analytics sync handler
-syncAnalyticsBtn.addEventListener('click', async () => {
-  const btnText = syncAnalyticsBtn.querySelector('.btn-text');
-  const btnLoading = syncAnalyticsBtn.querySelector('.btn-loading');
-
-  // Show loading state
-  syncAnalyticsBtn.disabled = true;
-  btnText.classList.add('hidden');
-  btnLoading.classList.remove('hidden');
-  syncStatus.classList.remove('hidden');
-  syncStatus.textContent = 'Opening X Analytics...';
-  syncStatus.className = 'sync-status';
-
-  try {
-    // Set flag for content script to auto-start scraping
-    await chrome.storage.local.set({ pendingAnalyticsSync: true });
-
-    // Open X analytics page in a new tab
-    const tab = await chrome.tabs.create({
-      url: 'https://x.com/i/account_analytics',
-      active: true
-    });
-
-    // Wait for the tab to load and then inject the scraping script
-    syncStatus.textContent = 'Waiting for page to load...';
-
-    // Listen for scraping completion
-    const handleMessage = (message, sender) => {
-      if (message.type === 'ANALYTICS_SCRAPE_COMPLETE' && sender.tab?.id === tab.id) {
-        chrome.runtime.onMessage.removeListener(handleMessage);
-
-        if (message.success) {
-          syncStatus.textContent = `Synced ${message.postsCount} posts and ${message.repliesCount} replies!`;
-          syncStatus.classList.add('success');
-        } else {
-          syncStatus.textContent = message.error || 'Sync failed';
-          syncStatus.classList.add('error');
-        }
-
-        // Reset button state
-        syncAnalyticsBtn.disabled = false;
-        btnText.classList.remove('hidden');
-        btnLoading.classList.add('hidden');
-      }
-
-      if (message.type === 'ANALYTICS_SCRAPE_PROGRESS' && sender.tab?.id === tab.id) {
-        syncStatus.textContent = message.status;
-      }
-    };
-
-    chrome.runtime.onMessage.addListener(handleMessage);
-
-    // Set a timeout in case something goes wrong
-    setTimeout(() => {
-      chrome.runtime.onMessage.removeListener(handleMessage);
-      if (syncAnalyticsBtn.disabled) {
-        syncAnalyticsBtn.disabled = false;
-        btnText.classList.remove('hidden');
-        btnLoading.classList.add('hidden');
-        syncStatus.textContent = 'Sync timed out. Make sure you have X Premium.';
-        syncStatus.classList.add('error');
-      }
-    }, 120000); // 2 minute timeout
-
-  } catch (error) {
-    console.error('Analytics sync failed:', error);
-    syncStatus.textContent = error.message || 'Failed to start sync';
-    syncStatus.classList.add('error');
-    syncAnalyticsBtn.disabled = false;
-    btnText.classList.remove('hidden');
-    btnLoading.classList.add('hidden');
+  if (settingsOpenedFrom === 'loggedIn') {
+    showLoggedIn();
+  } else {
+    showLogin();
   }
 });
 
