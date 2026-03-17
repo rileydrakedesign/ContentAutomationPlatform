@@ -31,25 +31,22 @@ export function HomePage() {
   const [loading, setLoading] = useState(true);
   const [showUploadDrawer, setShowUploadDrawer] = useState(false);
   const [xStatus, setXStatus] = useState<{ connected: boolean; username?: string } | null>(null);
-  const [byoStatus, setByoStatus] = useState<{ configured: boolean } | null>(null);
 
   const fetchData = async () => {
     try {
-      const [analyticsRes, inspirationRes, draftsRes, xRes, byoRes, activityRes] = await Promise.all([
+      const [analyticsRes, inspirationRes, draftsRes, xRes, activityRes] = await Promise.all([
         fetch("/api/analytics/csv"),
         fetch("/api/inspiration"),
         fetch("/api/drafts"),
         fetch("/api/x/status"),
-        fetch("/api/x/byo/credentials"),
         fetch("/api/activity/consistency"),
       ]);
 
-      const [analyticsJson, inspirationJson, draftsJson, xJson, byoJson, activityJson] = await Promise.all([
+      const [analyticsJson, inspirationJson, draftsJson, xJson, activityJson] = await Promise.all([
         analyticsRes.json(),
         inspirationRes.json(),
         draftsRes.json(),
         xRes.json(),
-        byoRes.json(),
         activityRes.json(),
       ]);
 
@@ -57,7 +54,6 @@ export function HomePage() {
       setInspirationPosts(Array.isArray(inspirationJson) ? inspirationJson : []);
       setDrafts(Array.isArray(draftsJson) ? draftsJson : []);
       setXStatus(xJson || null);
-      setByoStatus(byoJson || null);
       setActivityDays(Array.isArray(activityJson?.days) ? activityJson.days : []);
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -130,7 +126,6 @@ export function HomePage() {
         <div className="flex flex-col gap-4">
           <SetupChecklist
             xStatus={xStatus}
-            byoStatus={byoStatus}
             csvStatus={{ uploaded_at: analyticsData?.uploaded_at, total_posts: analyticsData?.total_posts }}
             onUploadCsv={() => setShowUploadDrawer(true)}
           />

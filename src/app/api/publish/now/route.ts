@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
-import { postTweet } from "@/lib/x-api";
+import { postTweet, getValidAccessToken } from "@/lib/x-api";
 
 type ContentType = "X_POST" | "X_THREAD";
 
@@ -17,27 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Ensure BYO creds exist
-    const { data: byo } = await supabase
-      .from("x_byo_apps")
-      .select("consumer_key, consumer_secret")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!byo?.consumer_key || !byo?.consumer_secret) {
-      return NextResponse.json({ error: "Missing BYO X API credentials" }, { status: 400 });
-    }
-
-    // Ensure X account connected
-    const { data: connection } = await supabase
-      .from("x_connections")
-      .select("access_token, access_token_secret, x_username")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!connection?.access_token || !connection?.access_token_secret) {
-      return NextResponse.json({ error: "X account not connected" }, { status: 400 });
-    }
+    const { accessToken, connection } = await getValidAccessToken(supabase, user.id);
 
     const body = await request.json();
     const contentType: ContentType = body?.contentType;
@@ -53,16 +33,11 @@ export async function POST(request: NextRequest) {
       const text = String(payload?.text || "").trim();
       if (!text) return NextResponse.json({ error: "Missing text" }, { status: 400 });
 
-      const posted = await postTweet(
-        connection.access_token,
-        connection.access_token_secret,
-        text,
-        { apiKey: byo.consumer_key, apiSecret: byo.consumer_secret }
-      );
+      const posted = await postTweet(accessToken, text);
 
-      // Backfill captured_posts so the rest of the app (insights/voice/patterns/consistency) stays consistent.
+      // Backfill captured_posts
       try {
-        const username = (connection as any).x_username ? String((connection as any).x_username) : null;
+        const username = connection.x_username || null;
         await supabase.from("captured_posts").insert({
           user_id: user.id,
           x_post_id: posted.id_str,
@@ -76,7 +51,6 @@ export async function POST(request: NextRequest) {
           metrics: {},
         });
       } catch (e) {
-        // best-effort; don't fail publishing on backfill issues
         console.warn("publish now: failed to backfill captured_posts", e);
       }
 
@@ -109,34 +83,22 @@ export async function POST(request: NextRequest) {
     const postedIds: string[] = [];
 
     // Tweet 1
-    const first = await postTweet(
-      connection.access_token,
-      connection.access_token_secret,
-      cleaned[0],
-      { apiKey: byo.consumer_key, apiSecret: byo.consumer_secret }
-    );
+    const first = await postTweet(accessToken, cleaned[0]);
     postedIds.push(first.id_str);
 
     // Replies for thread
     let replyTo = first.id_str;
     for (let i = 1; i < cleaned.length; i++) {
-      const next = await postTweet(
-        connection.access_token,
-        connection.access_token_secret,
-        cleaned[i],
-        {
-          inReplyToStatusId: replyTo,
-          apiKey: byo.consumer_key,
-          apiSecret: byo.consumer_secret,
-        }
-      );
+      const next = await postTweet(accessToken, cleaned[i], {
+        inReplyToStatusId: replyTo,
+      });
       postedIds.push(next.id_str);
       replyTo = next.id_str;
     }
 
     // Backfill captured_posts (one row per tweet)
     try {
-      const username = (connection as any).x_username ? String((connection as any).x_username) : null;
+      const username = connection.x_username || null;
       const rows = postedIds.map((id, idx) => ({
         user_id: user.id,
         x_post_id: id,

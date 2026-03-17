@@ -17,7 +17,7 @@ export async function GET() {
 
     const { data: connection } = await supabase
       .from("x_connections")
-      .select("x_username, x_user_id, last_sync_at, created_at")
+      .select("x_username, x_user_id, last_sync_at, last_api_sync_at, created_at")
       .eq("user_id", user.id)
       .single();
 
@@ -30,6 +30,7 @@ export async function GET() {
       username: connection.x_username,
       userId: connection.x_user_id,
       lastSyncAt: connection.last_sync_at,
+      lastApiSyncAt: connection.last_api_sync_at,
       connectedAt: connection.created_at,
     });
   } catch (error) {

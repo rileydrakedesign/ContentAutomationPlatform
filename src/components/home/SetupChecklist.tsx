@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { CheckCircle2, Circle, ExternalLink, KeyRound, PlugZap, Upload } from "lucide-react";
+import { CheckCircle2, Circle, ExternalLink, PlugZap, Upload } from "lucide-react";
 
 type ChecklistItem = {
   id: string;
@@ -21,8 +21,6 @@ type ChecklistItem = {
 
 type XStatus = { connected: boolean; username?: string } | null;
 
-type ByoStatus = { configured: boolean } | null;
-
 type CsvStatus = {
   uploaded_at?: string | null;
   total_posts?: number | null;
@@ -30,12 +28,10 @@ type CsvStatus = {
 
 export function SetupChecklist({
   xStatus,
-  byoStatus,
   csvStatus,
   onUploadCsv,
 }: {
   xStatus: XStatus;
-  byoStatus: ByoStatus;
   csvStatus: CsvStatus;
   onUploadCsv: () => void;
 }) {
@@ -62,16 +58,6 @@ export function SetupChecklist({
       },
     },
     {
-      id: "byo",
-      title: "Add your X API key + secret (BYO)",
-      desc: "Publishing uses your own rate limits.",
-      done: !!byoStatus?.configured,
-      cta: {
-        label: "Settings",
-        href: "/settings",
-      },
-    },
-    {
       id: "connect",
       title: "Connect your X account",
       desc: "Required for posting/scheduling from the dashboard.",
@@ -85,7 +71,7 @@ export function SetupChecklist({
 
   const remaining = items.filter((i) => !i.done && i.id !== "extension");
 
-  // If everything is done, keep it minimal (don’t nag)
+  // If everything is done, keep it minimal (don't nag)
   if (remaining.length === 0) {
     return (
       <Card>
@@ -101,7 +87,7 @@ export function SetupChecklist({
                 </h2>
               </div>
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                You’re good to go. Create drafts, ship, and iterate.
+                You're good to go. Create drafts, ship, and iterate.
               </p>
             </div>
             <Link href="/create">
@@ -143,7 +129,7 @@ export function SetupChecklist({
           {items
             .filter((i) => i.id !== "extension")
             .map((item) => {
-              const Icon = item.id === "csv" ? Upload : item.id === "byo" ? KeyRound : PlugZap;
+              const Icon = item.id === "csv" ? Upload : PlugZap;
               return (
                 <div
                   key={item.id}

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
-import { getRequestToken, getAuthorizationUrl } from "@/lib/x-api";
+import { generatePKCE, getOAuth2AuthorizationUrl } from "@/lib/x-api";
 
-// GET /api/x/connect - Initiate OAuth 1.0a flow
+// GET /api/x/connect - Initiate OAuth 2.0 PKCE flow
 export async function GET() {
   try {
     const supabase = await createAuthClient();
@@ -16,23 +16,22 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const callbackUrl = process.env.X_REDIRECT_URI!;
+    const { codeVerifier, codeChallenge } = generatePKCE();
+    const state = crypto.randomUUID();
 
-    // Get request token from Twitter
-    const { oauth_token, oauth_token_secret } = await getRequestToken(callbackUrl);
-
-    // Store the request token temporarily
+    // Store PKCE verifier and state
     await supabase.from("x_oauth_requests").upsert(
       {
         user_id: user.id,
-        oauth_token,
-        oauth_token_secret,
+        code_verifier: codeVerifier,
+        state,
+        oauth_token: null,
+        oauth_token_secret: null,
       },
       { onConflict: "user_id" }
     );
 
-    // Get authorization URL
-    const authUrl = getAuthorizationUrl(oauth_token);
+    const authUrl = getOAuth2AuthorizationUrl(state, codeChallenge);
 
     return NextResponse.json({ url: authUrl });
   } catch (error) {

@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     if (posts.length < 5) {
       return NextResponse.json(
-        { error: "Need at least 5 posts in your uploaded analytics CSV to extract patterns", patterns: [] },
+        { error: "Need at least 5 posts to extract patterns. Connect your X account to sync analytics, or upload a CSV export.", patterns: [] },
         { status: 400, headers: corsHeaders }
       );
     }

@@ -1,240 +1,215 @@
-// X API client using OAuth 1.0a
+// X API client using OAuth 2.0 PKCE
 import crypto from "crypto";
+import { weightedEngagement } from "@/lib/utils/engagement";
+import type { PostAnalytics } from "@/types/analytics";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const X_API_BASE = "https://api.twitter.com";
 
-export interface XUser {
+// ── v2 Types ─────────────────────────────────────────────────────
+
+export interface XUserV2 {
   id: string;
-  id_str: string;
-  screen_name: string;
   name: string;
-  profile_image_url_https?: string;
+  username: string;
+  profile_image_url?: string;
 }
 
-export interface XTweet {
-  id_str: string;
+export interface XTweetV2 {
+  id: string;
   text: string;
-  full_text?: string;
-  created_at: string;
-  user: {
-    id_str: string;
-    screen_name: string;
-    name: string;
+  created_at?: string;
+  referenced_tweets?: Array<{ type: string; id: string }>;
+  public_metrics?: {
+    retweet_count: number;
+    reply_count: number;
+    like_count: number;
+    quote_count: number;
+    bookmark_count?: number;
+    impression_count?: number;
   };
-  retweet_count: number;
-  favorite_count: number;
-  reply_count?: number;
-  quote_count?: number;
-  // Note: impressions/views require different API access
-}
-
-interface OAuthParams {
-  oauth_consumer_key: string;
-  oauth_token?: string;
-  oauth_signature_method: string;
-  oauth_timestamp: string;
-  oauth_nonce: string;
-  oauth_version: string;
-  oauth_callback?: string;
-  oauth_verifier?: string;
-}
-
-// Generate OAuth 1.0a signature
-function generateOAuthSignature(
-  method: string,
-  url: string,
-  params: Record<string, string>,
-  consumerSecret: string,
-  tokenSecret: string = ""
-): string {
-  // Sort and encode parameters
-  const sortedParams = Object.keys(params)
-    .sort()
-    .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
-    .join("&");
-
-  // Create signature base string
-  const signatureBase = [
-    method.toUpperCase(),
-    encodeURIComponent(url),
-    encodeURIComponent(sortedParams),
-  ].join("&");
-
-  // Create signing key
-  const signingKey = `${encodeURIComponent(consumerSecret)}&${encodeURIComponent(tokenSecret)}`;
-
-  // Generate HMAC-SHA1 signature
-  const signature = crypto
-    .createHmac("sha1", signingKey)
-    .update(signatureBase)
-    .digest("base64");
-
-  return signature;
-}
-
-// Build OAuth Authorization header
-function buildOAuthHeader(oauthParams: Record<string, string>): string {
-  const headerParams = Object.keys(oauthParams)
-    .filter((key) => key.startsWith("oauth_"))
-    .sort()
-    .map((key) => `${encodeURIComponent(key)}="${encodeURIComponent(oauthParams[key])}"`)
-    .join(", ");
-
-  return `OAuth ${headerParams}`;
-}
-
-// Generate nonce
-function generateNonce(): string {
-  return crypto.randomBytes(16).toString("hex");
-}
-
-// Step 1: Get request token
-export async function getRequestToken(
-  callbackUrl: string,
-  overrides?: { apiKey?: string; apiSecret?: string }
-): Promise<{
-  oauth_token: string;
-  oauth_token_secret: string;
-}> {
-  const apiKey = overrides?.apiKey || process.env.X_API_KEY!;
-  const apiSecret = overrides?.apiSecret || process.env.X_API_SECRET!;
-  const url = `${X_API_BASE}/oauth/request_token`;
-
-  const oauthParams: Record<string, string> = {
-    oauth_consumer_key: apiKey,
-    oauth_signature_method: "HMAC-SHA1",
-    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-    oauth_nonce: generateNonce(),
-    oauth_version: "1.0",
-    oauth_callback: callbackUrl,
+  organic_metrics?: {
+    impression_count: number;
+    url_link_clicks: number;
+    user_profile_clicks: number;
   };
+}
 
-  // Generate signature
-  oauthParams.oauth_signature = generateOAuthSignature(
-    "POST",
-    url,
-    oauthParams,
-    apiSecret
-  );
+// ── OAuth 2.0 PKCE ──────────────────────────────────────────────
 
-  const response = await fetch(url, {
+export function generatePKCE(): { codeVerifier: string; codeChallenge: string } {
+  const codeVerifier = crypto.randomBytes(32).toString("base64url");
+  const codeChallenge = crypto
+    .createHash("sha256")
+    .update(codeVerifier)
+    .digest("base64url");
+  return { codeVerifier, codeChallenge };
+}
+
+export function getOAuth2AuthorizationUrl(state: string, codeChallenge: string): string {
+  const clientId = process.env.X_CLIENT_ID!;
+  const redirectUri = process.env.X_REDIRECT_URI!;
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    scope: "tweet.read tweet.write users.read offline.access",
+    state,
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
+  });
+  return `https://x.com/i/oauth2/authorize?${params.toString()}`;
+}
+
+export async function exchangeCodeForTokens(
+  code: string,
+  codeVerifier: string
+): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
+  const clientId = process.env.X_CLIENT_ID!;
+  const clientSecret = process.env.X_CLIENT_SECRET!;
+  const redirectUri = process.env.X_REDIRECT_URI!;
+
+  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+
+  const response = await fetch(`${X_API_BASE}/2/oauth2/token`, {
     method: "POST",
     headers: {
-      Authorization: buildOAuthHeader(oauthParams),
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${basicAuth}`,
     },
+    body: new URLSearchParams({
+      code,
+      grant_type: "authorization_code",
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
+    }),
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Failed to get request token: ${text}`);
+    throw new Error(`Failed to exchange code for tokens: ${text}`);
   }
 
-  const text = await response.text();
-  const params = new URLSearchParams(text);
-
-  return {
-    oauth_token: params.get("oauth_token")!,
-    oauth_token_secret: params.get("oauth_token_secret")!,
-  };
+  return response.json();
 }
 
-// Step 2: Get authorization URL
-export function getAuthorizationUrl(oauthToken: string): string {
-  return `${X_API_BASE}/oauth/authorize?oauth_token=${oauthToken}`;
-}
+export async function refreshAccessToken(
+  refreshToken: string
+): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
+  const clientId = process.env.X_CLIENT_ID!;
+  const clientSecret = process.env.X_CLIENT_SECRET!;
 
-// Step 3: Exchange for access token
-export async function getAccessToken(
-  oauthToken: string,
-  oauthTokenSecret: string,
-  oauthVerifier: string,
-  overrides?: { apiKey?: string; apiSecret?: string }
-): Promise<{
-  oauth_token: string;
-  oauth_token_secret: string;
-  user_id: string;
-  screen_name: string;
-}> {
-  const apiKey = overrides?.apiKey || process.env.X_API_KEY!;
-  const apiSecret = overrides?.apiSecret || process.env.X_API_SECRET!;
-  const url = `${X_API_BASE}/oauth/access_token`;
-
-  const oauthParams: Record<string, string> = {
-    oauth_consumer_key: apiKey,
-    oauth_token: oauthToken,
-    oauth_signature_method: "HMAC-SHA1",
-    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-    oauth_nonce: generateNonce(),
-    oauth_version: "1.0",
-    oauth_verifier: oauthVerifier,
+  const body: Record<string, string> = {
+    grant_type: "refresh_token",
+    client_id: clientId,
+    refresh_token: refreshToken,
   };
+  if (clientSecret) {
+    body.client_secret = clientSecret;
+  }
 
-  // Generate signature
-  oauthParams.oauth_signature = generateOAuthSignature(
-    "POST",
-    url,
-    oauthParams,
-    apiSecret,
-    oauthTokenSecret
-  );
-
-  const response = await fetch(url, {
+  const response = await fetch(`${X_API_BASE}/2/oauth2/token`, {
     method: "POST",
     headers: {
-      Authorization: buildOAuthHeader(oauthParams),
+      "Content-Type": "application/x-www-form-urlencoded",
     },
+    body: new URLSearchParams(body),
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Failed to get access token: ${text}`);
+    throw new Error(`Failed to refresh access token: ${text}`);
   }
 
-  const text = await response.text();
-  const params = new URLSearchParams(text);
+  return response.json();
+}
+
+/**
+ * Gets a valid access token for the user, refreshing if needed.
+ * Race-safe: uses WHERE refresh_token = <old> to prevent double-refresh.
+ */
+export async function getValidAccessToken(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<{ accessToken: string; connection: { x_user_id: string; x_username: string } }> {
+  const { data: conn, error } = await supabase
+    .from("x_connections")
+    .select("access_token, refresh_token, access_token_expires_at, x_user_id, x_username")
+    .eq("user_id", userId)
+    .single();
+
+  if (error || !conn?.access_token) {
+    throw new Error("X account not connected");
+  }
+
+  const expiresAt = conn.access_token_expires_at
+    ? new Date(conn.access_token_expires_at).getTime()
+    : Infinity;
+  const bufferMs = 5 * 60 * 1000; // 5 minutes
+
+  // Token still valid
+  if (Date.now() < expiresAt - bufferMs) {
+    return {
+      accessToken: conn.access_token,
+      connection: { x_user_id: conn.x_user_id, x_username: conn.x_username },
+    };
+  }
+
+  // Need to refresh
+  if (!conn.refresh_token) {
+    throw new Error("No refresh token available — reconnect X account");
+  }
+
+  const tokens = await refreshAccessToken(conn.refresh_token);
+  const newExpiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
+
+  // Race-safe update: only update if refresh_token hasn't changed
+  const { data: updated, error: updateErr } = await supabase
+    .from("x_connections")
+    .update({
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      access_token_expires_at: newExpiresAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId)
+    .eq("refresh_token", conn.refresh_token)
+    .select("access_token, x_user_id, x_username")
+    .single();
+
+  if (updateErr || !updated) {
+    // Another process already refreshed — re-read
+    const { data: reread } = await supabase
+      .from("x_connections")
+      .select("access_token, x_user_id, x_username")
+      .eq("user_id", userId)
+      .single();
+
+    if (!reread?.access_token) {
+      throw new Error("Failed to get valid access token after refresh race");
+    }
+
+    return {
+      accessToken: reread.access_token,
+      connection: { x_user_id: reread.x_user_id, x_username: reread.x_username },
+    };
+  }
 
   return {
-    oauth_token: params.get("oauth_token")!,
-    oauth_token_secret: params.get("oauth_token_secret")!,
-    user_id: params.get("user_id")!,
-    screen_name: params.get("screen_name")!,
+    accessToken: updated.access_token,
+    connection: { x_user_id: updated.x_user_id, x_username: updated.x_username },
   };
 }
 
-// Make authenticated API request
-async function makeAuthenticatedRequest(
+// ── Bearer request ───────────────────────────────────────────────
+
+async function makeBearerRequest(
   method: string,
   url: string,
   accessToken: string,
-  accessTokenSecret: string,
-  queryParams: Record<string, string> = {},
-  overrides?: { apiKey?: string; apiSecret?: string }
+  queryParams: Record<string, string> = {}
 ): Promise<Response> {
-  const apiKey = overrides?.apiKey || process.env.X_API_KEY!;
-  const apiSecret = overrides?.apiSecret || process.env.X_API_SECRET!;
-
-  const oauthParams: Record<string, string> = {
-    oauth_consumer_key: apiKey,
-    oauth_token: accessToken,
-    oauth_signature_method: "HMAC-SHA1",
-    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-    oauth_nonce: generateNonce(),
-    oauth_version: "1.0",
-  };
-
-  // Combine OAuth params with query params for signature
-  const allParams = { ...oauthParams, ...queryParams };
-
-  // Generate signature
-  oauthParams.oauth_signature = generateOAuthSignature(
-    method,
-    url,
-    allParams,
-    apiSecret,
-    accessTokenSecret
-  );
-
-  // Build URL with query params
   const queryString = Object.keys(queryParams).length > 0
     ? "?" + new URLSearchParams(queryParams).toString()
     : "";
@@ -242,23 +217,23 @@ async function makeAuthenticatedRequest(
   return fetch(`${url}${queryString}`, {
     method,
     headers: {
-      Authorization: buildOAuthHeader(oauthParams),
+      Authorization: `Bearer ${accessToken}`,
     },
   });
 }
 
-// Verify credentials and get user info
-export async function verifyCredentials(
-  accessToken: string,
-  accessTokenSecret: string
-): Promise<XUser> {
-  const url = `${X_API_BASE}/1.1/account/verify_credentials.json`;
+// ── v2 API functions ─────────────────────────────────────────────
 
-  const response = await makeAuthenticatedRequest(
+export async function verifyCredentials(
+  accessToken: string
+): Promise<XUserV2> {
+  const url = `${X_API_BASE}/2/users/me`;
+
+  const response = await makeBearerRequest(
     "GET",
     url,
     accessToken,
-    accessTokenSecret
+    { "user.fields": "id,name,username,profile_image_url" }
   );
 
   if (!response.ok) {
@@ -266,63 +241,53 @@ export async function verifyCredentials(
     throw new Error(`Failed to verify credentials: ${text}`);
   }
 
-  return response.json();
+  const json = await response.json();
+  return json.data;
 }
 
-// Get user's timeline (their tweets)
 export async function getUserTimeline(
   accessToken: string,
-  accessTokenSecret: string,
-  count: number = 100,
-  maxId?: string
-): Promise<XTweet[]> {
-  const url = `${X_API_BASE}/1.1/statuses/user_timeline.json`;
+  userId: string,
+  maxResults: number = 100,
+  paginationToken?: string
+): Promise<{ data: XTweetV2[]; meta: { next_token?: string; result_count: number } }> {
+  const url = `${X_API_BASE}/2/users/${userId}/tweets`;
 
   const queryParams: Record<string, string> = {
-    count: count.toString(),
-    tweet_mode: "extended",
-    include_rts: "false", // Exclude retweets
+    "tweet.fields": "created_at,public_metrics,organic_metrics,referenced_tweets",
+    exclude: "retweets",
+    max_results: Math.min(maxResults, 100).toString(),
   };
 
-  if (maxId) {
-    queryParams.max_id = maxId;
+  if (paginationToken) {
+    queryParams.pagination_token = paginationToken;
   }
 
-  const response = await makeAuthenticatedRequest(
-    "GET",
-    url,
-    accessToken,
-    accessTokenSecret,
-    queryParams
-  );
+  const response = await makeBearerRequest("GET", url, accessToken, queryParams);
 
   if (!response.ok) {
     const text = await response.text();
     throw new Error(`Failed to get timeline: ${text}`);
   }
 
-  return response.json();
+  const json = await response.json();
+  return {
+    data: json.data || [],
+    meta: json.meta || { result_count: 0 },
+  };
 }
 
-// Get a single tweet by ID
 export async function getTweet(
   accessToken: string,
-  accessTokenSecret: string,
   tweetId: string
-): Promise<XTweet> {
-  const url = `${X_API_BASE}/1.1/statuses/show.json`;
+): Promise<XTweetV2> {
+  const url = `${X_API_BASE}/2/tweets/${tweetId}`;
 
-  const queryParams: Record<string, string> = {
-    id: tweetId,
-    tweet_mode: "extended",
-  };
-
-  const response = await makeAuthenticatedRequest(
+  const response = await makeBearerRequest(
     "GET",
     url,
     accessToken,
-    accessTokenSecret,
-    queryParams
+    { "tweet.fields": "created_at,public_metrics" }
   );
 
   if (!response.ok) {
@@ -330,43 +295,76 @@ export async function getTweet(
     throw new Error(`Failed to get tweet: ${text}`);
   }
 
+  const json = await response.json();
+  return json.data;
+}
+
+export async function getTweetsBatch(
+  accessToken: string,
+  tweetIds: string[]
+): Promise<XTweetV2[]> {
+  if (tweetIds.length === 0) return [];
+
+  const url = `${X_API_BASE}/2/tweets`;
+
+  const response = await makeBearerRequest(
+    "GET",
+    url,
+    accessToken,
+    {
+      ids: tweetIds.slice(0, 100).join(","),
+      "tweet.fields": "created_at,public_metrics",
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to get tweets batch: ${text}`);
+  }
+
+  const json = await response.json();
+  return json.data || [];
+}
+
+export async function searchRecentTweets(
+  accessToken: string,
+  query: string,
+  maxResults: number = 10
+): Promise<{ data: XTweetV2[]; includes?: { users?: XUserV2[] } }> {
+  const url = `${X_API_BASE}/2/tweets/search/recent`;
+
+  const response = await makeBearerRequest(
+    "GET",
+    url,
+    accessToken,
+    {
+      query,
+      "tweet.fields": "created_at,public_metrics",
+      "expansions": "author_id",
+      "user.fields": "username,name",
+      max_results: Math.max(10, Math.min(maxResults, 100)).toString(),
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to search tweets: ${text}`);
+  }
+
   return response.json();
 }
 
-// Post a tweet (or reply) using OAuth 1.0a with X API v2
+// ── Post a tweet ─────────────────────────────────────────────────
+
 export async function postTweet(
   accessToken: string,
-  accessTokenSecret: string,
   status: string,
   options?: {
     inReplyToStatusId?: string;
-    apiKey?: string;
-    apiSecret?: string;
   }
 ): Promise<{ id_str: string }> {
-  const apiKey = options?.apiKey || process.env.X_API_KEY!;
-  const apiSecret = options?.apiSecret || process.env.X_API_SECRET!;
   const url = `${X_API_BASE}/2/tweets`;
 
-  const oauthParams: Record<string, string> = {
-    oauth_consumer_key: apiKey,
-    oauth_token: accessToken,
-    oauth_signature_method: "HMAC-SHA1",
-    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-    oauth_nonce: generateNonce(),
-    oauth_version: "1.0",
-  };
-
-  // For v2 JSON body requests, only OAuth params go into the signature
-  oauthParams.oauth_signature = generateOAuthSignature(
-    "POST",
-    url,
-    oauthParams,
-    apiSecret,
-    accessTokenSecret
-  );
-
-  // Build JSON body (v2 format)
   const body: Record<string, unknown> = { text: status };
   if (options?.inReplyToStatusId) {
     body.reply = { in_reply_to_tweet_id: options.inReplyToStatusId };
@@ -375,7 +373,7 @@ export async function postTweet(
   const response = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: buildOAuthHeader(oauthParams),
+      Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
@@ -386,12 +384,49 @@ export async function postTweet(
     throw new Error(`Failed to post tweet (${response.status}): ${text}`);
   }
 
-  // v2 response: { data: { id: "...", text: "..." } }
   const data = await response.json();
   return { id_str: data.data.id };
 }
 
-// Extract tweet ID from URL
+// ── Analytics helpers ────────────────────────────────────────────
+
+export function mapV2ToPostAnalytics(tweet: XTweetV2): PostAnalytics {
+  const pm = tweet.public_metrics;
+  const om = tweet.organic_metrics;
+
+  const impressions = om?.impression_count ?? pm?.impression_count ?? 0;
+  const likes = pm?.like_count ?? 0;
+  const replies = pm?.reply_count ?? 0;
+  const reposts = pm?.retweet_count ?? 0;
+  const bookmarks = pm?.bookmark_count ?? 0;
+
+  const isReply =
+    tweet.referenced_tweets?.some((r) => r.type === "replied_to") ||
+    tweet.text.startsWith("@");
+
+  return {
+    id: tweet.id,
+    post_id: tweet.id,
+    text: tweet.text,
+    date: tweet.created_at || new Date().toISOString(),
+    impressions,
+    likes,
+    replies,
+    reposts,
+    bookmarks,
+    shares: 0,
+    new_follows: 0,
+    profile_visits: 0,
+    detail_expands: 0,
+    url_clicks: 0,
+    engagement_score: weightedEngagement({ likes, reposts, replies, bookmarks, impressions }),
+    is_reply: !!isReply,
+    data_source: "api",
+  };
+}
+
+// ── Utilities ────────────────────────────────────────────────────
+
 export function extractTweetId(url: string): string | null {
   const patterns = [
     /twitter\.com\/\w+\/status\/(\d+)/,

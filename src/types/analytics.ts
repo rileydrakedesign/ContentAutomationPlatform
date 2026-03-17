@@ -38,6 +38,7 @@ export interface PostAnalytics {
   url_clicks: number;
   engagement_score: number;
   is_reply: boolean;
+  data_source?: "csv" | "api" | "both";
 }
 
 export interface UserAnalyticsData {

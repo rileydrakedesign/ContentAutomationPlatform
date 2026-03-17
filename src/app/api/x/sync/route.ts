@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
-import { getUserTimeline } from "@/lib/x-api";
+import { getUserTimeline, getValidAccessToken } from "@/lib/x-api";
 
-// POST /api/x/sync - Sync user's tweets from X
+// POST /api/x/sync - Sync user's tweets from X (v2 API)
 export async function POST() {
   try {
     const supabase = await createAuthClient();
@@ -16,25 +16,13 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get X connection
-    const { data: connection } = await supabase
-      .from("x_connections")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
+    const { accessToken, connection } = await getValidAccessToken(supabase, user.id);
 
-    if (!connection) {
-      return NextResponse.json(
-        { error: "X account not connected" },
-        { status: 400 }
-      );
-    }
-
-    // Fetch user's tweets
-    const tweets = await getUserTimeline(
-      connection.access_token,
-      connection.access_token_secret,
-      50
+    // Fetch user's tweets via v2 API
+    const { data: tweets } = await getUserTimeline(
+      accessToken,
+      connection.x_user_id,
+      100
     );
 
     // Get existing tweet IDs to avoid duplicates
@@ -47,25 +35,25 @@ export async function POST() {
     const existingIds = new Set(existingPosts?.map((p) => p.x_post_id) || []);
 
     // Filter out existing tweets
-    const newTweets = tweets.filter((t) => !existingIds.has(t.id_str));
+    const newTweets = tweets.filter((t) => !existingIds.has(t.id));
 
     // Insert new tweets as captured posts
     if (newTweets.length > 0) {
       const postsToInsert = newTweets.map((tweet) => ({
         user_id: user.id,
-        x_post_id: tweet.id_str,
-        post_url: `https://x.com/${connection.x_username}/status/${tweet.id_str}`,
+        x_post_id: tweet.id,
+        post_url: `https://x.com/${connection.x_username}/status/${tweet.id}`,
         author_handle: connection.x_username,
-        author_name: tweet.user?.name || null,
-        text_content: tweet.full_text || tweet.text,
+        text_content: tweet.text,
         is_own_post: true,
         metrics: {
-          likes: tweet.favorite_count || 0,
-          retweets: tweet.retweet_count || 0,
-          replies: tweet.reply_count || 0,
-          quotes: tweet.quote_count || 0,
+          likes: tweet.public_metrics?.like_count || 0,
+          retweets: tweet.public_metrics?.retweet_count || 0,
+          replies: tweet.public_metrics?.reply_count || 0,
+          quotes: tweet.public_metrics?.quote_count || 0,
+          views: tweet.organic_metrics?.impression_count ?? tweet.public_metrics?.impression_count ?? 0,
         },
-        post_timestamp: new Date(tweet.created_at).toISOString(),
+        post_timestamp: tweet.created_at || new Date().toISOString(),
         inbox_status: "triaged",
         triaged_as: "my_post",
       }));
