@@ -1,7 +1,6 @@
-// Content Pipeline - X Post Saver & Reply Generator
-// Content script for injecting save and reply buttons on X posts
+// Content Pipeline - X Inspiration Saver & Reply Generator
+// Content script for injecting inspiration save and reply buttons on X posts
 
-const SAVE_BUTTON_CLASS = 'cp-save-button';
 const REPLY_BUTTON_CLASS = 'cp-reply-button';
 const REPLY_PICKER_CLASS = 'cp-reply-picker';
 const SAVED_CLASS = 'cp-saved';
@@ -17,8 +16,6 @@ const OPP_BORDER_CLASS = 'xgo-opp-border';
 
 // Track which posts we've already processed
 const processedPosts = new Set();
-// Track saved post URLs
-let savedPostUrls = new Set();
 // Track saved inspiration post IDs
 let savedNichePostIds = new Set();
 
@@ -253,58 +250,25 @@ function showRefreshNotice() {
   document.body.appendChild(notice);
 }
 
-// Load saved posts and watched accounts from storage on init
+// Load saved inspiration post IDs from storage on init
 if (isExtensionContextValid()) {
-  chrome.storage.local.get(['savedPostUrls', 'savedNichePostIds'], (result) => {
-    if (result.savedPostUrls) {
-      savedPostUrls = new Set(result.savedPostUrls);
-    }
+  chrome.storage.local.get(['savedNichePostIds'], (result) => {
     if (result.savedNichePostIds) {
       savedNichePostIds = new Set(result.savedNichePostIds);
     }
   });
 }
 
-// Listen for updates to saved posts and watched accounts
+// Listen for updates to saved inspiration posts
 if (isExtensionContextValid()) {
   chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local') {
-      if (changes.savedPostUrls) {
-        savedPostUrls = new Set(changes.savedPostUrls.newValue || []);
-        updateAllSaveButtons();
-      }
       if (changes.savedNichePostIds) {
         savedNichePostIds = new Set(changes.savedNichePostIds.newValue || []);
         updateAllNicheSaveButtons();
       }
     }
   });
-}
-
-function updateAllSaveButtons() {
-  document.querySelectorAll(`.${SAVE_BUTTON_CLASS}`).forEach(button => {
-    const postUrl = button.dataset.postUrl;
-    if (postUrl && savedPostUrls.has(postUrl)) {
-      button.classList.add(SAVED_CLASS);
-      button.classList.remove(SAVING_CLASS);
-      button.querySelector('.cp-icon').innerHTML = getCheckIcon();
-      button.title = 'Saved to Content Pipeline';
-    }
-  });
-}
-
-function getPlusCircleIcon() {
-  return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-    <circle cx="12" cy="12" r="10"></circle>
-    <line x1="12" y1="8" x2="12" y2="16"></line>
-    <line x1="8" y1="12" x2="16" y2="12"></line>
-  </svg>`;
-}
-
-function getCheckIcon() {
-  return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-    <polyline points="20 6 9 17 4 12"></polyline>
-  </svg>`;
 }
 
 function getSpinnerIcon() {
@@ -942,95 +906,6 @@ function extractPostData(articleElement) {
   }
 }
 
-function createSaveButton(postUrl) {
-  const button = document.createElement('button');
-  button.className = SAVE_BUTTON_CLASS;
-  button.dataset.postUrl = postUrl;
-  button.title = 'Save to Content Pipeline';
-
-  const iconSpan = document.createElement('span');
-  iconSpan.className = 'cp-icon';
-  iconSpan.innerHTML = getPlusCircleIcon();
-  button.appendChild(iconSpan);
-
-  // Check if already saved
-  if (savedPostUrls.has(postUrl)) {
-    button.classList.add(SAVED_CLASS);
-    iconSpan.innerHTML = getCheckIcon();
-    button.title = 'Saved to Content Pipeline';
-  }
-
-  return button;
-}
-
-async function handleSaveClick(event, button) {
-  event.preventDefault();
-  event.stopPropagation();
-
-  // Find the article element dynamically by traversing up from the button
-  const articleElement = button.closest('article[data-testid="tweet"]');
-  if (!articleElement) {
-    console.error('[Content Pipeline] Could not find article element for save button');
-    return;
-  }
-
-  // Check if already saved or saving
-  if (button.classList.contains(SAVED_CLASS) || button.classList.contains(SAVING_CLASS)) {
-    return;
-  }
-
-  const iconSpan = button.querySelector('.cp-icon');
-
-  // Set saving state
-  button.classList.add(SAVING_CLASS);
-  iconSpan.innerHTML = getSpinnerIcon();
-  button.title = 'Saving...';
-
-  try {
-    const postData = extractPostData(articleElement);
-
-    if (!postData || !postData.post_url || !postData.text_content) {
-      throw new Error('Could not extract post data');
-    }
-
-    // Send to background script
-    const response = await sendMessage({
-      type: 'SAVE_POST',
-      payload: postData,
-    });
-
-    if (response.success) {
-      button.classList.remove(SAVING_CLASS);
-      button.classList.add(SAVED_CLASS);
-      iconSpan.innerHTML = getCheckIcon();
-      button.title = 'Saved to Content Pipeline';
-
-      // Update local storage
-      savedPostUrls.add(postData.post_url);
-      chrome.storage.local.set({ savedPostUrls: Array.from(savedPostUrls) });
-    } else {
-      throw new Error(response.error || 'Failed to save');
-    }
-  } catch (error) {
-    console.error('Save failed:', error);
-    button.classList.remove(SAVING_CLASS);
-    iconSpan.innerHTML = getPlusCircleIcon();
-
-    if (error.message === 'DUPLICATE') {
-      button.classList.add(SAVED_CLASS);
-      iconSpan.innerHTML = getCheckIcon();
-      button.title = 'Already saved';
-    } else if (error.message === 'NOT_LOGGED_IN') {
-      button.title = 'Click extension icon to log in';
-    } else if (error.message === 'EXTENSION_RELOADED' || error.message?.includes('Extension context invalidated')) {
-      button.title = 'Extension updated - please refresh page';
-      showRefreshNotice();
-    } else {
-      button.title = 'Failed to save - try again';
-    }
-  }
-}
-
 // Create save niche post button
 function createNicheSaveButton(postUrl, postId) {
   const button = document.createElement('button');
@@ -1629,7 +1504,7 @@ function injectButtons(articleElement) {
   if (!actionBar) return;
 
   // Check if buttons already exist
-  if (actionBar.querySelector(`.${SAVE_BUTTON_CLASS}`)) {
+  if (actionBar.querySelector(`.${NICHE_SAVE_BUTTON_CLASS}`)) {
     return;
   }
 
@@ -1643,11 +1518,7 @@ function injectButtons(articleElement) {
   // Extract post ID
   const postId = extractTweetId(postUrl);
 
-  // Create save button (for own posts inbox)
-  const saveButton = createSaveButton(postUrl);
-  saveButton.addEventListener('click', (e) => handleSaveClick(e, saveButton));
-
-  // Create niche save button (for pattern reference)
+  // Create inspiration save button
   const nicheSaveButton = createNicheSaveButton(postUrl, postId);
   nicheSaveButton.addEventListener('click', (e) => handleNicheSaveClick(e, nicheSaveButton));
 
@@ -1685,7 +1556,6 @@ function injectButtons(articleElement) {
       e.stopPropagation();
       const selectedTone = option.dataset.tone;
       hideToneDropdown(toneDropdown);
-      // Create a synthetic event for handleReplyClick
       handleReplyClick(e, replyButton, replyPicker, toneDropdown, selectedTone);
     });
   });
@@ -1701,11 +1571,9 @@ function injectButtons(articleElement) {
   // Insert buttons before the last item (usually the share button)
   const lastChild = actionBar.lastElementChild;
   if (lastChild) {
-    actionBar.insertBefore(saveButton, lastChild);
     actionBar.insertBefore(nicheSaveButton, lastChild);
     actionBar.insertBefore(replyButton, lastChild);
   } else {
-    actionBar.appendChild(saveButton);
     actionBar.appendChild(nicheSaveButton);
     actionBar.appendChild(replyButton);
   }
@@ -1830,435 +1698,4 @@ if (isExtensionContextValid()) {
       });
     }
   });
-}
-
-// ===========================================
-// ANALYTICS SCRAPING (X Premium Feature)
-// ===========================================
-
-/**
- * Check if we're on the X analytics page
- */
-function isAnalyticsPage() {
-  return window.location.pathname.includes('/i/account_analytics') ||
-         window.location.pathname.includes('/analytics');
-}
-
-/**
- * Send progress update to popup
- */
-function sendScrapeProgress(status) {
-  if (isExtensionContextValid()) {
-    chrome.runtime.sendMessage({
-      type: 'ANALYTICS_SCRAPE_PROGRESS',
-      status
-    }).catch(() => {});
-  }
-}
-
-/**
- * Wait for an element to appear in the DOM
- */
-function waitForElement(selector, timeout = 10000) {
-  return new Promise((resolve, reject) => {
-    const element = document.querySelector(selector);
-    if (element) {
-      resolve(element);
-      return;
-    }
-
-    const observer = new MutationObserver((mutations, obs) => {
-      const el = document.querySelector(selector);
-      if (el) {
-        obs.disconnect();
-        resolve(el);
-      }
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    setTimeout(() => {
-      observer.disconnect();
-      reject(new Error(`Timeout waiting for ${selector}`));
-    }, timeout);
-  });
-}
-
-/**
- * Sleep helper
- */
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Scroll to load more content
- */
-async function scrollToLoadMore(maxScrolls = 10) {
-  for (let i = 0; i < maxScrolls; i++) {
-    const prevHeight = document.body.scrollHeight;
-    window.scrollTo(0, document.body.scrollHeight);
-    await sleep(1500);
-
-    if (document.body.scrollHeight === prevHeight) {
-      break; // No more content to load
-    }
-  }
-  // Scroll back to top
-  window.scrollTo(0, 0);
-  await sleep(500);
-}
-
-/**
- * Extract impressions from various possible DOM locations
- */
-function extractImpressions(element) {
-  // Try to find impressions in different formats
-  const impressionPatterns = [
-    /(\d+(?:,\d+)*(?:\.\d+)?[KMB]?)\s*(?:impressions?|views?)/i,
-    /(?:impressions?|views?):\s*(\d+(?:,\d+)*(?:\.\d+)?[KMB]?)/i
-  ];
-
-  // Look in aria-labels, text content, and data attributes
-  const textSources = [
-    element.getAttribute('aria-label'),
-    element.textContent,
-    ...Array.from(element.querySelectorAll('[aria-label]')).map(el => el.getAttribute('aria-label'))
-  ].filter(Boolean);
-
-  for (const text of textSources) {
-    for (const pattern of impressionPatterns) {
-      const match = text.match(pattern);
-      if (match) {
-        return parseCount(match[1]);
-      }
-    }
-  }
-
-  // Try finding numeric value near "impressions" text
-  const impressionEl = element.querySelector('[data-testid*="impression"], [data-testid*="view"]');
-  if (impressionEl) {
-    const countText = impressionEl.textContent?.trim();
-    if (countText) return parseCount(countText);
-  }
-
-  return null;
-}
-
-/**
- * Scrape posts from the analytics page
- * Returns array of { post, impressions, isReply, parentPost }
- */
-async function scrapeAnalyticsPosts() {
-  const results = {
-    posts: [],
-    replies: []
-  };
-
-  sendScrapeProgress('Scanning for posts...');
-
-  // Wait for content to load
-  await sleep(2000);
-
-  // Scroll to load more content
-  sendScrapeProgress('Loading more content...');
-  await scrollToLoadMore(5);
-
-  // Find all tweet/post elements on the page
-  const articles = document.querySelectorAll('article[data-testid="tweet"]');
-  console.log(`[Analytics Scraper] Found ${articles.length} articles`);
-
-  sendScrapeProgress(`Processing ${articles.length} posts...`);
-
-  for (const article of articles) {
-    try {
-      const postData = extractPostData(article);
-      if (!postData || !postData.post_url) continue;
-
-      // Try to extract impressions from the article or nearby analytics elements
-      let impressions = postData.metrics?.views || null;
-
-      // If views not in metrics, try to find impressions elsewhere
-      if (impressions === null) {
-        // Look for analytics link and its label
-        const analyticsLink = article.querySelector('a[href*="/analytics"]');
-        if (analyticsLink) {
-          impressions = extractImpressions(analyticsLink.parentElement || analyticsLink);
-        }
-      }
-
-      // Check if this is a reply by looking for "Replying to" indicator
-      const isReply = !!article.querySelector('[data-testid="socialContext"]')?.textContent?.includes('Replying to') ||
-                      !!postData.context?.parent;
-
-      const entry = {
-        post_url: postData.post_url,
-        text_content: postData.text_content,
-        author_handle: postData.author_handle,
-        metrics: {
-          ...postData.metrics,
-          impressions: impressions
-        },
-        post_timestamp: postData.post_timestamp,
-        x_post_id: extractTweetId(postData.post_url)
-      };
-
-      if (isReply) {
-        entry.parent_post = postData.context?.parent || null;
-        results.replies.push(entry);
-      } else {
-        results.posts.push(entry);
-      }
-
-    } catch (err) {
-      console.error('[Analytics Scraper] Error processing article:', err);
-    }
-  }
-
-  // Sort by impressions (descending)
-  const sortByImpressions = (a, b) => {
-    const aImp = a.metrics?.impressions || a.metrics?.views || 0;
-    const bImp = b.metrics?.impressions || b.metrics?.views || 0;
-    return bImp - aImp;
-  };
-
-  results.posts.sort(sortByImpressions);
-  results.replies.sort(sortByImpressions);
-
-  // Take top 20 of each
-  results.posts = results.posts.slice(0, 20);
-  results.replies = results.replies.slice(0, 20);
-
-  console.log(`[Analytics Scraper] Found ${results.posts.length} posts, ${results.replies.length} replies`);
-
-  return results;
-}
-
-/**
- * Navigate to user's profile and scrape posts/replies separately
- * This is more reliable for separating posts from replies
- */
-async function scrapeFromProfile() {
-  const results = {
-    posts: [],
-    replies: []
-  };
-
-  // Get current user's handle from the page
-  let userHandle = null;
-
-  // Try to find the user's handle from various sources
-  const profileLink = document.querySelector('a[href*="/home"] + a[role="link"]');
-  if (profileLink) {
-    const match = profileLink.href.match(/x\.com\/([^/?]+)/);
-    if (match) userHandle = match[1];
-  }
-
-  if (!userHandle) {
-    // Try the avatar menu
-    const avatarButton = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
-    if (avatarButton) {
-      const handleEl = avatarButton.querySelector('span');
-      if (handleEl?.textContent?.startsWith('@')) {
-        userHandle = handleEl.textContent.replace('@', '');
-      }
-    }
-  }
-
-  if (!userHandle) {
-    throw new Error('Could not determine your X username');
-  }
-
-  sendScrapeProgress(`Found user: @${userHandle}`);
-
-  // Navigate to user's posts page
-  sendScrapeProgress('Navigating to your posts...');
-  window.location.href = `https://x.com/${userHandle}`;
-  await sleep(3000);
-  await waitForElement('article[data-testid="tweet"]', 15000);
-
-  // Scrape posts
-  sendScrapeProgress('Scraping your posts...');
-  await scrollToLoadMore(8);
-
-  const postArticles = document.querySelectorAll('article[data-testid="tweet"]');
-  for (const article of postArticles) {
-    try {
-      const postData = extractPostData(article);
-      if (!postData?.post_url) continue;
-
-      // Skip if it's a reply (has "Replying to")
-      const socialContext = article.querySelector('[data-testid="socialContext"]');
-      if (socialContext?.textContent?.includes('Replying to')) continue;
-
-      let impressions = postData.metrics?.views || null;
-      const analyticsLink = article.querySelector('a[href*="/analytics"]');
-      if (analyticsLink && impressions === null) {
-        impressions = extractImpressions(analyticsLink.parentElement || analyticsLink);
-      }
-
-      results.posts.push({
-        post_url: postData.post_url,
-        text_content: postData.text_content,
-        author_handle: postData.author_handle,
-        metrics: { ...postData.metrics, impressions },
-        post_timestamp: postData.post_timestamp,
-        x_post_id: extractTweetId(postData.post_url)
-      });
-    } catch (err) {
-      console.error('[Analytics Scraper] Error processing post:', err);
-    }
-  }
-
-  // Navigate to replies tab
-  sendScrapeProgress('Navigating to your replies...');
-  window.location.href = `https://x.com/${userHandle}/with_replies`;
-  await sleep(3000);
-  await waitForElement('article[data-testid="tweet"]', 15000);
-
-  // Scrape replies
-  sendScrapeProgress('Scraping your replies...');
-  await scrollToLoadMore(8);
-
-  const replyArticles = document.querySelectorAll('article[data-testid="tweet"]');
-  for (const article of replyArticles) {
-    try {
-      const postData = extractPostData(article);
-      if (!postData?.post_url) continue;
-
-      // Only include actual replies
-      const socialContext = article.querySelector('[data-testid="socialContext"]');
-      const isReply = socialContext?.textContent?.includes('Replying to') || !!postData.context?.parent;
-      if (!isReply) continue;
-
-      let impressions = postData.metrics?.views || null;
-      const analyticsLink = article.querySelector('a[href*="/analytics"]');
-      if (analyticsLink && impressions === null) {
-        impressions = extractImpressions(analyticsLink.parentElement || analyticsLink);
-      }
-
-      results.replies.push({
-        post_url: postData.post_url,
-        text_content: postData.text_content,
-        author_handle: postData.author_handle,
-        metrics: { ...postData.metrics, impressions },
-        post_timestamp: postData.post_timestamp,
-        x_post_id: extractTweetId(postData.post_url),
-        parent_post: postData.context?.parent || null
-      });
-    } catch (err) {
-      console.error('[Analytics Scraper] Error processing reply:', err);
-    }
-  }
-
-  // Sort by impressions and take top 20
-  const sortByImpressions = (a, b) => {
-    const aImp = a.metrics?.impressions || a.metrics?.views || a.metrics?.likes || 0;
-    const bImp = b.metrics?.impressions || b.metrics?.views || b.metrics?.likes || 0;
-    return bImp - aImp;
-  };
-
-  results.posts.sort(sortByImpressions);
-  results.replies.sort(sortByImpressions);
-  results.posts = results.posts.slice(0, 20);
-  results.replies = results.replies.slice(0, 20);
-
-  return results;
-}
-
-/**
- * Fetch parent post details for a reply
- */
-async function fetchParentPost(replyUrl) {
-  try {
-    // Navigate to the reply to see the thread context
-    const response = await fetch(replyUrl);
-    const html = await response.text();
-
-    // Parse the HTML to extract parent tweet info
-    // This is a simplified approach - in practice, you might need
-    // to navigate to the page and scrape the DOM
-    const parentMatch = html.match(/Replying to @(\w+)/);
-    if (parentMatch) {
-      return { author: parentMatch[1] };
-    }
-  } catch (err) {
-    console.error('[Analytics Scraper] Failed to fetch parent post:', err);
-  }
-  return null;
-}
-
-/**
- * Main analytics sync function
- * Called when the user initiates sync from the popup
- */
-async function runAnalyticsSync() {
-  if (!isExtensionContextValid()) {
-    console.error('[Analytics Scraper] Extension context invalid');
-    return;
-  }
-
-  try {
-    sendScrapeProgress('Starting analytics sync...');
-
-    let results;
-
-    if (isAnalyticsPage()) {
-      // If we're already on analytics page, scrape from here
-      results = await scrapeAnalyticsPosts();
-    } else {
-      // Otherwise, scrape from profile pages
-      results = await scrapeFromProfile();
-    }
-
-    sendScrapeProgress('Sending data to server...');
-
-    // Send to background script for API submission
-    const response = await chrome.runtime.sendMessage({
-      type: 'SYNC_ANALYTICS_DATA',
-      payload: results
-    });
-
-    if (response.success) {
-      chrome.runtime.sendMessage({
-        type: 'ANALYTICS_SCRAPE_COMPLETE',
-        success: true,
-        postsCount: results.posts.length,
-        repliesCount: results.replies.length
-      });
-    } else {
-      throw new Error(response.error || 'Failed to save analytics data');
-    }
-
-  } catch (error) {
-    console.error('[Analytics Scraper] Sync failed:', error);
-    chrome.runtime.sendMessage({
-      type: 'ANALYTICS_SCRAPE_COMPLETE',
-      success: false,
-      error: error.message
-    });
-  }
-}
-
-// Listen for analytics sync trigger from popup/background
-if (isExtensionContextValid()) {
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'START_ANALYTICS_SCRAPE') {
-      runAnalyticsSync();
-      sendResponse({ started: true });
-    }
-    return true;
-  });
-
-  // Auto-start scraping if we're on the analytics page and were opened for sync
-  if (isAnalyticsPage()) {
-    // Check if we were opened for analytics sync
-    chrome.storage.local.get(['pendingAnalyticsSync'], (result) => {
-      if (result.pendingAnalyticsSync) {
-        chrome.storage.local.remove(['pendingAnalyticsSync']);
-        // Wait for page to fully load
-        setTimeout(runAnalyticsSync, 3000);
-      }
-    });
-  }
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
+import type { PostAnalytics } from "@/types/analytics";
 
 type ActivityDay = {
   date: string; // YYYY-MM-DD
@@ -17,16 +18,10 @@ function safeDate(v: unknown): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function isReplyText(text: string): boolean {
-  return text.trim().startsWith("@");
-}
-
 // GET /api/activity/consistency
 // Returns daily post/reply activity based on:
-// - posts actually posted through the app (captured_posts backfill)
+// - user_analytics.posts (synced via X API / CSV upload)
 // - replies actually sent through the chrome extension (extension_replies)
-//
-// Scheduled posts are NOT counted until they are posted.
 export async function GET() {
   try {
     const supabase = await createAuthClient();
@@ -47,25 +42,29 @@ export async function GET() {
     const since = new Date(today);
     since.setDate(since.getDate() - 90);
 
-    // 1) captured_posts: count posts that were actually posted through the app
-    // (publish worker backfills captured_posts only after success)
-    const { data: posted, error: postedErr } = await supabase
-      .from("captured_posts")
-      .select("post_timestamp, captured_at, text_content")
+    // 1) user_analytics: X API-synced post data
+    const { data: analyticsRow } = await supabase
+      .from("user_analytics")
+      .select("posts")
       .eq("user_id", user.id)
-      .eq("is_own_post", true);
+      .order("uploaded_at", { ascending: false })
+      .limit(1)
+      .single();
 
-    if (postedErr) throw postedErr;
+    const posts: PostAnalytics[] =
+      analyticsRow?.posts && Array.isArray(analyticsRow.posts)
+        ? (analyticsRow.posts as PostAnalytics[])
+        : [];
 
-    for (const row of posted || []) {
-      const dt = safeDate((row as any).post_timestamp) || safeDate((row as any).captured_at);
-      if (!dt) continue;
-      if (dt < since) continue;
+    for (const post of posts) {
+      const dt = safeDate(post.date);
+      if (!dt || dt < since) continue;
       const key = dateKey(dt);
       if (!map[key]) map[key] = { posts: 0, replies: 0 };
 
-      const text = String((row as any).text_content || "");
-      if (!isReplyText(text)) {
+      if (post.is_reply) {
+        map[key].replies += 1;
+      } else {
         map[key].posts += 1;
       }
     }
@@ -80,8 +79,7 @@ export async function GET() {
     if (!extErr) {
       for (const row of extReplies || []) {
         const dt = safeDate((row as any).sent_at);
-        if (!dt) continue;
-        if (dt < since) continue;
+        if (!dt || dt < since) continue;
         const key = dateKey(dt);
         if (!map[key]) map[key] = { posts: 0, replies: 0 };
         map[key].replies += 1;

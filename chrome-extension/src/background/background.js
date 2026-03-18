@@ -197,30 +197,6 @@ async function refreshAccessToken() {
   }
 }
 
-// Save a post to the API
-async function savePost(postData) {
-  try {
-    const response = await apiRequest('/api/capture', {
-      method: 'POST',
-      body: JSON.stringify(postData),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      return { success: true, data };
-    } else if (response.status === 409) {
-      // Duplicate post
-      return { success: false, error: 'DUPLICATE' };
-    } else {
-      return { success: false, error: data.error || 'Failed to save' };
-    }
-  } catch (error) {
-    console.error('Save post failed:', error);
-    return { success: false, error: error.message };
-  }
-}
-
 // Log a reply the user actually sent via extension
 async function logReplySent(payload) {
   try {
@@ -297,38 +273,8 @@ async function saveInspirationPost(postData) {
   }
 }
 
-// Sync analytics data (top posts and replies by impressions)
-async function syncAnalyticsData(analyticsData) {
-  try {
-    const response = await apiRequest('/api/x/analytics-sync', {
-      method: 'POST',
-      body: JSON.stringify(analyticsData),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      return { success: true, data };
-    } else {
-      return { success: false, error: data.error || 'Failed to sync analytics data' };
-    }
-  } catch (error) {
-    console.error('Sync analytics data failed:', error);
-    return { success: false, error: error.message };
-  }
-}
-
 // Message handler
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'SAVE_POST') {
-    savePost(message.payload)
-      .then(sendResponse)
-      .catch((error) => {
-        sendResponse({ success: false, error: error.message });
-      });
-    return true; // Keep channel open for async response
-  }
-
   if (message.type === 'GENERATE_REPLY') {
     generateReply(message.payload)
       .then(sendResponse)
@@ -340,15 +286,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'SAVE_NICHE_POST') {
     saveInspirationPost(message.payload)
-      .then(sendResponse)
-      .catch((error) => {
-        sendResponse({ success: false, error: error.message });
-      });
-    return true;
-  }
-
-  if (message.type === 'SYNC_ANALYTICS_DATA') {
-    syncAnalyticsData(message.payload)
       .then(sendResponse)
       .catch((error) => {
         sendResponse({ success: false, error: error.message });
@@ -413,8 +350,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'LOGOUT') {
     clearTokens()
       .then(() => {
-        // Clear saved posts cache
-        chrome.storage.local.remove(['savedPostUrls']);
         sendResponse({ success: true });
       })
       .catch((error) => {
