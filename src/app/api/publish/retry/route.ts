@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
-import { getPublishQueue } from "@/lib/queue/publish";
 
 // POST /api/publish/retry - retry a failed scheduled post
 export async function POST(request: NextRequest) {
@@ -32,21 +31,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only failed posts can be retried" }, { status: 400 });
     }
 
-    const queue = getPublishQueue();
-    const job = await queue.add("publish", { scheduledPostId: id, userId: user.id }, { delay: 0 });
-
+    // Reset to scheduled — the cron job will pick it up on next run
     await supabase
       .from("scheduled_posts")
       .update({
         status: "scheduled",
         error: null,
-        job_id: String(job.id),
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
       .eq("user_id", user.id);
 
-    return NextResponse.json({ success: true, jobId: String(job.id) });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to retry scheduled post:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
-import { getPublishQueue } from "@/lib/queue/publish";
 
 type ContentType = "X_POST" | "X_THREAD";
 
@@ -35,10 +34,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid scheduledFor" }, { status: 400 });
     }
 
-    const now = Date.now();
-    const delayMs = Math.max(0, scheduledFor.getTime() - now);
-
-    // Insert scheduled post
+    // Insert scheduled post — the cron job will pick it up when scheduled_for arrives
     const { data: row, error: insertError } = await supabase
       .from("scheduled_posts")
       .insert({
@@ -53,21 +49,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) throw insertError;
-
-    // Enqueue publish job
-    const queue = getPublishQueue();
-    const job = await queue.add(
-      "publish",
-      { scheduledPostId: row.id, userId: user.id },
-      { delay: delayMs }
-    );
-
-    // Track job id so we can cancel/retry cleanly
-    await supabase
-      .from("scheduled_posts")
-      .update({ job_id: String(job.id), updated_at: new Date().toISOString() })
-      .eq("id", row.id)
-      .eq("user_id", user.id);
 
     // Mark linked draft as SCHEDULED (best-effort)
     if (draftId) {
@@ -86,7 +67,6 @@ export async function POST(request: NextRequest) {
       success: true,
       id: row.id,
       scheduledFor: row.scheduled_for,
-      jobId: String(job.id),
     });
   } catch (error) {
     console.error("Failed to schedule publish:", error);
