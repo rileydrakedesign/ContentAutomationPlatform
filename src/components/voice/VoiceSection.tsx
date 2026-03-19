@@ -19,8 +19,10 @@ import {
   Quote,
   StickyNote,
   Cpu,
+  Brain,
 } from "lucide-react";
 import { VoiceEditorView } from "./editor/VoiceEditorView";
+import { NicheProfileTab } from "./NicheProfileTab";
 
 // AI Model Icons
 const OpenAIIcon = () => (
@@ -41,7 +43,7 @@ const GrokIcon = () => (
   </svg>
 );
 
-type ViewMode = "settings" | "editor";
+type ViewMode = "settings" | "editor" | "niche";
 
 // Tag Input Component
 function TagInput({
@@ -364,12 +366,31 @@ export function VoiceSection() {
             <MessageCircle className="w-4 h-4" />
             AI Editor
           </button>
+          <button
+            onClick={() => setViewMode("niche")}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
+              ${viewMode === "niche"
+                ? "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)]"
+                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+              }
+            `}
+          >
+            <Brain className="w-4 h-4" />
+            Niche
+          </button>
         </div>
       </div>
 
       {/* Conditional Content */}
       {viewMode === "editor" ? (
         <VoiceEditorView settings={s} voiceType={voiceType} onSettingsUpdate={updateSettings} />
+      ) : viewMode === "niche" ? (
+        <NicheProfileTab
+          voiceType={voiceType}
+          useNicheContext={s.use_niche_context ?? true}
+          onToggle={(enabled) => updateSettings({ use_niche_context: enabled })}
+        />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Left Column - 3/5 width */}

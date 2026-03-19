@@ -51,6 +51,8 @@ export interface UserVoiceSettings {
   special_notes: string | null;
   // AI model selection
   ai_model: AIModelProvider;
+  // Niche memory
+  use_niche_context: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -81,6 +83,8 @@ export const DEFAULT_VOICE_SETTINGS: Omit<UserVoiceSettings, 'id' | 'user_id' | 
   special_notes: null,
   // AI model default (OpenAI for backward compatibility)
   ai_model: 'openai',
+  // Niche memory
+  use_niche_context: true,
 };
 
 export type VoiceExampleSource = 'auto' | 'pinned';
@@ -200,6 +204,8 @@ export interface UpdateVoiceSettingsRequest {
   special_notes?: string | null;
   // AI model selection
   ai_model?: AIModelProvider;
+  // Niche memory
+  use_niche_context?: boolean;
 }
 
 export interface PinExampleRequest {
@@ -233,6 +239,7 @@ export interface AddKeywordRequest {
 export interface TokenBreakdown {
   base_prompt_tokens: number;
   controls_tokens: number;
+  niche_tokens: number;
   voice_examples_tokens: number;
   inspiration_tokens: number;
   feedback_tokens: number;
