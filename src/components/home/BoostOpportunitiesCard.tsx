@@ -49,7 +49,6 @@ export function BoostOpportunitiesCard({ days = 7, limit = 3 }: { days?: number;
     let cancelled = false;
     async function load() {
       try {
-        setLoading(true);
         const res = await fetch(`/api/analytics/boost-opportunities?days=${days}&limit=${limit}`);
         const json = await res.json();
         if (!cancelled) setItems(Array.isArray(json.data) ? json.data : []);
