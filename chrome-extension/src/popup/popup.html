@@ -3,129 +3,206 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Content Pipeline</title>
+  <title>Agents For X</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Content Pipeline</h1>
+      <div class="header-brand">
+        <svg class="header-logo" viewBox="0 0 32 32" width="28" height="28" fill="none">
+          <circle cx="16" cy="16" r="14" fill="#6366F1"/>
+          <path d="M10 10L16 16M16 16L22 22M16 16L22 10M16 16L10 22" stroke="#F97316" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <span class="header-title">Agents For X</span>
+      </div>
+      <div class="header-actions">
+        <span id="header-status-dot" class="header-status-dot hidden"></span>
+        <button id="header-gear-btn" class="header-gear-btn hidden" title="Settings">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
     </header>
 
     <!-- Loading state -->
     <div id="loading" class="section">
-      <p class="loading-text">Loading...</p>
+      <div class="loading-spinner">
+        <svg class="spin" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#6366F1" stroke-width="2">
+          <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"/>
+        </svg>
+        <p class="loading-text">Loading...</p>
+      </div>
     </div>
 
     <!-- Login form -->
     <div id="login-section" class="section hidden">
-      <p class="description">Log in to save X posts to your Content Pipeline.</p>
+      <div class="card">
+        <p class="description">Sign in to save posts, generate AI replies, and score opportunities on X.</p>
 
-      <form id="login-form">
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" required placeholder="you@example.com">
-        </div>
+        <form id="login-form">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" required placeholder="you@example.com">
+          </div>
 
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" required placeholder="Your password">
-        </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" required placeholder="Your password">
+          </div>
 
-        <div id="login-error" class="error hidden"></div>
+          <div id="login-error" class="error hidden"></div>
 
-        <button type="submit" id="login-btn" class="btn btn-primary">Log in</button>
-      </form>
-
-      <div class="settings-toggle">
-        <button id="show-settings-btn" class="btn-link">Settings</button>
+          <button type="submit" id="login-btn" class="btn btn-primary">Sign in</button>
+        </form>
       </div>
     </div>
 
     <!-- Logged in state -->
     <div id="logged-in-section" class="section hidden">
-      <div class="status">
-        <span class="status-dot"></span>
-        <span id="user-email">Connected</span>
+      <!-- x.com detection banner -->
+      <div id="xcom-banner" class="xcom-banner">
+        <span id="xcom-banner-text"></span>
       </div>
 
-      <p class="description">
-        Click the save button on any X post to add it to your inbox.
-      </p>
+      <!-- Feature cards -->
+      <div class="feature-cards">
+        <div class="feature-card">
+          <div class="feature-card-left">
+            <div class="feature-icon feature-icon-inspiration">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18h6"/><path d="M10 22h4"/>
+                <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
+              </svg>
+            </div>
+            <div class="feature-info">
+              <span class="feature-name">Save Inspiration</span>
+              <span class="feature-desc">Bookmark posts to learn from</span>
+            </div>
+          </div>
+          <span class="feature-stat" id="stat-inspired">–</span>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-card-left">
+            <div class="feature-icon feature-icon-replies">
+              <span style="font-size: 18px; line-height: 1;">🤖</span>
+            </div>
+            <div class="feature-info">
+              <span class="feature-name">AI Replies</span>
+              <span class="feature-desc">Generate context-aware replies</span>
+            </div>
+          </div>
+          <span class="feature-stat" id="stat-replies">–</span>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-card-left">
+            <div class="feature-icon feature-icon-scoring">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+            </div>
+            <div class="feature-info">
+              <span class="feature-name">Opportunity Score</span>
+              <span class="feature-desc">Find high-value reply targets</span>
+            </div>
+          </div>
+          <span class="feature-stat" id="stat-scored">–</span>
+        </div>
+      </div>
 
       <div class="actions">
-        <a href="#" id="open-dashboard" class="btn btn-secondary">Open Dashboard</a>
-        <button id="show-settings-logged-in-btn" class="btn btn-secondary">Settings</button>
+        <a href="#" id="open-dashboard" class="btn btn-primary">Open Dashboard</a>
       </div>
       <div class="actions" style="margin-top: 8px;">
-        <button id="logout-btn" class="btn btn-ghost" style="width: 100%;">Log out</button>
+        <button id="logout-btn" class="btn btn-ghost" style="width: 100%;">Sign out</button>
       </div>
-
     </div>
 
     <!-- Settings -->
     <div id="settings-section" class="section hidden">
-      <h2>Settings</h2>
+      <div class="card">
+        <h2>Settings</h2>
 
-      <form id="settings-form">
-        <div class="form-group">
-          <label for="api-url">Dashboard URL</label>
-          <input type="url" id="api-url" required placeholder="https://app.agentsforx.com">
-          <small>The URL where your Content Pipeline is running</small>
-        </div>
+        <form id="settings-form">
+          <h3>Opportunity Scoring</h3>
 
-        <div class="settings-divider"></div>
-        <h3>Opportunity Scoring</h3>
-
-        <div class="form-group checkbox-group">
-          <label class="checkbox-label">
-            <input type="checkbox" id="opp-enabled" checked>
-            <span>Enable opportunity scoring</span>
-          </label>
-        </div>
-
-        <div class="form-group checkbox-group">
-          <label class="checkbox-label">
-            <input type="checkbox" id="opp-show-explanation">
-            <span>Show score explanations</span>
-          </label>
-        </div>
-
-        <div class="form-group checkbox-group">
-          <label class="checkbox-label">
-            <input type="checkbox" id="opp-use-proxy" checked>
-            <span>Score posts without views (uses engagement)</span>
-          </label>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group half">
-            <label for="opp-green-threshold">Green threshold</label>
-            <input type="number" id="opp-green-threshold" value="75" min="0" max="100">
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="opp-enabled" checked>
+              <span>Enable opportunity scoring</span>
+            </label>
           </div>
-          <div class="form-group half">
-            <label for="opp-yellow-threshold">Yellow threshold</label>
-            <input type="number" id="opp-yellow-threshold" value="60" min="0" max="100">
-          </div>
-        </div>
 
-        <div class="form-row">
-          <div class="form-group half">
-            <label for="opp-max-replies">Max replies</label>
-            <input type="number" id="opp-max-replies" value="200" min="0">
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="opp-show-explanation">
+              <span>Show score explanations</span>
+            </label>
           </div>
-          <div class="form-group half">
-            <label for="opp-max-age">Max age (hours)</label>
-            <input type="number" id="opp-max-age" value="24" min="1">
-          </div>
-        </div>
 
-        <div class="button-group">
-          <button type="submit" class="btn btn-primary">Save</button>
-          <button type="button" id="cancel-settings-btn" class="btn btn-ghost">Cancel</button>
-        </div>
-      </form>
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="opp-use-proxy" checked>
+              <span>Score posts without views (uses engagement)</span>
+            </label>
+          </div>
+
+          <!-- Collapsible Advanced section -->
+          <button type="button" id="advanced-toggle" class="advanced-toggle">
+            <span class="advanced-arrow" id="advanced-arrow">▸</span>
+            <span>Advanced</span>
+          </button>
+
+          <div id="advanced-section" class="advanced-section hidden">
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="opp-green-threshold">Green threshold</label>
+                <input type="number" id="opp-green-threshold" value="75" min="0" max="100">
+              </div>
+              <div class="form-group half">
+                <label for="opp-yellow-threshold">Yellow threshold</label>
+                <input type="number" id="opp-yellow-threshold" value="60" min="0" max="100">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="opp-max-replies">Max replies</label>
+                <input type="number" id="opp-max-replies" value="200" min="0">
+              </div>
+              <div class="form-group half">
+                <label for="opp-max-age">Max age (hours)</label>
+                <input type="number" id="opp-max-age" value="24" min="1">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="api-url">Dashboard URL</label>
+              <input type="url" id="api-url" required placeholder="https://app.agentsforx.com">
+              <small>The URL where your dashboard is running</small>
+            </div>
+          </div>
+
+          <div class="button-group">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" id="cancel-settings-btn" class="btn btn-ghost">Cancel</button>
+          </div>
+        </form>
+      </div>
     </div>
+
+    <footer>
+      <span class="footer-version">v1.1.0</span>
+      <span class="footer-sep">&middot;</span>
+      <a href="https://agentsforx.com/privacy" class="footer-link" id="footer-privacy">Privacy</a>
+      <span class="footer-sep">&middot;</span>
+      <a href="https://agentsforx.com/terms" class="footer-link" id="footer-terms">Terms</a>
+    </footer>
   </div>
 
   <script src="popup.js"></script>

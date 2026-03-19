@@ -1,7 +1,4 @@
-// Content Pipeline - Popup Script
-
-const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Will be configured via settings
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Will be configured via settings
+// Agents For X - Popup Script
 
 // DOM elements
 const loadingSection = document.getElementById('loading');
@@ -15,15 +12,27 @@ const loginBtn = document.getElementById('login-btn');
 const emailInput = document.getElementById('email');
 const passwordInput = document.getElementById('password');
 
-const userEmailSpan = document.getElementById('user-email');
 const openDashboardBtn = document.getElementById('open-dashboard');
 const logoutBtn = document.getElementById('logout-btn');
 
-const showSettingsBtn = document.getElementById('show-settings-btn');
-const showSettingsLoggedInBtn = document.getElementById('show-settings-logged-in-btn');
+const headerStatusDot = document.getElementById('header-status-dot');
+const headerGearBtn = document.getElementById('header-gear-btn');
+
 const settingsForm = document.getElementById('settings-form');
 const apiUrlInput = document.getElementById('api-url');
 const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
+
+const advancedToggle = document.getElementById('advanced-toggle');
+const advancedArrow = document.getElementById('advanced-arrow');
+const advancedSection = document.getElementById('advanced-section');
+
+const xcomBanner = document.getElementById('xcom-banner');
+const xcomBannerText = document.getElementById('xcom-banner-text');
+
+// Stats elements
+const statInspired = document.getElementById('stat-inspired');
+const statReplies = document.getElementById('stat-replies');
+const statScored = document.getElementById('stat-scored');
 
 // Track where settings was opened from so cancel returns to the right view
 let settingsOpenedFrom = 'login';
@@ -72,6 +81,8 @@ async function init() {
 
     if (authResponse.loggedIn) {
       showLoggedIn();
+      await detectXcomTab();
+      await loadStats();
     } else {
       showLogin();
     }
@@ -106,17 +117,85 @@ function getOppSettingsFromForm() {
   };
 }
 
+// Detect if the active tab is on x.com
+async function detectXcomTab() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab?.url || '';
+    const isOnX = url.includes('x.com') || url.includes('twitter.com');
+
+    if (isOnX) {
+      xcomBanner.className = 'xcom-banner active';
+      xcomBannerText.textContent = '⚡ Active on x.com';
+    } else {
+      xcomBanner.className = 'xcom-banner inactive';
+      xcomBannerText.innerHTML = '';
+      const link = document.createElement('a');
+      link.textContent = 'Navigate to x.com →';
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: 'https://x.com' });
+      });
+      xcomBannerText.appendChild(link);
+    }
+  } catch {
+    xcomBanner.className = 'xcom-banner inactive';
+    xcomBannerText.innerHTML = '';
+    const link = document.createElement('a');
+    link.textContent = 'Navigate to x.com →';
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: 'https://x.com' });
+    });
+    xcomBannerText.appendChild(link);
+  }
+}
+
+// Load stats from storage and content script
+async function loadStats() {
+  try {
+    // Load persistent stats from storage
+    const result = await chrome.storage.local.get(['stats']);
+    const stats = result.stats || {};
+    statInspired.textContent = stats.postsInspired || 0;
+    statReplies.textContent = stats.repliesGenerated || 0;
+
+    // Get session-based postsScored from the active tab's content script
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const url = tab?.url || '';
+      const isOnX = url.includes('x.com') || url.includes('twitter.com');
+
+      if (isOnX && tab?.id) {
+        const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_STATS' });
+        statScored.textContent = response?.postsScored || 0;
+      } else {
+        statScored.textContent = 0;
+      }
+    } catch {
+      statScored.textContent = 0;
+    }
+  } catch {
+    statInspired.textContent = 0;
+    statReplies.textContent = 0;
+    statScored.textContent = 0;
+  }
+}
+
 function showLogin() {
   loginSection.classList.remove('hidden');
   loggedInSection.classList.add('hidden');
   settingsSection.classList.add('hidden');
+  headerStatusDot.classList.add('hidden');
+  headerGearBtn.classList.add('hidden');
 }
 
-function showLoggedIn(email = 'Connected') {
+function showLoggedIn() {
   loginSection.classList.add('hidden');
   loggedInSection.classList.remove('hidden');
   settingsSection.classList.add('hidden');
-  userEmailSpan.textContent = email;
+  headerStatusDot.classList.remove('hidden');
+  headerGearBtn.classList.remove('hidden');
 }
 
 function showSettings() {
@@ -180,15 +259,17 @@ loginForm.addEventListener('submit', async (e) => {
   }
 
   loginBtn.disabled = true;
-  loginBtn.textContent = 'Logging in...';
+  loginBtn.textContent = 'Signing in...';
 
   const result = await login(email, password);
 
   loginBtn.disabled = false;
-  loginBtn.textContent = 'Log in';
+  loginBtn.textContent = 'Sign in';
 
   if (result.success) {
-    showLoggedIn(result.email || email);
+    showLoggedIn();
+    await detectXcomTab();
+    await loadStats();
   } else {
     showError(result.error || 'Login failed');
   }
@@ -206,19 +287,30 @@ openDashboardBtn.addEventListener('click', (e) => {
   chrome.tabs.create({ url: currentApiUrl });
 });
 
-showSettingsBtn.addEventListener('click', () => {
-  settingsOpenedFrom = 'login';
+// Gear icon opens settings
+headerGearBtn.addEventListener('click', () => {
+  settingsOpenedFrom = 'loggedIn';
   showSettings();
 });
 
-showSettingsLoggedInBtn.addEventListener('click', () => {
-  settingsOpenedFrom = 'loggedIn';
-  showSettings();
+// Advanced toggle
+advancedToggle.addEventListener('click', () => {
+  const isHidden = advancedSection.classList.contains('hidden');
+  if (isHidden) {
+    advancedSection.classList.remove('hidden');
+    advancedArrow.classList.add('expanded');
+  } else {
+    advancedSection.classList.add('hidden');
+    advancedArrow.classList.remove('expanded');
+  }
 });
 
 cancelSettingsBtn.addEventListener('click', () => {
   apiUrlInput.value = currentApiUrl;
   loadOppSettingsToForm(); // Reset opportunity settings form
+  // Collapse advanced section
+  advancedSection.classList.add('hidden');
+  advancedArrow.classList.remove('expanded');
   if (settingsOpenedFrom === 'loggedIn') {
     showLoggedIn();
   } else {
@@ -246,11 +338,25 @@ settingsForm.addEventListener('submit', async (e) => {
   currentOppSettings = newOppSettings;
 
   currentApiUrl = newApiUrl;
+  // Collapse advanced section
+  advancedSection.classList.add('hidden');
+  advancedArrow.classList.remove('expanded');
   if (settingsOpenedFrom === 'loggedIn') {
     showLoggedIn();
   } else {
     showLogin();
   }
+});
+
+// Footer links — open in new tab
+document.getElementById('footer-privacy').addEventListener('click', (e) => {
+  e.preventDefault();
+  chrome.tabs.create({ url: 'https://agentsforx.com/privacy' });
+});
+
+document.getElementById('footer-terms').addEventListener('click', (e) => {
+  e.preventDefault();
+  chrome.tabs.create({ url: 'https://agentsforx.com/terms' });
 });
 
 // Initialize on load

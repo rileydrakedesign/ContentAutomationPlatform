@@ -242,11 +242,22 @@ function showRefreshNotice() {
 
   const notice = document.createElement('div');
   notice.className = 'cp-refresh-notice';
-  notice.innerHTML = `
-    <span>Content Pipeline was updated. Please refresh the page.</span>
-    <button onclick="location.reload()">Refresh</button>
-    <button class="cp-dismiss" onclick="this.parentElement.remove()">✕</button>
-  `;
+
+  const messageSpan = document.createElement('span');
+  messageSpan.textContent = 'Agents For X was updated. Please refresh the page.';
+  notice.appendChild(messageSpan);
+
+  const refreshBtn = document.createElement('button');
+  refreshBtn.textContent = 'Refresh';
+  refreshBtn.addEventListener('click', () => location.reload());
+  notice.appendChild(refreshBtn);
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.className = 'cp-dismiss';
+  dismissBtn.textContent = '\u2715';
+  dismissBtn.addEventListener('click', () => notice.remove());
+  notice.appendChild(dismissBtn);
+
   document.body.appendChild(notice);
 }
 
@@ -1122,28 +1133,48 @@ function showReplyPicker(picker, replyButton, replies, articleElement) {
   // Track feedback state per reply
   const feedbackState = {};
 
+  // SVG markup for feedback icons (static, no user data)
+  const thumbsUpSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>';
+  const thumbsDownSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>';
+
   // Render current option
   function renderOption() {
     const reply = replies[currentIndex];
     const fb = feedbackState[currentIndex] || null;
-    optionsContainer.innerHTML = `
-      <div class="cp-reply-option">
-        <span class="cp-reply-approach">${reply.approach}</span>
-        <p class="cp-reply-text">${reply.text}</p>
-        <div class="cp-feedback-row">
-          <button class="cp-feedback-btn cp-feedback-like${fb === 'like' ? ' cp-feedback-active' : ''}" title="Like this generation">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
-          </button>
-          <button class="cp-feedback-btn cp-feedback-dislike${fb === 'dislike' ? ' cp-feedback-active' : ''}" title="Dislike this generation">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>
-          </button>
-        </div>
-      </div>
-    `;
 
-    // Attach feedback click handlers
-    const likeBtn = optionsContainer.querySelector('.cp-feedback-like');
-    const dislikeBtn = optionsContainer.querySelector('.cp-feedback-dislike');
+    // Build DOM safely — reply.approach and reply.text come from API
+    optionsContainer.textContent = '';
+
+    const optionDiv = document.createElement('div');
+    optionDiv.className = 'cp-reply-option';
+
+    const approachSpan = document.createElement('span');
+    approachSpan.className = 'cp-reply-approach';
+    approachSpan.textContent = reply.approach;
+    optionDiv.appendChild(approachSpan);
+
+    const textP = document.createElement('p');
+    textP.className = 'cp-reply-text';
+    textP.textContent = reply.text;
+    optionDiv.appendChild(textP);
+
+    const feedbackRow = document.createElement('div');
+    feedbackRow.className = 'cp-feedback-row';
+
+    const likeBtn = document.createElement('button');
+    likeBtn.className = 'cp-feedback-btn cp-feedback-like' + (fb === 'like' ? ' cp-feedback-active' : '');
+    likeBtn.title = 'Like this generation';
+    likeBtn.innerHTML = thumbsUpSVG;
+    feedbackRow.appendChild(likeBtn);
+
+    const dislikeBtn = document.createElement('button');
+    dislikeBtn.className = 'cp-feedback-btn cp-feedback-dislike' + (fb === 'dislike' ? ' cp-feedback-active' : '');
+    dislikeBtn.title = 'Dislike this generation';
+    dislikeBtn.innerHTML = thumbsDownSVG;
+    feedbackRow.appendChild(dislikeBtn);
+
+    optionDiv.appendChild(feedbackRow);
+    optionsContainer.appendChild(optionDiv);
 
     likeBtn.onclick = (e) => {
       e.preventDefault();
@@ -1222,20 +1253,34 @@ function showReplyPicker(picker, replyButton, replies, articleElement) {
     hideReplyPicker(picker);
   };
 
-  // Position and show
-  const buttonRect = replyButton.getBoundingClientRect();
+  // Position picker anchored to the reply button, tracking on scroll
   picker.style.position = 'fixed';
-  picker.style.top = `${buttonRect.bottom + 10}px`;
-  picker.style.left = `${Math.max(10, buttonRect.left - 150)}px`;
+  picker.style.zIndex = '10000';
+
+  function updatePickerPosition() {
+    const rect = replyButton.getBoundingClientRect();
+    picker.style.top = `${rect.bottom + 10}px`;
+    picker.style.left = `${Math.max(10, rect.left + rect.width / 2 - 150)}px`;
+  }
+  updatePickerPosition();
 
   renderOption();
   picker.classList.add('cp-visible');
+
+  // Track button on scroll
+  const scrollHandler = () => {
+    if (picker.classList.contains('cp-visible')) {
+      updatePickerPosition();
+    }
+  };
+  window.addEventListener('scroll', scrollHandler, { passive: true });
 
   // Close when clicking outside
   const closeHandler = (e) => {
     if (!picker.contains(e.target) && !replyButton.contains(e.target)) {
       hideReplyPicker(picker);
       document.removeEventListener('click', closeHandler);
+      window.removeEventListener('scroll', scrollHandler);
     }
   };
   setTimeout(() => document.addEventListener('click', closeHandler), 0);
@@ -1328,17 +1373,41 @@ async function handleReplyClick(event, replyButton, replyPicker, toneDropdown, t
 }
 
 // Show tone dropdown menu
+// Track tone dropdown position on scroll
+let _toneScrollHandler = null;
+
 function showToneDropdown(dropdown, replyButton) {
-  const buttonRect = replyButton.getBoundingClientRect();
   dropdown.style.position = 'fixed';
-  dropdown.style.top = `${buttonRect.bottom + 4}px`;
-  dropdown.style.left = `${Math.max(10, buttonRect.left - 50)}px`;
+  dropdown.style.zIndex = '10000';
+
+  function updatePos() {
+    const rect = replyButton.getBoundingClientRect();
+    dropdown.style.top = `${rect.bottom + 4}px`;
+    dropdown.style.left = `${Math.max(10, rect.left + rect.width / 2 - 60)}px`;
+  }
+  updatePos();
+
+  // Clean up previous scroll listener if any
+  if (_toneScrollHandler) {
+    window.removeEventListener('scroll', _toneScrollHandler);
+  }
+  _toneScrollHandler = () => {
+    if (dropdown.classList.contains('cp-visible')) {
+      updatePos();
+    }
+  };
+  window.addEventListener('scroll', _toneScrollHandler, { passive: true });
+
   dropdown.classList.add('cp-visible');
 }
 
 // Hide tone dropdown menu
 function hideToneDropdown(dropdown) {
   dropdown.classList.remove('cp-visible');
+  if (_toneScrollHandler) {
+    window.removeEventListener('scroll', _toneScrollHandler);
+    _toneScrollHandler = null;
+  }
 }
 
 // Wait for composer and inject reply text
@@ -1578,7 +1647,7 @@ function injectButtons(articleElement) {
     actionBar.appendChild(replyButton);
   }
 
-  // Append reply picker and tone dropdown to body (for proper positioning)
+  // Append to body for z-index/overflow reasons; position is updated dynamically
   document.body.appendChild(replyPicker);
   document.body.appendChild(toneDropdown);
 
@@ -1671,6 +1740,19 @@ window.addEventListener('scroll', () => {
   clearTimeout(scrollTimeout);
   scrollTimeout = setTimeout(processVisiblePosts, 200);
 }, { passive: true });
+
+// ===========================================
+// GET_STATS MESSAGE HANDLER
+// ===========================================
+
+if (isExtensionContextValid()) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'GET_STATS') {
+      sendResponse({ postsScored: scoreCache.size });
+      return false;
+    }
+  });
+}
 
 // ===========================================
 // SETTINGS LISTENER

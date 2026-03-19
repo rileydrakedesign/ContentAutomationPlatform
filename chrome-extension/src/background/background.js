@@ -277,7 +277,12 @@ async function saveInspirationPost(postData) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GENERATE_REPLY') {
     generateReply(message.payload)
-      .then(sendResponse)
+      .then(async (result) => {
+        if (result.success) {
+          await incrementStat('repliesGenerated');
+        }
+        sendResponse(result);
+      })
       .catch((error) => {
         sendResponse({ success: false, error: error.message });
       });
@@ -286,7 +291,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'SAVE_NICHE_POST') {
     saveInspirationPost(message.payload)
-      .then(sendResponse)
+      .then(async (result) => {
+        if (result.success) {
+          await incrementStat('postsInspired');
+        }
+        sendResponse(result);
+      })
       .catch((error) => {
         sendResponse({ success: false, error: error.message });
       });
@@ -378,6 +388,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 });
+
+// Increment a stat counter in chrome.storage.local
+async function incrementStat(key) {
+  const result = await chrome.storage.local.get(['stats']);
+  const stats = result.stats || {};
+  stats[key] = (stats[key] || 0) + 1;
+  await chrome.storage.local.set({ stats });
+}
 
 // Log when service worker starts
 console.log('Content Pipeline extension loaded');
