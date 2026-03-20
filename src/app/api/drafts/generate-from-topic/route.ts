@@ -131,8 +131,14 @@ export async function POST(request: NextRequest) {
       : "";
 
     const formatInstructions = draftType === "X_THREAD"
-      ? "Generate a thread of 3-5 connected tweets. Each tweet should be under 280 characters. Start with a hook that grabs attention."
-      : "Generate a single tweet under 280 characters. Make it punchy and engaging.";
+      ? "Generate a thread of 3-5 connected tweets. Each tweet should be under 280 characters. Start with a hook that grabs attention. Use line breaks within individual tweets for readability where appropriate."
+      : `Generate a single post for X. Make it punchy and engaging.
+Use formatting to improve readability when appropriate:
+- Use line breaks (\\n) to separate ideas and create visual breathing room
+- Use bullet points (•) or dashes (-) for lists
+- Use short paragraphs instead of walls of text
+- Preserve the natural structure of the content
+Keep the post concise but don't artificially limit to 280 characters — longer formatted posts are fine when the content warrants it.`;
 
     const inspirationInstructions = inspirationPost
       ? `Use this post as style and format inspiration (adapt the approach, don't copy):

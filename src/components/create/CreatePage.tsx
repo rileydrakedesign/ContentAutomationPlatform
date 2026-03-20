@@ -550,7 +550,7 @@ export function CreatePage() {
 
                         return (
                           <>
-                            <p className="text-sm text-[var(--color-text-secondary)] line-clamp-4 mb-4">
+                            <p className="text-sm text-[var(--color-text-secondary)] line-clamp-4 mb-4 whitespace-pre-wrap">
                               {draftType === "X_THREAD"
                                 ? (threadItems[0] || "")
                                 : draft.content.text || ""}
@@ -701,7 +701,7 @@ export function CreatePage() {
                       placeholder="What's on your mind?"
                       className="w-full min-h-[180px] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] transition-colors resize-y"
                     />
-                    <div className={`text-xs text-right ${composeText.length > 280 ? "text-[var(--color-warning-400)]" : "text-[var(--color-text-muted)]"}`}>
+                    <div className={`text-xs text-right ${composeText.length > 25000 ? "text-[var(--color-warning-400)]" : "text-[var(--color-text-muted)]"}`}>
                       {composeText.length.toLocaleString()} characters
                     </div>
                   </div>
