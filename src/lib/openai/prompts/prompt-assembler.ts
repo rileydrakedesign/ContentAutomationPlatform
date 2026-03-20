@@ -18,6 +18,7 @@ import {
   DEFAULT_VOICE_SETTINGS,
   VoiceType
 } from '@/types/voice';
+import { NicheProfile } from '@/types/niche';
 type InspirationForPrompt = {
   id: string;
   raw_content: string;
@@ -44,6 +45,7 @@ interface AssemblyContext {
   inspirations: InspirationForPrompt[];
   feedback?: FeedbackItem[];
   mode: VoiceType;
+  nicheProfile?: NicheProfile | null;
 }
 
 /**
@@ -335,10 +337,45 @@ function buildFeedbackSection(
 }
 
 /**
+ * Build niche context section (150-token budget).
+ * Only injected when the profile is sufficiently populated and the toggle is on.
+ */
+function buildNicheSection(
+  nicheProfile: NicheProfile | null | undefined,
+  useNicheContext: boolean
+): { section: string; tokensUsed: number } {
+  if (!useNicheContext || !nicheProfile) {
+    return { section: '', tokensUsed: 0 };
+  }
+  if (!nicheProfile.niche_summary || nicheProfile.content_pillars.length < 2) {
+    return { section: '', tokensUsed: 0 };
+  }
+
+  const topClusters = [...nicheProfile.topic_clusters]
+    .sort((a, b) => b.avg_engagement - a.avg_engagement)
+    .slice(0, 3);
+
+  const pillarsLine = `Top content pillars: ${nicheProfile.content_pillars.join(', ')}.`;
+  const clustersLine =
+    topClusters.length > 0
+      ? `Best-performing topics: ${topClusters
+          .map((c) => `${c.name} (${c.share_pct}% of posts)`)
+          .join(', ')}.`
+      : '';
+
+  const section = `## YOUR CONTENT NICHE
+
+${nicheProfile.niche_summary}
+${pillarsLine}${clustersLine ? `\n${clustersLine}` : ''}`;
+
+  return { section, tokensUsed: estimateTokens(section) };
+}
+
+/**
  * Assemble the complete prompt with token budgeting
  */
 export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
-  const { settings, examples, inspirations, feedback, mode } = context;
+  const { settings, examples, inspirations, feedback, mode, nicheProfile } = context;
 
   // Use defaults for missing settings
   const effectiveSettings = { ...DEFAULT_VOICE_SETTINGS, ...settings };
@@ -350,6 +387,12 @@ export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
   // Build controls section
   const controlsSection = buildControlsSection(effectiveSettings, mode);
   const controlsTokens = estimateTokens(controlsSection);
+
+  // Build niche context section (150-token budget, gated on toggle)
+  const nicheResult = buildNicheSection(
+    nicheProfile,
+    effectiveSettings.use_niche_context ?? true
+  );
 
   // Build special notes section
   const specialNotesSection = buildSpecialNotesSection(effectiveSettings);
@@ -371,10 +414,11 @@ export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
   // Build feedback section
   const feedbackResult = buildFeedbackSection(feedback || []);
 
-  // Assemble final prompt (insert controls and examples after base prompt)
+  // Assemble final prompt — niche context sits between controls and examples
   const sections = [
     basePrompt,
     controlsSection,
+    nicheResult.section,
     specialNotesSection,
     examplesResult.section,
     inspirationResult.section,
@@ -390,6 +434,7 @@ export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
     breakdown: {
       base_prompt_tokens: baseTokens,
       controls_tokens: controlsTokens,
+      niche_tokens: nicheResult.tokensUsed,
       voice_examples_tokens: examplesResult.tokensUsed,
       inspiration_tokens: inspirationResult.tokensUsed,
       feedback_tokens: feedbackResult.tokensUsed,
@@ -450,12 +495,20 @@ export async function getAssembledPromptForUser(
     .order('created_at', { ascending: false })
     .limit(10);
 
+  // Fetch niche profile (only if toggle is on in settings — still fetch to avoid extra round-trips)
+  const { data: nicheProfile } = await supabase
+    .from('user_niche_profile')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
   const assembled = assemblePrompt({
     settings: settings || {},
     examples: examples || [],
     inspirations: inspirations || [],
     feedback: (feedback as FeedbackItem[]) || [],
     mode: voiceType,
+    nicheProfile: nicheProfile || null,
   });
 
   return assembled.system_prompt;

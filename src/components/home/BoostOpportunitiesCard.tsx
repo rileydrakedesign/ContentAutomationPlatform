@@ -28,6 +28,19 @@ function snippet(text: string, max = 140) {
   return t.slice(0, max - 1) + "…";
 }
 
+function ScoreBadge({ score }: { score: number }) {
+  const pct = Math.round(score * 100);
+  const color =
+    pct >= 70 ? "text-emerald-300 bg-emerald-500/10" :
+    pct >= 45 ? "text-yellow-300 bg-yellow-500/10" :
+    "text-slate-400 bg-white/5";
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${color}`}>
+      {pct}
+    </span>
+  );
+}
+
 export function BoostOpportunitiesCard({ days = 7, limit = 3 }: { days?: number; limit?: number }) {
   const [items, setItems] = useState<BoostOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +49,6 @@ export function BoostOpportunitiesCard({ days = 7, limit = 3 }: { days?: number;
     let cancelled = false;
     async function load() {
       try {
-        setLoading(true);
         const res = await fetch(`/api/analytics/boost-opportunities?days=${days}&limit=${limit}`);
         const json = await res.json();
         if (!cancelled) setItems(Array.isArray(json.data) ? json.data : []);
@@ -75,24 +87,30 @@ export function BoostOpportunitiesCard({ days = 7, limit = 3 }: { days?: number;
         </div>
       ) : items.length === 0 ? (
         <p className="text-sm text-[var(--color-text-secondary)]">
-          No strong candidates yet. (Try raising volume or waiting for posts to accrue impressions.)
+          No strong candidates yet. Upload a CSV or sync your timeline to get recommendations.
         </p>
       ) : (
         <div className="space-y-3">
           {items.map((it) => (
             <div key={it.post_id} className="rounded-lg border border-white/10 bg-white/5 p-3">
               <p className="text-sm text-[var(--color-text-primary)] mb-1">{snippet(it.text)}</p>
-              <p className="text-xs text-[var(--color-text-secondary)] mb-2">
-                ER {formatEr(it.engagement_rate)} • {Math.round(it.impressions).toLocaleString()} impressions • {Math.round(it.age_hours)}h ago
+              <p className="text-xs text-[var(--color-text-secondary)] mb-1">
+                ER {formatEr(it.engagement_rate)} · {Math.round(it.impressions).toLocaleString()} impressions · {Math.round(it.age_hours)}h ago
               </p>
-              <a
-                href={it.post_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 text-xs font-medium text-emerald-300 hover:text-emerald-200"
-              >
-                Open post <ExternalLink className="w-3 h-3" />
-              </a>
+              {it.reasons[0] && (
+                <p className="text-xs text-[var(--color-text-secondary)] opacity-70 mb-2">{it.reasons[0]}</p>
+              )}
+              <div className="flex items-center justify-between">
+                <a
+                  href={it.post_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300 hover:text-emerald-200"
+                >
+                  Open post <ExternalLink className="w-3 h-3" />
+                </a>
+                <ScoreBadge score={it.score} />
+              </div>
             </div>
           ))}
         </div>

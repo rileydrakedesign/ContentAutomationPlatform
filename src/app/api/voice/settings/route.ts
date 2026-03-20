@@ -185,6 +185,10 @@ export async function PATCH(request: NextRequest) {
     if (body.special_notes !== undefined) {
       updateData.special_notes = body.special_notes;
     }
+    // Niche memory toggle
+    if (body.use_niche_context !== undefined) {
+      updateData.use_niche_context = Boolean(body.use_niche_context);
+    }
     // AI model selection
     if (body.ai_model !== undefined) {
       const validAIModels = ['openai', 'claude', 'grok'];
