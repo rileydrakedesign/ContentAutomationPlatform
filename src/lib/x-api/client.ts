@@ -100,21 +100,24 @@ export async function refreshAccessToken(
   const clientId = process.env.X_CLIENT_ID!;
   const clientSecret = process.env.X_CLIENT_SECRET!;
 
-  const body: Record<string, string> = {
-    grant_type: "refresh_token",
-    client_id: clientId,
-    refresh_token: refreshToken,
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
   };
+
+  // Confidential clients must use Basic auth header
   if (clientSecret) {
-    body.client_secret = clientSecret;
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+    headers.Authorization = `Basic ${basicAuth}`;
   }
 
   const response = await fetch(`${X_API_BASE}/2/oauth2/token`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams(body),
+    headers,
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: clientId,
+      refresh_token: refreshToken,
+    }),
   });
 
   if (!response.ok) {

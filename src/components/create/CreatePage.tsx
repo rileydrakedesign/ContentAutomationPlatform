@@ -23,6 +23,10 @@ import {
   Quote,
   ThumbsUp,
   ThumbsDown,
+  Edit3,
+  Plus,
+  Trash2,
+  Send,
 } from "lucide-react";
 
 type DraftType = "X_POST" | "X_THREAD";
@@ -45,7 +49,8 @@ interface GeneratedDraft {
 export function CreatePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const initialTab = searchParams.get("tab") === "drafts" ? "drafts" : "new";
+  const tabParam = searchParams.get("tab");
+  const initialTab = tabParam === "drafts" ? "drafts" : tabParam === "compose" ? "compose" : "new";
   const inspirationId = searchParams.get("inspiration");
 
   const [topic, setTopic] = useState("");
@@ -61,6 +66,13 @@ export function CreatePage() {
   const [inspirationPickerOpen, setInspirationPickerOpen] = useState(false);
   const [inspirationSearch, setInspirationSearch] = useState("");
   const [loadingInspirationList, setLoadingInspirationList] = useState(false);
+
+  // Compose (manual draft) state
+  const [composeType, setComposeType] = useState<DraftType>("X_POST");
+  const [composeText, setComposeText] = useState("");
+  const [composeThreadTweets, setComposeThreadTweets] = useState<string[]>([""]);
+  const [savingCompose, setSavingCompose] = useState(false);
+  const [composeError, setComposeError] = useState<string | null>(null);
 
   // Fetch available inspiration posts (for manual selection)
   useEffect(() => {
@@ -208,6 +220,48 @@ export function CreatePage() {
     }
   };
 
+  const handleSaveCompose = async () => {
+    const content =
+      composeType === "X_POST"
+        ? { text: composeText }
+        : { tweets: composeThreadTweets };
+
+    const isEmpty =
+      composeType === "X_POST"
+        ? !composeText.trim()
+        : composeThreadTweets.every((t) => !t.trim());
+
+    if (isEmpty) {
+      setComposeError("Write something before saving");
+      return;
+    }
+
+    setSavingCompose(true);
+    setComposeError(null);
+
+    try {
+      const res = await fetch("/api/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: composeType,
+          content,
+          metadata: { generation_type: "manual" },
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save draft");
+      }
+      const saved = await res.json();
+      router.push(`/drafts/${saved.id}`);
+    } catch (err) {
+      setComposeError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSavingCompose(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       <Tabs defaultValue={initialTab}>
@@ -224,7 +278,10 @@ export function CreatePage() {
             </div>
             <TabsList>
               <TabsTrigger value="new" icon={<PenSquare className="w-4 h-4" />}>
-                New Draft
+                AI Generate
+              </TabsTrigger>
+              <TabsTrigger value="compose" icon={<Edit3 className="w-4 h-4" />}>
+                Compose
               </TabsTrigger>
               <TabsTrigger value="drafts" icon={<FolderOpen className="w-4 h-4" />}>
                 All Drafts
@@ -550,6 +607,185 @@ export function CreatePage() {
               </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="compose">
+          <div className="max-w-2xl mx-auto space-y-6">
+            {/* Format Selection */}
+            <Card>
+              <CardContent>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-[var(--color-accent-400)]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                      Format
+                    </h3>
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      Choose your content format
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setComposeType("X_POST")}
+                    className={`
+                      relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer text-left
+                      ${composeType === "X_POST"
+                        ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10"
+                        : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
+                      }
+                    `}
+                  >
+                    {composeType === "X_POST" && (
+                      <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-[var(--color-primary-500)]" />
+                    )}
+                    <FileText className={`w-5 h-5 mb-2 ${composeType === "X_POST" ? "text-[var(--color-primary-400)]" : "text-[var(--color-text-secondary)]"}`} />
+                    <p className={`text-sm font-medium ${composeType === "X_POST" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
+                      Single Post
+                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                      One standalone post
+                    </p>
+                  </button>
+
+                  <button
+                    onClick={() => setComposeType("X_THREAD")}
+                    className={`
+                      relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer text-left
+                      ${composeType === "X_THREAD"
+                        ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10"
+                        : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
+                      }
+                    `}
+                  >
+                    {composeType === "X_THREAD" && (
+                      <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-[var(--color-primary-500)]" />
+                    )}
+                    <List className={`w-5 h-5 mb-2 ${composeType === "X_THREAD" ? "text-[var(--color-primary-400)]" : "text-[var(--color-text-secondary)]"}`} />
+                    <p className={`text-sm font-medium ${composeType === "X_THREAD" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
+                      Thread
+                    </p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                      Multiple connected posts
+                    </p>
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Compose Editor */}
+            <Card>
+              <CardContent>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
+                    <Edit3 className="w-4 h-4 text-[var(--color-primary-400)]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                      Write your post
+                    </h3>
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      Draft your content manually — no AI involved
+                    </p>
+                  </div>
+                </div>
+
+                {composeType === "X_POST" ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={composeText}
+                      onChange={(e) => setComposeText(e.target.value)}
+                      placeholder="What's on your mind?"
+                      className="w-full min-h-[180px] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] transition-colors resize-y"
+                    />
+                    <div className={`text-xs text-right ${composeText.length > 280 ? "text-[var(--color-warning-400)]" : "text-[var(--color-text-muted)]"}`}>
+                      {composeText.length.toLocaleString()} characters
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {composeThreadTweets.map((tweet, index) => (
+                      <div key={index} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                            Tweet {index + 1}
+                          </span>
+                          {composeThreadTweets.length > 1 && (
+                            <button
+                              onClick={() =>
+                                setComposeThreadTweets((prev) =>
+                                  prev.filter((_, i) => i !== index)
+                                )
+                              }
+                              className="flex items-center gap-1 text-xs text-[var(--color-danger-400)] hover:text-[var(--color-danger-300)] transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        <textarea
+                          value={tweet}
+                          onChange={(e) => {
+                            const updated = [...composeThreadTweets];
+                            updated[index] = e.target.value;
+                            setComposeThreadTweets(updated);
+                          }}
+                          placeholder={index === 0 ? "Start your thread..." : "Continue the thread..."}
+                          className="w-full min-h-[100px] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] transition-colors resize-y"
+                        />
+                        <div className={`text-xs text-right ${tweet.length > 280 ? "text-[var(--color-warning-400)]" : "text-[var(--color-text-muted)]"}`}>
+                          {tweet.length.toLocaleString()} characters
+                        </div>
+                      </div>
+                    ))}
+                    {composeThreadTweets.length < 25 && (
+                      <button
+                        onClick={() => setComposeThreadTweets((prev) => [...prev, ""])}
+                        className="flex items-center gap-1.5 text-sm text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add tweet
+                      </button>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Error Display */}
+            {composeError && (
+              <Card className="border-[var(--color-danger-500)]/30 bg-[var(--color-danger-500)]/5">
+                <CardContent className="py-3">
+                  <p className="text-sm text-[var(--color-danger-400)]">{composeError}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Save Draft Button */}
+            <Button
+              onClick={handleSaveCompose}
+              loading={savingCompose}
+              disabled={
+                composeType === "X_POST"
+                  ? !composeText.trim()
+                  : composeThreadTweets.every((t) => !t.trim())
+              }
+              fullWidth
+              glow
+              icon={<Send className="w-5 h-5" />}
+              className="h-14 text-base"
+            >
+              {savingCompose ? "Saving..." : "Save Draft & Continue"}
+            </Button>
+
+            <p className="text-xs text-center text-[var(--color-text-muted)]">
+              You&apos;ll be able to edit, publish, or schedule on the next screen
+            </p>
+          </div>
         </TabsContent>
 
         <TabsContent value="drafts">
