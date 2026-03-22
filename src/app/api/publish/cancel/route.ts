@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
+import { qstash } from "@/lib/qstash/client";
 
 // POST /api/publish/cancel - cancel a scheduled post
 export async function POST(request: NextRequest) {
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Load post
     const { data: post, error } = await supabase
       .from("scheduled_posts")
-      .select("id, status, draft_id")
+      .select("id, status, draft_id, qstash_message_id")
       .eq("id", id)
       .eq("user_id", user.id)
       .single();
@@ -37,6 +38,15 @@ export async function POST(request: NextRequest) {
       .update({ status: "cancelled", updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("user_id", user.id);
+
+    // Cancel QStash message (best-effort)
+    if (post.qstash_message_id) {
+      try {
+        await qstash.messages.cancel(post.qstash_message_id);
+      } catch (e) {
+        console.warn("cancel: failed to cancel QStash message", e);
+      }
+    }
 
     // Revert linked draft back to DRAFT (best-effort)
     if (post.draft_id) {

@@ -13,6 +13,7 @@
     "@anthropic-ai/sdk": "^0.71.2",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
+    "@upstash/qstash": "^2.10.1",
     "bullmq": "^5.66.4",
     "ioredis": "^5.8.2",
     "lucide-react": "^0.563.0",

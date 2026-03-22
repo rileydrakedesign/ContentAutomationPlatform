@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
+import { qstash } from "@/lib/qstash/client";
 
 type ContentType = "X_POST" | "X_THREAD";
 
@@ -49,6 +50,28 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) throw insertError;
+
+    // Enqueue QStash message to publish at scheduled time
+    try {
+      const publishUrl = `${process.env.QSTASH_PUBLISH_URL}/api/qstash/publish`;
+      const notBefore = Math.floor(scheduledFor.getTime() / 1000);
+
+      const qstashRes = await qstash.publishJSON({
+        url: publishUrl,
+        body: { scheduledPostId: row.id, userId: user.id },
+        notBefore,
+        retries: 3,
+      });
+
+      // Save QStash message ID for cancellation support
+      await supabase
+        .from("scheduled_posts")
+        .update({ qstash_message_id: qstashRes.messageId })
+        .eq("id", row.id);
+    } catch (qstashErr) {
+      console.error("Failed to enqueue QStash message:", qstashErr);
+      // Post is still saved — cron safety net will pick it up
+    }
 
     // Mark linked draft as SCHEDULED (best-effort)
     if (draftId) {

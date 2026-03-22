@@ -4,6 +4,6 @@
     { "path": "/api/cron/analytics-sync", "schedule": "0 3 * * 1" },
     { "path": "/api/cron/metrics-refresh", "schedule": "0 3 * * *" },
     { "path": "/api/cron/voice-refresh", "schedule": "0 4 * * *" },
-    { "path": "/api/cron/publish-scheduled", "schedule": "* * * * *" }
+    { "path": "/api/cron/publish-scheduled", "schedule": "0 * * * *" }
   ]
 }
