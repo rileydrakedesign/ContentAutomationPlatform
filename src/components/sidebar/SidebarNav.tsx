@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BarChart2, PenSquare, Sliders, CalendarClock } from "lucide-react";
+import { LayoutDashboard, BarChart2, PenSquare, Sliders, CalendarClock, Target } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 
 const navLinks = [
@@ -11,6 +11,7 @@ const navLinks = [
   { href: "/create", label: "Create", icon: PenSquare },
   { href: "/queue", label: "Queue", icon: CalendarClock },
   { href: "/voice", label: "Voice", icon: Sliders },
+  { href: "/strategy", label: "Strategy", icon: Target },
 ];
 
 export function SidebarNav() {

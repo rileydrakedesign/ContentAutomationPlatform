@@ -7,6 +7,7 @@ import { ConsistencyTracker } from "./ConsistencyTracker";
 import { ContentSidebar } from "./ContentSidebar";
 import { InsightsHub } from "./InsightsHub";
 import { BoostOpportunitiesCard } from "./BoostOpportunitiesCard";
+import { StrategyProgress } from "./StrategyProgress";
 import { CsvUploadDrawer } from "./CsvUploadDrawer";
 import { SetupChecklist } from "./SetupChecklist";
 // (removed) CapturedPost import — dashboard inspiration now uses inspiration_posts
@@ -129,6 +130,8 @@ export function HomePage() {
             csvStatus={{ uploaded_at: analyticsData?.uploaded_at, total_posts: analyticsData?.total_posts }}
             onUploadCsv={() => setShowUploadDrawer(true)}
           />
+
+          <StrategyProgress />
 
           <BoostOpportunitiesCard days={7} limit={3} />
 
