@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
+import { ApiKeysTab } from "./ApiKeysTab";
 import { formatRelativeTime } from "@/lib/utils/formatting";
+import { Key } from "lucide-react";
 
 interface XConnectionStatus {
   connected: boolean;
@@ -148,7 +151,7 @@ export function SettingsPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-white">Settings</h1>
-        <p className="text-slate-500 mt-1">Connect your X account and manage preferences</p>
+        <p className="text-slate-500 mt-1">Connect your X account, manage API keys, and configure preferences</p>
       </div>
 
       {/* Status Messages */}
@@ -164,116 +167,140 @@ export function SettingsPage() {
         </div>
       )}
 
-      <div className="max-w-xl space-y-4">
-        {/* X Connection */}
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-white">X Account</h2>
-            {xStatus?.connected && <Badge variant="success">Connected</Badge>}
-          </div>
+      <Tabs defaultValue="x-account">
+        <TabsList>
+          <TabsTrigger
+            value="x-account"
+            icon={
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            }
+          >
+            X Account
+          </TabsTrigger>
+          <TabsTrigger value="api-keys" icon={<Key className="w-4 h-4" />}>
+            API Keys
+          </TabsTrigger>
+        </TabsList>
 
-          {xStatus?.connected ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 bg-slate-800 rounded-lg">
-                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-xl font-bold text-white">
-                  {xStatus.username?.charAt(0).toUpperCase()}
+        <TabsContent value="x-account" className="mt-4">
+          <div className="max-w-xl space-y-4">
+            {/* X Connection */}
+            <Card className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-white">X Account</h2>
+                {xStatus?.connected && <Badge variant="success">Connected</Badge>}
+              </div>
+
+              {xStatus?.connected ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 p-4 bg-slate-800 rounded-lg">
+                    <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-xl font-bold text-white">
+                      {xStatus.username?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">@{xStatus.username}</p>
+                      <p className="text-sm text-slate-500">
+                        Connected {xStatus.connectedAt && formatRelativeTime(xStatus.connectedAt)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">
+                      {xStatus.lastSyncAt
+                        ? `Last post sync ${formatRelativeTime(xStatus.lastSyncAt)}`
+                        : "Never synced posts"}
+                    </span>
+                    <button
+                      onClick={syncPosts}
+                      disabled={syncing}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-700 rounded text-sm transition"
+                    >
+                      {syncing ? "Syncing..." : "Sync Posts"}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">
+                      {xStatus.lastApiSyncAt
+                        ? `Last analytics sync ${formatRelativeTime(xStatus.lastApiSyncAt)}`
+                        : "Never synced analytics"}
+                    </span>
+                    <button
+                      onClick={syncAnalytics}
+                      disabled={syncingAnalytics}
+                      className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-slate-700 rounded text-sm transition"
+                    >
+                      {syncingAnalytics ? "Syncing..." : "Sync Analytics"}
+                    </button>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-800">
+                    <button
+                      onClick={disconnectX}
+                      className="text-sm text-red-400 hover:text-red-300 transition"
+                    >
+                      Disconnect X account
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-white font-medium">@{xStatus.username}</p>
+              ) : (
+                <div className="space-y-4">
                   <p className="text-sm text-slate-500">
-                    Connected {xStatus.connectedAt && formatRelativeTime(xStatus.connectedAt)}
+                    Connect your X account so we can publish and schedule posts on your behalf.
                   </p>
+
+                  <button
+                    onClick={connectX}
+                    disabled={connecting}
+                    className="w-full py-3 bg-white text-slate-900 font-medium rounded-lg hover:bg-slate-200 disabled:opacity-50 transition flex items-center justify-center gap-2"
+                  >
+                    {connecting ? (
+                      "Connecting..."
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                        </svg>
+                        Connect X Account
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </Card>
+
+            {/* How It Works */}
+            <Card className="p-4">
+              <h2 className="text-sm font-semibold text-white mb-4">How It Works</h2>
+              <div className="space-y-3 text-sm text-slate-400">
+                <div className="flex gap-3">
+                  <span className="text-amber-400">1.</span>
+                  <span>Connect your X account to sync your posts automatically</span>
+                </div>
+                <div className="flex gap-3">
+                  <span className="text-amber-400">2.</span>
+                  <span>Your posts appear in the Library with engagement metrics</span>
+                </div>
+                <div className="flex gap-3">
+                  <span className="text-amber-400">3.</span>
+                  <span>Promote top performers to use as inspiration for new content</span>
+                </div>
+                <div className="flex gap-3">
+                  <span className="text-amber-400">4.</span>
+                  <span>Use voice memos to draft new posts that match your style</span>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">
-                  {xStatus.lastSyncAt
-                    ? `Last post sync ${formatRelativeTime(xStatus.lastSyncAt)}`
-                    : "Never synced posts"}
-                </span>
-                <button
-                  onClick={syncPosts}
-                  disabled={syncing}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-700 rounded text-sm transition"
-                >
-                  {syncing ? "Syncing..." : "Sync Posts"}
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">
-                  {xStatus.lastApiSyncAt
-                    ? `Last analytics sync ${formatRelativeTime(xStatus.lastApiSyncAt)}`
-                    : "Never synced analytics"}
-                </span>
-                <button
-                  onClick={syncAnalytics}
-                  disabled={syncingAnalytics}
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-slate-700 rounded text-sm transition"
-                >
-                  {syncingAnalytics ? "Syncing..." : "Sync Analytics"}
-                </button>
-              </div>
-
-              <div className="pt-4 border-t border-slate-800">
-                <button
-                  onClick={disconnectX}
-                  className="text-sm text-red-400 hover:text-red-300 transition"
-                >
-                  Disconnect X account
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-slate-500">
-                Connect your X account so we can publish and schedule posts on your behalf.
-              </p>
-
-              <button
-                onClick={connectX}
-                disabled={connecting}
-                className="w-full py-3 bg-white text-slate-900 font-medium rounded-lg hover:bg-slate-200 disabled:opacity-50 transition flex items-center justify-center gap-2"
-              >
-                {connecting ? (
-                  "Connecting..."
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                    </svg>
-                    Connect X Account
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-        </Card>
-
-        {/* How It Works */}
-        <Card className="p-4">
-          <h2 className="text-sm font-semibold text-white mb-4">How It Works</h2>
-          <div className="space-y-3 text-sm text-slate-400">
-            <div className="flex gap-3">
-              <span className="text-amber-400">1.</span>
-              <span>Connect your X account to sync your posts automatically</span>
-            </div>
-            <div className="flex gap-3">
-              <span className="text-amber-400">2.</span>
-              <span>Your posts appear in the Library with engagement metrics</span>
-            </div>
-            <div className="flex gap-3">
-              <span className="text-amber-400">3.</span>
-              <span>Promote top performers to use as inspiration for new content</span>
-            </div>
-            <div className="flex gap-3">
-              <span className="text-amber-400">4.</span>
-              <span>Use voice memos to draft new posts that match your style</span>
-            </div>
+            </Card>
           </div>
-        </Card>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="api-keys" className="mt-4">
+          <ApiKeysTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
