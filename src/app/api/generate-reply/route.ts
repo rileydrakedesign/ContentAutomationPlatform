@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[generate-reply] Starting AI call with provider:", aiProvider);
     console.log("[generate-reply] System prompt length:", systemPrompt.length);
-    console.log("[generate-reply] User prompt:", userPrompt);
+    console.log("[generate-reply] User prompt length:", userPrompt.length);
 
     let result;
     try {
@@ -237,7 +237,6 @@ export async function POST(request: NextRequest) {
     }
 
     const content = result.content;
-    console.log("[generate-reply] Response content:", content.substring(0, 200));
 
     if (!content) {
       console.error("[generate-reply] Empty content received");
@@ -246,6 +245,8 @@ export async function POST(request: NextRequest) {
         { status: 500, headers: corsHeaders }
       );
     }
+
+    console.log("[generate-reply] Response content length:", content.length);
 
     // Parse the JSON response
     let parsed: GenerateReplyResponse;

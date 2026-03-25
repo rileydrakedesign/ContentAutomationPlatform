@@ -1,152 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-/* ------------------------------------------------------------------ */
-/*  helpers                                                            */
-/* ------------------------------------------------------------------ */
-function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
 
 /* ------------------------------------------------------------------ */
-/*  WaitlistForm                                                       */
+/*  Constants                                                           */
 /* ------------------------------------------------------------------ */
-function WaitlistForm({
-  email,
-  setEmail,
-  status,
-  error,
-  canSubmit,
-  submit,
-}: {
-  email: string;
-  setEmail: (v: string) => void;
-  status: "idle" | "loading" | "success" | "error";
-  error: string | null;
-  canSubmit: boolean;
-  submit: (e: React.FormEvent) => void;
-}) {
-  if (status === "success") {
-    return (
-      <div className="rounded-lg border border-[var(--color-success-500)]/20 bg-[var(--color-success-500)]/10 p-4 text-center">
-        <div className="text-sm text-[var(--color-success-400)] font-medium">
-          you&apos;re in.
-        </div>
-        <div className="mt-1 text-xs text-[var(--color-text-secondary)]">
-          we&apos;ll email you when early access opens.
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <form
-        onSubmit={submit}
-        className="flex flex-col gap-3 sm:flex-row sm:items-center"
-      >
-        <label className="sr-only" htmlFor="waitlist-email">
-          email
-        </label>
-        <input
-          id="waitlist-email"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          placeholder="you@domain.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="flex-1 h-12"
-          aria-invalid={!!error}
-        />
-        <Button
-          type="submit"
-          size="lg"
-          glow
-          className="sm:min-w-[160px]"
-          loading={status === "loading"}
-          disabled={!canSubmit || status === "loading"}
-        >
-          {status === "loading" ? "joining…" : "join waitlist"}
-        </Button>
-      </form>
-      {error ? (
-        <p className="mt-2 text-xs text-[var(--color-danger-400)]">{error}</p>
-      ) : (
-        <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-          no spam. no selling your email. unsubscribe anytime.
-        </p>
-      )}
-    </div>
-  );
-}
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.agentsforx.com";
 
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
 export default function AgentForXLanding() {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<
-    "idle" | "loading" | "success" | "error"
-  >("idle");
-  const [error, setError] = useState<string | null>(null);
-  const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
-  const canSubmit = useMemo(() => isValidEmail(email), [email]);
-
-  useEffect(() => {
-    fetch("/api/waitlist")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.count) setWaitlistCount(d.count);
-      })
-      .catch(() => {});
-  }, []);
-
-  const submit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      setError(null);
-
-      if (!canSubmit) {
-        setError("enter a valid email");
-        return;
-      }
-
-      setStatus("loading");
-      try {
-        const res = await fetch("/api/waitlist", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, product: "agent-for-x" }),
-        });
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data?.error || "failed to join waitlist");
-        }
-
-        setWaitlistCount((c) => (c ?? 0) + 1);
-        setStatus("success");
-      } catch (err) {
-        setStatus("error");
-        setError(
-          err instanceof Error ? err.message : "failed to join waitlist"
-        );
-      }
-    },
-    [canSubmit, email]
-  );
-
-  const formProps = { email, setEmail, status, error, canSubmit, submit };
-
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-auto bg-[var(--color-bg-base)] text-[var(--color-text-primary)]">
-      {/* ---- Nav (logo only) ---- */}
+      {/* ---- Nav ---- */}
       <nav className="sticky top-0 z-10 flex-shrink-0 bg-[var(--color-bg-base)]/80 backdrop-blur-xl border-b border-[var(--color-border-subtle)]">
-        <div className="mx-auto flex max-w-5xl items-center px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
           <span className="flex items-center gap-1.5">
             <span
               className="overflow-hidden flex-shrink-0"
@@ -166,6 +37,11 @@ export default function AgentForXLanding() {
               <Image src="/x-logo.png" alt="X" width={30} height={30} />
             </span>
           </span>
+          <a href={`${APP_URL}/login`}>
+            <Button variant="ghost" size="sm">
+              Log in
+            </Button>
+          </a>
         </div>
       </nav>
 
@@ -190,13 +66,13 @@ export default function AgentForXLanding() {
         />
 
         <div className="relative flex w-full max-w-3xl flex-col items-center text-center">
-          {/* Waitlist counter */}
+          {/* Social proof badge */}
           <div
             className="animate-fade-in"
             style={{ animationDelay: "0ms", animationFillMode: "backwards" }}
           >
             <Badge variant="primary" dot>
-              {waitlistCount !== null ? `${waitlistCount}+ people on the waitlist` : '\u00A0'}
+              now in early access
             </Badge>
           </div>
 
@@ -226,22 +102,53 @@ export default function AgentForXLanding() {
             your voice. let patterns compound your growth.
           </p>
 
-          {/* Inline waitlist form */}
+          {/* CTAs */}
           <div
-            className="mt-8 w-full max-w-md animate-slide-up"
+            className="mt-8 flex flex-col sm:flex-row gap-3 animate-slide-up"
             style={{
               animationDelay: "300ms",
               animationFillMode: "backwards",
             }}
           >
-            <WaitlistForm {...formProps} />
+            <a href={`${APP_URL}/signup`}>
+              <Button size="lg" glow className="sm:min-w-[180px]">
+                Get started free
+              </Button>
+            </a>
+            <a href={`${APP_URL}/login`}>
+              <Button variant="secondary" size="lg" className="sm:min-w-[180px]">
+                Log in
+              </Button>
+            </a>
+          </div>
+          <p
+            className="mt-4 text-xs text-[var(--color-text-muted)] animate-slide-up"
+            style={{
+              animationDelay: "400ms",
+              animationFillMode: "backwards",
+            }}
+          >
+            free to start. no credit card required.
+          </p>
+
+          {/* Feature highlights */}
+          <div
+            className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-xl animate-slide-up"
+            style={{
+              animationDelay: "500ms",
+              animationFillMode: "backwards",
+            }}
+          >
+            <FeatureCard title="save posts" desc="one-click from your timeline" />
+            <FeatureCard title="ai replies" desc="in your voice, 5 tones" />
+            <FeatureCard title="publish" desc="draft, schedule, post" />
           </div>
         </div>
       </main>
 
       {/* ---- Footer ---- */}
       <footer className="flex-shrink-0 border-t border-[var(--color-border-subtle)] px-4 sm:px-6">
-        <div className="mx-auto flex max-w-5xl items-center justify-center py-6 text-sm text-[var(--color-text-muted)]">
+        <div className="mx-auto flex max-w-5xl items-center justify-between py-6 text-sm text-[var(--color-text-muted)]">
           <div className="flex items-center gap-1">
             &copy; {new Date().getFullYear()}
             <span
@@ -262,8 +169,24 @@ export default function AgentForXLanding() {
               <Image src="/x-logo.png" alt="X" width={18} height={18} />
             </span>
           </div>
+          <div className="flex items-center gap-4">
+            <a href="/agent-for-x/terms" className="hover:text-[var(--color-text-secondary)] transition-colors">terms</a>
+            <a href="/agent-for-x/privacy" className="hover:text-[var(--color-text-secondary)] transition-colors">privacy</a>
+          </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Feature card                                                        */
+/* ------------------------------------------------------------------ */
+function FeatureCard({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="p-4 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] text-center">
+      <p className="text-sm font-medium text-[var(--color-text-primary)]">{title}</p>
+      <p className="text-xs text-[var(--color-text-muted)] mt-1">{desc}</p>
     </div>
   );
 }

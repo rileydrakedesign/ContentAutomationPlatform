@@ -20,7 +20,7 @@ export async function GET() {
     const state = crypto.randomUUID();
 
     // Store PKCE verifier and state
-    await supabase.from("x_oauth_requests").upsert(
+    const { error: upsertError } = await supabase.from("x_oauth_requests").upsert(
       {
         user_id: user.id,
         code_verifier: codeVerifier,
@@ -30,6 +30,14 @@ export async function GET() {
       },
       { onConflict: "user_id" }
     );
+
+    if (upsertError) {
+      console.error("Failed to store OAuth request:", upsertError);
+      return NextResponse.json(
+        { error: "Failed to initiate connection" },
+        { status: 500 }
+      );
+    }
 
     const authUrl = getOAuth2AuthorizationUrl(state, codeChallenge);
 

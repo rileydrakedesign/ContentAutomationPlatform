@@ -119,22 +119,22 @@ export async function PATCH(request: NextRequest) {
     const validQuestionRates = ['low', 'medium'];
     const validDisagreementModes = ['avoid', 'allow_nuance'];
 
-    if (body.length_mode && !validLengthModes.includes(body.length_mode)) {
+    if (body.length_mode !== undefined && (typeof body.length_mode !== 'string' || (body.length_mode as string) === '' || !validLengthModes.includes(body.length_mode))) {
       return NextResponse.json({ error: "Invalid length_mode" }, { status: 400 });
     }
-    if (body.directness_mode && !validDirectnessModes.includes(body.directness_mode)) {
+    if (body.directness_mode !== undefined && (typeof body.directness_mode !== 'string' || (body.directness_mode as string) === '' || !validDirectnessModes.includes(body.directness_mode))) {
       return NextResponse.json({ error: "Invalid directness_mode" }, { status: 400 });
     }
-    if (body.humor_mode && !validHumorModes.includes(body.humor_mode)) {
+    if (body.humor_mode !== undefined && (typeof body.humor_mode !== 'string' || (body.humor_mode as string) === '' || !validHumorModes.includes(body.humor_mode))) {
       return NextResponse.json({ error: "Invalid humor_mode" }, { status: 400 });
     }
-    if (body.emoji_mode && !validEmojiModes.includes(body.emoji_mode)) {
+    if (body.emoji_mode !== undefined && (typeof body.emoji_mode !== 'string' || (body.emoji_mode as string) === '' || !validEmojiModes.includes(body.emoji_mode))) {
       return NextResponse.json({ error: "Invalid emoji_mode" }, { status: 400 });
     }
-    if (body.question_rate && !validQuestionRates.includes(body.question_rate)) {
+    if (body.question_rate !== undefined && (typeof body.question_rate !== 'string' || (body.question_rate as string) === '' || !validQuestionRates.includes(body.question_rate))) {
       return NextResponse.json({ error: "Invalid question_rate" }, { status: 400 });
     }
-    if (body.disagreement_mode && !validDisagreementModes.includes(body.disagreement_mode)) {
+    if (body.disagreement_mode !== undefined && (typeof body.disagreement_mode !== 'string' || (body.disagreement_mode as string) === '' || !validDisagreementModes.includes(body.disagreement_mode))) {
       return NextResponse.json({ error: "Invalid disagreement_mode" }, { status: 400 });
     }
 
@@ -156,25 +156,25 @@ export async function PATCH(request: NextRequest) {
 
     // Voice dial settings (validate 0-100 range)
     if (body.optimization_authenticity !== undefined) {
-      if (body.optimization_authenticity < 0 || body.optimization_authenticity > 100) {
+      if (typeof body.optimization_authenticity !== 'number' || body.optimization_authenticity < 0 || body.optimization_authenticity > 100) {
         return NextResponse.json({ error: "optimization_authenticity must be 0-100" }, { status: 400 });
       }
       updateData.optimization_authenticity = body.optimization_authenticity;
     }
     if (body.tone_formal_casual !== undefined) {
-      if (body.tone_formal_casual < 0 || body.tone_formal_casual > 100) {
+      if (typeof body.tone_formal_casual !== 'number' || body.tone_formal_casual < 0 || body.tone_formal_casual > 100) {
         return NextResponse.json({ error: "tone_formal_casual must be 0-100" }, { status: 400 });
       }
       updateData.tone_formal_casual = body.tone_formal_casual;
     }
     if (body.energy_calm_punchy !== undefined) {
-      if (body.energy_calm_punchy < 0 || body.energy_calm_punchy > 100) {
+      if (typeof body.energy_calm_punchy !== 'number' || body.energy_calm_punchy < 0 || body.energy_calm_punchy > 100) {
         return NextResponse.json({ error: "energy_calm_punchy must be 0-100" }, { status: 400 });
       }
       updateData.energy_calm_punchy = body.energy_calm_punchy;
     }
     if (body.stance_neutral_opinionated !== undefined) {
-      if (body.stance_neutral_opinionated < 0 || body.stance_neutral_opinionated > 100) {
+      if (typeof body.stance_neutral_opinionated !== 'number' || body.stance_neutral_opinionated < 0 || body.stance_neutral_opinionated > 100) {
         return NextResponse.json({ error: "stance_neutral_opinionated must be 0-100" }, { status: 400 });
       }
       updateData.stance_neutral_opinionated = body.stance_neutral_opinionated;

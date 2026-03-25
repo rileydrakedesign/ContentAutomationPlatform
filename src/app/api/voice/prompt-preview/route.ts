@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { assemblePrompt } from "@/lib/openai/prompts/prompt-assembler";
-import { DEFAULT_VOICE_SETTINGS, PromptPreviewResponse } from "@/types/voice";
+import { DEFAULT_VOICE_SETTINGS, PromptPreviewResponse, VoiceType } from "@/types/voice";
 
 // GET /api/voice/prompt-preview - Get the assembled prompt with token breakdown
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const rawType = searchParams.get("voice_type") || "reply";
+    const voiceType: VoiceType = rawType === "post" ? "post" : "reply";
+
     const supabase = await createAuthClient();
 
     const {
@@ -21,6 +25,7 @@ export async function GET() {
       .from("user_voice_settings")
       .select("*")
       .eq("user_id", user.id)
+      .eq("voice_type", voiceType)
       .single();
 
     // Use defaults if no settings exist
@@ -57,7 +62,7 @@ export async function GET() {
       settings: settings,
       examples: examples || [],
       inspirations: inspirations || [],
-      mode: "reply",
+      mode: voiceType,
     });
 
     const response: PromptPreviewResponse = {

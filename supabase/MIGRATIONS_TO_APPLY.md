@@ -222,5 +222,33 @@ After applying migrations + RLS:
 
 ---
 
+## NEW: Security Hardening Migration (CRITICAL - apply before launch)
+
+### `supabase/migrations/20260325_rls_security_hardening.sql`
+
+This migration adds RLS to **all user-facing tables** that were previously unprotected:
+
+| Priority | Table | Risk without RLS |
+|----------|-------|-----------------|
+| CRITICAL | `x_connections` | OAuth tokens exposed |
+| CRITICAL | `api_keys` | API key hashes exposed |
+| HIGH | `x_oauth_requests` | In-flight OAuth secrets |
+| HIGH | `user_voice_settings` | Per-user AI config |
+| HIGH | `user_voice_examples` | Voice training data |
+| HIGH | `inspiration_posts` | Saved posts |
+| HIGH | `extracted_patterns` | AI-extracted patterns |
+| HIGH | `captured_posts` | Synced posts + analytics |
+| HIGH | `drafts` | Generated content |
+| MEDIUM | `user_settings` | User preferences |
+| MEDIUM | `waitlist_signups` | Email list (locked to service role only) |
+
+Also fixes: `user_niche_profile` UPDATE policy (adds missing `WITH CHECK`).
+
+**Apply via:** Supabase Dashboard → SQL Editor → paste the file contents.
+
+> Note: Server-side code using the Service Role key (workers, cron jobs) bypasses RLS as expected.
+
+---
+
 ## 4) If you want this fully automated later
 We can add a `supabase/seed.sql` + a tiny internal script that applies migrations via Supabase Management API, but that’s intentionally out of scope right now (avoids overengineering + secrets handling).

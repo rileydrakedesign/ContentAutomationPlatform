@@ -41,7 +41,16 @@ export async function POST(request: NextRequest) {
     const reply_text = String(body?.reply_text || "").trim();
     const replied_to_post_id = body?.replied_to_post_id ? String(body.replied_to_post_id) : null;
     const replied_to_post_url = body?.replied_to_post_url ? String(body.replied_to_post_url) : null;
-    const sent_at = body?.sent_at ? new Date(String(body.sent_at)).toISOString() : new Date().toISOString();
+    let sent_at: string;
+    if (body?.sent_at) {
+      const parsedDate = new Date(String(body.sent_at));
+      if (isNaN(parsedDate.getTime())) {
+        return NextResponse.json({ error: "Invalid sent_at date" }, { status: 400, headers: corsHeaders });
+      }
+      sent_at = parsedDate.toISOString();
+    } else {
+      sent_at = new Date().toISOString();
+    }
 
     if (!reply_text) {
       return NextResponse.json({ error: "reply_text is required" }, { status: 400, headers: corsHeaders });

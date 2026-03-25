@@ -3,6 +3,7 @@ import { DM_Sans, Space_Grotesk, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SidebarProvider, Sidebar } from "@/components/sidebar";
+import { OnboardingGate } from "@/components/onboarding";
 
 // Primary body font
 const dmSans = DM_Sans({
@@ -42,12 +43,14 @@ export default function RootLayout({
       >
         <AuthProvider>
           <SidebarProvider>
-            <div className="flex min-h-screen">
-              <Sidebar />
-              <main className="flex-1 px-6 py-8 overflow-auto">
-                <div className="max-w-5xl mx-auto">{children}</div>
-              </main>
-            </div>
+            <OnboardingGate>
+              <div className="flex min-h-screen">
+                <Sidebar />
+                <main className="flex-1 px-6 py-8 overflow-auto">
+                  <div className="max-w-5xl mx-auto">{children}</div>
+                </main>
+              </div>
+            </OnboardingGate>
           </SidebarProvider>
         </AuthProvider>
       </body>
