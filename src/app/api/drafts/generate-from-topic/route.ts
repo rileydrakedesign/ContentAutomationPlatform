@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       topic,
       draftType = "X_POST",
       patternIds = [],
-      generateCount = 3,
+      generateCount: rawGenerateCount = 3,
       inspirationPost,
     } = body as {
       topic: string;
@@ -60,6 +60,8 @@ export async function POST(request: NextRequest) {
         author: string;
       };
     };
+
+    const generateCount = Math.min(Math.max(1, Number(rawGenerateCount) || 3), 10);
 
     if (!topic || topic.trim().length < 3) {
       return NextResponse.json(

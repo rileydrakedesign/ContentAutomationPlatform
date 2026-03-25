@@ -35,6 +35,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid scheduledFor" }, { status: 400 });
     }
 
+    if (scheduledFor.getTime() < Date.now()) {
+      return NextResponse.json({ error: "scheduledFor must be in the future" }, { status: 400 });
+    }
+
     // Insert scheduled post — the cron job will pick it up when scheduled_for arrives
     const { data: row, error: insertError } = await supabase
       .from("scheduled_posts")

@@ -21,12 +21,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing signature" }, { status: 401 });
     }
 
-    const isValid = await receiver.verify({
-      signature,
-      body: rawBody,
-    });
-
-    if (!isValid) {
+    try {
+      await receiver.verify({
+        signature,
+        body: rawBody,
+      });
+    } catch {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Load the scheduled post
     const { data: post, error } = await supabase
       .from("scheduled_posts")
-      .select("id, user_id, content_type, payload, scheduled_for, status")
+      .select("id, user_id, content_type, payload, scheduled_for, status, draft_id")
       .eq("id", scheduledPostId)
       .eq("user_id", userId)
       .single();
