@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
 export interface RateLimitInfo {
@@ -7,13 +7,23 @@ export interface RateLimitInfo {
   reset: number; // Unix timestamp in seconds
 }
 
+const V1_CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": process.env.NEXT_PUBLIC_APP_URL || "https://app.agentsforx.com",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+function applyCorsHeaders(response: NextResponse): void {
+  Object.entries(V1_CORS_HEADERS).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+}
+
 // Success response with standard headers
 export function apiSuccess(data: unknown, status = 200): NextResponse {
   const response = NextResponse.json(data, { status });
   response.headers.set("X-Request-Id", crypto.randomUUID());
-  response.headers.set("Access-Control-Allow-Origin", "*");
-  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  applyCorsHeaders(response);
   return response;
 }
 
@@ -25,9 +35,7 @@ export function apiError(
 ): NextResponse {
   const response = NextResponse.json({ error, code }, { status });
   response.headers.set("X-Request-Id", crypto.randomUUID());
-  response.headers.set("Access-Control-Allow-Origin", "*");
-  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  applyCorsHeaders(response);
   return response;
 }
 
@@ -46,10 +54,6 @@ export function withRateLimitHeaders(
 export function apiOptions(): NextResponse {
   return new NextResponse(null, {
     status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    },
+    headers: V1_CORS_HEADERS,
   });
 }

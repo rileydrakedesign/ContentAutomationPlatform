@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
-
-// CORS headers for Chrome extension
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+import { corsHeaders } from "@/lib/cors";
 
 // Handle preflight OPTIONS request
 export async function OPTIONS() {

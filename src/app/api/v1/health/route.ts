@@ -20,10 +20,8 @@ export async function GET(request: NextRequest) {
     response.rate_limit = auth.rateLimit;
   }
 
-  return NextResponse.json(response, {
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    },
-  });
+  const res = NextResponse.json(response);
+  res.headers.set("Access-Control-Allow-Origin", process.env.NEXT_PUBLIC_APP_URL || "https://app.agentsforx.com");
+  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  return res;
 }
