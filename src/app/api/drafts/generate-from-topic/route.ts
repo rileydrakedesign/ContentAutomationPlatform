@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { createChatCompletion, AIProvider } from "@/lib/ai";
 import { corsHeaders, handleCors } from "@/lib/cors";
+import { requireAiGeneration } from "@/lib/stripe/gate";
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -42,6 +43,10 @@ export async function POST(request: NextRequest) {
         { status: 401, headers: corsHeaders }
       );
     }
+
+    // Check AI generation limit (free tier: 5/day)
+    const gateError = await requireAiGeneration(user.id, "generate-from-topic");
+    if (gateError) return gateError;
 
     const body = await request.json();
     const {

@@ -5,6 +5,7 @@ import { corsHeaders, handleCors } from "@/lib/cors";
 import { createChatCompletion, AIProvider } from "@/lib/ai";
 import { REPLY_SYSTEM_PROMPT } from "@/lib/openai/prompts/reply-prompt";
 import { getAssembledPromptForUser } from "@/lib/openai/prompts/prompt-assembler";
+import { requireAiGeneration } from "@/lib/stripe/gate";
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -161,6 +162,10 @@ export async function POST(request: NextRequest) {
         { status: 401, headers: corsHeaders }
       );
     }
+
+    // Check AI generation limit (free tier: 5/day)
+    const gateError = await requireAiGeneration(user.id, "generate-reply");
+    if (gateError) return gateError;
 
     const body: GenerateReplyRequest = await request.json();
 

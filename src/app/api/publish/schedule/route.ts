@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { qstash } from "@/lib/qstash/client";
+import { requireFeature } from "@/lib/stripe/gate";
 
 type ContentType = "X_POST" | "X_THREAD";
 
@@ -16,6 +17,10 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Scheduling requires Pro plan
+    const gateError = await requireFeature(user.id, "scheduling");
+    if (gateError) return gateError;
 
     const body = await request.json();
     const draftId = body?.draftId ? String(body.draftId) : null;

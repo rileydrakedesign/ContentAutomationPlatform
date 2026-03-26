@@ -47,6 +47,7 @@ export async function middleware(request: NextRequest) {
     "/inspiration",
     "/sources",
     "/developers",
+    "/pricing",
   ];
 
   const isProtectedPath = protectedPaths.some(

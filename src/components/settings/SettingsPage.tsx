@@ -6,8 +6,9 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { ApiKeysTab } from "./ApiKeysTab";
+import { BillingTab } from "./BillingTab";
 import { formatRelativeTime } from "@/lib/utils/formatting";
-import { Key } from "lucide-react";
+import { Key, CreditCard } from "lucide-react";
 
 interface XConnectionStatus {
   connected: boolean;
@@ -182,6 +183,9 @@ export function SettingsPage() {
           <TabsTrigger value="api-keys" icon={<Key className="w-4 h-4" />}>
             API Keys
           </TabsTrigger>
+          <TabsTrigger value="billing" icon={<CreditCard className="w-4 h-4" />}>
+            Billing
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="x-account" className="mt-4">
@@ -299,6 +303,10 @@ export function SettingsPage() {
 
         <TabsContent value="api-keys" className="mt-4">
           <ApiKeysTab />
+        </TabsContent>
+
+        <TabsContent value="billing" className="mt-4">
+          <BillingTab />
         </TabsContent>
       </Tabs>
     </div>

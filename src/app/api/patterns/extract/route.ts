@@ -3,6 +3,7 @@ import { createAuthClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai/client";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { weightedEngagement } from "@/lib/utils/engagement";
+import { requireFeature } from "@/lib/stripe/gate";
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -41,6 +42,10 @@ export async function POST(request: NextRequest) {
         { status: 401, headers: corsHeaders }
       );
     }
+
+    // Pattern extraction requires Pro plan
+    const gateError = await requireFeature(user.id, "patternExtraction");
+    if (gateError) return gateError;
 
     // ── 1. Try CSV data first ──────────────────────────────────
     let posts: PostForAnalysis[] = [];

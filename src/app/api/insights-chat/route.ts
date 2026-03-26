@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { createChatCompletion } from "@/lib/ai";
+import { requireFeature, requireAiGeneration } from "@/lib/stripe/gate";
 
 type ChatTurn = { role: "user" | "assistant"; content: string };
 
@@ -22,6 +23,13 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Insights chat requires Pro plan
+    const featureGate = await requireFeature(user.id, "insightsChat");
+    if (featureGate) return featureGate;
+
+    const aiGate = await requireAiGeneration(user.id, "insights-chat");
+    if (aiGate) return aiGate;
 
     const body = await request.json();
     const question = String(body?.question || "").trim();
