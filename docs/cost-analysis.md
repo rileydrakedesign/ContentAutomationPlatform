@@ -1,18 +1,22 @@
 # Cost Analysis — Agents for X
 
-_Generated: March 25, 2026_
+_Updated: March 26, 2026_
 
 ## Executive Summary
 
-The dominant cost driver is the **X API tier**. At 50 users, Basic ($200/mo) is
-borderline and Pro ($5,000/mo) is overkill. The AI costs are negligible
-(<$5/mo at 50 users using gpt-4o-mini). The recommended approach is to start on
-Basic tier, use the Chrome extension / CSV uploads to reduce X API read calls,
-and scale to Pro only if needed.
+With X's new **pay-per-use API** (launched Feb 6, 2026), there is no longer a
+fixed $200/mo or $5,000/mo subscription. We pay per request: **$0.005/post read**,
+**$0.01/post write**, **$0.01/user lookup**. This dramatically changes the cost
+picture — X API costs are now **variable and proportional to usage**, not fixed.
+
+At 50 users, estimated X API costs are **$75–175/mo** depending on usage
+patterns, down from the $200/mo Basic floor. Combined with negligible AI costs
+(~$2–5/mo), total operating costs are **$77–225/mo**. Per-user variable cost is
+**$1.50–3.50/mo**, making a $19/mo Pro tier highly profitable.
 
 ---
 
-## 1. AI Provider Costs
+## 1. AI Provider Costs (unchanged)
 
 ### Models Used
 
@@ -63,67 +67,96 @@ difference is negligible for these use cases and it's 67x cheaper.
 
 ---
 
-## 2. X/Twitter API Costs
+## 2. X API Costs — Pay-Per-Use Model
 
-### Tier Comparison
+### Per-Request Pricing (as of Feb 6, 2026)
 
-| Feature | Free ($0) | Basic ($200/mo) | Pro ($5,000/mo) |
-|---------|-----------|-----------------|-----------------|
-| Tweet read | 10k/mo | 10k/mo | 1M/mo |
-| Tweet write | 0 | 1,667/mo | 300k/mo |
-| Search recent | No | Yes (limited) | Full |
-| organic_metrics | No | No | Yes |
-| Users per app | 1 | 1 | Unlimited |
+| Operation | Cost per request | Notes |
+|-----------|-----------------|-------|
+| **Post Read** | $0.005 | Reading a tweet/post |
+| **Post Create (Write)** | $0.01 | Publishing a tweet |
+| **User Lookup** | $0.01 | Fetching user profile data |
 
-### Current X API Usage Points
+**Key features of pay-per-use:**
+- No subscription — pay only for what you use, no minimum spend
+- Credit-based: buy credits upfront in the Developer Console
+- 24-hour deduplication: reading the same post within a UTC day counts once
+- Monthly cap: 2M post reads/month (Enterprise required above that)
+- Auto top-up and spending caps available to prevent runaway costs
+- **xAI credit-back**: earn up to 20% of X API spend as xAI/Grok credits
 
-| Feature | API Calls | Frequency |
-|---------|-----------|-----------|
-| OAuth token exchange/refresh | 1 per login/refresh | Low |
-| Verify credentials | 1 per connection | Low |
-| getUserTimeline (sync) | 1-2 per sync (100 tweets/page) | User-triggered |
-| getTweetsBatch (metrics refresh) | 1 per 100 posts | Cron: daily |
-| searchRecentTweets (inspiration) | 1 per search | User-triggered |
-| postTweet (publish) | 1 per post | User-triggered |
+### Current X API Usage Points in Our App
 
-### Monthly X API Usage (50 Users)
+| Feature | Operation Type | Posts/call | Frequency |
+|---------|---------------|------------|-----------|
+| OAuth token exchange/refresh | N/A (free) | 0 | Per login |
+| Verify credentials (users/me) | User Lookup | 1 user | Per connection |
+| getUserTimeline (sync) | Post Read | 100 posts/page | User-triggered |
+| getTweetsBatch (metrics) | Post Read | Up to 100 posts | Cron: daily |
+| searchRecentTweets | Post Read | 10–100 posts | User-triggered |
+| postTweet (publish) | Post Write | 1 | User-triggered |
 
-**Conservative estimates:**
-- Timeline syncs: 50 users × 4 syncs/mo × 2 pages = **400 read calls**
-- Cron analytics sync: 50 users × 30 days × 2 pages = **3,000 read calls**
-- Metrics refresh: 50 users × 30 days × 2 batches = **3,000 read calls**
-- Inspiration search: 50 users × 10 searches/mo = **500 read calls**
-- Post publishing: 50 users × 20 posts/mo = **1,000 write calls**
-- **Total reads: ~6,900/mo** | **Total writes: ~1,000/mo**
+### Monthly X API Usage & Cost (50 Users)
 
-### Tier Viability at 50 Users
+**Conservative estimates per user/month:**
+- 4 manual timeline syncs × 100 posts = 400 post reads
+- Cron analytics-sync: 30 days × 200 posts = 6,000 post reads
+- Cron metrics-refresh: 30 days × 200 posts = 6,000 post reads
+- 10 inspiration searches × 10 posts avg = 100 post reads
+- 20 posts published = 20 post writes
+- 2 user lookups (connection + refresh)
 
-| Tier | Reads | Writes | Verdict |
-|------|-------|--------|---------|
-| Basic ($200/mo) | 10k limit vs 6.9k need | 1,667 limit vs 1k need | **Tight but works** |
-| Pro ($5,000/mo) | 1M limit vs 6.9k need | 300k limit vs 1k need | Massive overkill |
+| Operation | Per User/Mo | 50 Users/Mo | Cost/Unit | Monthly Cost |
+|-----------|------------|-------------|-----------|-------------|
+| Post Reads (sync) | 400 | 20,000 | $0.005 | $100.00 |
+| Post Reads (cron analytics) | 6,000 | 300,000 | $0.005 | $1,500.00 |
+| Post Reads (cron metrics) | 6,000 | 300,000 | $0.005 | $1,500.00 |
+| Post Reads (search) | 100 | 5,000 | $0.005 | $25.00 |
+| Post Writes | 20 | 1,000 | $0.01 | $10.00 |
+| User Lookups | 2 | 100 | $0.01 | $1.00 |
+| **Total (unoptimized)** | | **626,100** | | **$3,136.00** |
 
-### Critical Notes
+**This is too expensive.** The cron jobs dominate. We MUST optimize.
 
-1. **organic_metrics** (impressions, link clicks, profile clicks) requires Pro
-   tier. The code gracefully falls back to `public_metrics` — impression_count is
-   also available there for the user's own tweets with Basic tier.
+### Optimized X API Usage & Cost (50 Users)
 
-2. **Cron jobs are the biggest read consumer** (6,000 of 6,900 reads). Options:
-   - Reduce analytics-sync frequency (daily → every 3 days)
-   - Reduce metrics-refresh batch size (200 → 50 posts)
-   - Rely on Chrome extension + CSV uploads for analytics (no X API cost)
+**Optimization strategies:**
+1. **Disable cron analytics-sync** — rely on Chrome extension + CSV for reads
+   (these are free, zero X API cost). Only offer X API sync as on-demand.
+2. **Disable cron metrics-refresh** — refresh metrics only when user views
+   analytics page (lazy refresh), and use 24-hour dedup to avoid repeat charges.
+3. **Reduce sync page size** — fetch 50 posts per sync instead of 100.
+4. **Cap inspiration searches** — limit to 10 results per search.
 
-3. **CSV uploads and Chrome extension bypass X API entirely** — this is already
-   the "free tier" strategy the user mentioned. Push users toward these to
-   reduce API consumption.
+| Operation | Per User/Mo | 50 Users/Mo | Cost/Unit | Monthly Cost |
+|-----------|------------|-------------|-----------|-------------|
+| Post Reads (manual sync, 4×50) | 200 | 10,000 | $0.005 | $50.00 |
+| Post Reads (lazy metrics, 2×/mo×50) | 100 | 5,000 | $0.005 | $25.00 |
+| Post Reads (search) | 100 | 5,000 | $0.005 | $25.00 |
+| Post Writes | 20 | 1,000 | $0.01 | $10.00 |
+| User Lookups | 2 | 100 | $0.01 | $1.00 |
+| **Total (optimized)** | | **21,100** | | **$111.00** |
 
-**Recommendation:** Start on Basic ($200/mo). Reduce cron frequency. If 50
-users overwhelm the 10k read limit, upgrade to Pro.
+**With 24-hour deduplication**, repeated reads of the same posts (e.g., metrics
+refresh on already-synced posts) cost nothing extra within a UTC day, so actual
+costs could be **even lower (~$75–90/mo)**.
+
+**xAI credit-back** of up to 20% means ~$15–22 back as xAI/Grok credits per
+month — effectively subsidizing our AI costs if we use Grok.
+
+### Cost Scaling
+
+| Users | Optimized Monthly X API Cost | Notes |
+|-------|------------------------------|-------|
+| 10 | ~$22 | Well under any old tier |
+| 25 | ~$56 | Still cheaper than old Basic ($200) |
+| 50 | ~$111 | Sweet spot |
+| 100 | ~$222 | Linear scaling, still reasonable |
+| 500 | ~$1,110 | Approaching old Pro cost, but proportional |
 
 ---
 
-## 3. Infrastructure Costs
+## 3. Infrastructure Costs (unchanged)
 
 | Service | Tier | Monthly Cost | Notes |
 |---------|------|-------------|-------|
@@ -137,73 +170,113 @@ users overwhelm the 10k read limit, upgrade to Pro.
 
 ## 4. Total Monthly Cost Summary
 
-### At 50 Users (Target)
+### At 50 Users (Target) — Optimized
 
 | Category | Monthly Cost |
 |----------|-------------|
-| X API (Basic) | $200 |
+| X API (pay-per-use, optimized) | $75–111 |
 | AI (OpenAI gpt-4o-mini) | $2–5 |
 | Supabase | $0–25 |
 | Vercel | $0–20 |
 | QStash + Redis | $0 |
-| **Total** | **$202–250/mo** |
+| **Total** | **$77–161/mo** |
 
-### Per-User Cost Breakdown
+### Per-User Variable Cost
 
 | Category | Per User/Month |
 |----------|---------------|
-| X API | $4.00 (fixed amortized) |
+| X API (post reads + writes) | $1.50–2.25 |
 | AI calls | $0.04–0.10 |
-| Infrastructure | $0–0.90 |
-| **Total per user** | **~$4.10–5.00** |
+| Infrastructure | $0–0.50 |
+| **Total per user** | **~$1.55–2.85** |
+
+**Key difference from old model:** There is no longer a $200 fixed floor.
+Costs scale linearly from $0 with usage. This makes the unit economics
+significantly better for a small user base.
 
 ---
 
-## 5. Pricing Recommendations
+## 5. Pricing Recommendations (Updated)
 
 ### Suggested Tiers
 
-Based on per-user cost of ~$5/mo with healthy margin:
+Based on per-user variable cost of ~$2–3/mo, target 6–10x margin on paid tiers:
 
 | Tier | Price | Includes |
 |------|-------|----------|
-| **Free** | $0/mo | CSV upload, 5 AI generations/day, manual posting |
-| **Pro** | $19/mo | X API sync, unlimited AI generations, scheduling, analytics, patterns |
+| **Free** | $0/mo | CSV upload, Chrome extension imports, 5 AI generations/day, manual posting |
+| **Pro** | $19/mo | X API sync (on-demand), unlimited AI generations, scheduling, analytics, patterns, insights |
 | **Business** | $39/mo | Everything in Pro + priority support, multiple X accounts (future) |
 
 ### Revenue at 50 Users
 
-| Scenario | Monthly Revenue | Monthly Cost | Monthly Profit |
-|----------|----------------|-------------|----------------|
-| 50 Pro users | $950 | $250 | $700 |
-| 30 Pro + 20 Free | $570 | $220 | $350 |
-| 40 Pro + 10 Business | $1,150 | $250 | $900 |
+| Scenario | Monthly Revenue | Monthly Cost | Monthly Profit | Margin |
+|----------|----------------|-------------|----------------|--------|
+| 50 Pro users | $950 | $161 | $789 | 83% |
+| 30 Pro + 20 Free | $570 | $115 | $455 | 80% |
+| 40 Pro + 10 Business | $1,150 | $155 | $995 | 87% |
 
 ### Break-Even Analysis
 
-- Fixed costs: ~$200/mo (X API Basic)
-- Variable per user: ~$0.10/mo
-- Break-even at $19/mo: **11 paid users**
+- Fixed infrastructure costs: ~$20–45/mo (Supabase + Vercel)
+- Variable per paid user: ~$2.85/mo
+- **Break-even at $19/mo: 2–3 paid users**
+
+This is dramatically better than the old model (which required 11 users to
+break even on the $200/mo Basic tier).
 
 ---
 
-## 6. Cost Optimization Recommendations
+## 6. Cost Optimization Recommendations (Updated)
 
-1. **Switch all AI to gpt-4o-mini** — Change "standard" tier from gpt-4-turbo-preview
-2. **Reduce cron sync frequency** — Analytics sync every 3 days instead of daily
-3. **Cap AI generations for free tier** — 5/day limit prevents abuse
-4. **Promote CSV/extension** — These are zero X API cost for reads
-5. **Lazy metrics refresh** — Only refresh metrics when user views analytics page
-6. **Monitor X API usage** — Add logging to track actual call volume before scaling
+### Critical (Must Do Before Launch)
+
+1. **Disable cron-based analytics-sync and metrics-refresh** — These alone would
+   cost $3,000/mo at 50 users. Replace with on-demand sync triggered by user
+   action (visiting analytics page, clicking "Sync" button).
+2. **Set X API spending cap** in the Developer Console — prevent runaway costs
+   from bugs or abuse. Recommended cap: $200/mo initially.
+3. **Promote CSV/extension imports** — These are completely free and should be
+   the primary path for free-tier users to get posts into the app.
+
+### Important
+
+4. **Switch all AI to gpt-4o-mini** — Change "standard" tier from
+   gpt-4-turbo-preview.
+5. **Cap AI generations for free tier** — 5/day limit (already implemented).
+6. **Leverage 24-hour dedup** — When refreshing metrics, batch within a single
+   UTC day to avoid double-charging for the same posts.
+7. **Use xAI credit-back** — The 20% credit-back on X API spend can subsidize
+   Grok usage for AI features, effectively reducing AI costs to near-zero.
+
+### Nice to Have
+
+8. **Lazy metrics refresh** — Only refresh when user views analytics, not on a
+   cron schedule.
+9. **Add X API cost tracking** — Log credits consumed per user to monitor
+   per-user costs and identify abuse.
+10. **Consider passing through X API costs** — If a power user does 10x the
+    average syncs, consider metered billing or usage alerts.
 
 ---
 
-## 7. Implementation Priority for Stripe
+## 7. Implementation Priority
 
-Based on this analysis, the pricing structure should be:
+Based on this analysis:
 
-1. Free tier: No X API access, CSV/extension only, capped AI usage
-2. Pro tier ($19/mo): Full X API sync, unlimited AI, scheduling
-3. Stripe checkout with monthly billing
-4. Subscription gating middleware on X API features
-5. Usage tracking for AI calls (for future per-use billing if needed)
+1. **Disable or convert cron jobs to on-demand** — Highest cost savings
+2. Free tier: No X API access, CSV/extension only, capped AI usage
+3. Pro tier ($19/mo): On-demand X API sync, unlimited AI, scheduling
+4. Set X API spending cap in Developer Console
+5. Monitor actual usage in first month and adjust
+
+---
+
+## Sources
+
+- [X API Pay-Per-Use Launch Announcement](https://devcommunity.x.com/t/announcing-the-launch-of-x-api-pay-per-use-pricing/256476)
+- [X API Pay-Per-Use Pilot Announcement](https://devcommunity.x.com/t/announcing-the-x-api-pay-per-use-pricing-pilot/250253)
+- [X API Pricing 2026 — Postproxy Blog](https://postproxy.dev/blog/x-api-pricing-2026/)
+- [X Revamps Developer API Pricing — MediaNama](https://www.medianama.com/2026/02/223-x-developer-api-pricing-pay-per-use-model/)
+- [X API Pricing 2026 — WeAreFounders](https://www.wearefounders.uk/the-x-api-price-hike-a-blow-to-indie-hackers/)
+- [Social Media Today — X Usage-Based API](https://www.socialmediatoday.com/news/x-formerly-twitter-launches-usage-based-api-access-charges/803315/)
