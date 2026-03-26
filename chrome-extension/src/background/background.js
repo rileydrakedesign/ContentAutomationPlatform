@@ -216,6 +216,28 @@ async function logReplySent(payload) {
   }
 }
 
+// Fetch extension status (plan, usage, setup) from dashboard API
+async function fetchExtensionStatus() {
+  try {
+    const response = await apiRequest('/api/extension/status', {
+      method: 'GET',
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      // Cache status locally for content script access
+      await chrome.storage.local.set({ extensionStatus: data, statusFetchedAt: Date.now() });
+      return { success: true, data };
+    } else {
+      return { success: false, error: data.error || 'Failed to fetch status' };
+    }
+  } catch (error) {
+    console.error('Fetch extension status failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Generate reply options using AI
 async function generateReply(payload) {
   try {
@@ -232,7 +254,19 @@ async function generateReply(payload) {
     const data = await response.json();
 
     if (response.ok) {
+      // Refresh status after successful generation (usage changed)
+      fetchExtensionStatus().catch(() => {});
       return { success: true, replies: data.replies };
+    } else if (response.status === 429 && data.code === 'AI_LIMIT') {
+      // Rate limited - return structured limit info
+      return {
+        success: false,
+        error: data.error,
+        code: 'AI_LIMIT',
+        remaining: 0,
+        limit: data.limit,
+        upgrade_url: data.upgrade_url,
+      };
     } else {
       return { success: false, error: data.error || 'Failed to generate replies' };
     }
@@ -319,6 +353,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'LOG_REPLY_SENT') {
     logReplySent(message.payload)
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
+  if (message.type === 'GET_EXTENSION_STATUS') {
+    fetchExtensionStatus()
       .then(sendResponse)
       .catch((error) => {
         sendResponse({ success: false, error: error.message });

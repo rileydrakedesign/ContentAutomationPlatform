@@ -135,6 +135,38 @@ header {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ===================================
+   Welcome / First-time Install
+   =================================== */
+
+.welcome-card {
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.welcome-icon {
+  margin-bottom: 16px;
+}
+
+.welcome-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  letter-spacing: -0.02em;
+}
+
+.welcome-desc {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.welcome-desc:last-of-type {
+  margin-bottom: 20px;
+}
+
 /* Card (glass effect) */
 .card {
   background: var(--bg-surface);
@@ -196,6 +228,311 @@ header {
 
 .xcom-banner.inactive a:hover {
   text-decoration: underline;
+}
+
+/* ===================================
+   Setup Checklist
+   =================================== */
+
+.setup-checklist {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.setup-checklist.hidden {
+  display: none;
+}
+
+.setup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.setup-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.setup-progress {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand-indigo);
+  background: rgba(99, 102, 241, 0.12);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.setup-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.setup-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.setup-item:not(:last-child) {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.setup-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border-medium);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.setup-check.done {
+  background: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.setup-check.done::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  width: 5px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.setup-item-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.setup-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.setup-item-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.setup-action {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand-indigo);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.setup-action:hover {
+  text-decoration: underline;
+}
+
+.setup-done-label {
+  color: var(--color-success) !important;
+  pointer-events: none;
+}
+
+/* ===================================
+   Usage Tracker (Free Plan)
+   =================================== */
+
+.usage-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.usage-section.hidden {
+  display: none;
+}
+
+.usage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.usage-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.usage-plan-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.usage-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.usage-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-bar-track {
+  height: 6px;
+  background: var(--bg-elevated);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.usage-bar-fill {
+  height: 100%;
+  background: var(--brand-indigo);
+  border-radius: 3px;
+  transition: width 0.4s ease, background 0.3s ease;
+  min-width: 0;
+}
+
+.usage-bar-fill.warning {
+  background: var(--color-warning);
+}
+
+.usage-bar-fill.depleted {
+  background: var(--color-error);
+}
+
+.usage-upgrade-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.usage-upgrade-hint.hidden {
+  display: none;
+}
+
+.usage-upgrade-hint a {
+  color: var(--brand-indigo);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.usage-upgrade-hint a:hover {
+  text-decoration: underline;
+}
+
+/* ===================================
+   Unlimited Badge (Pro/Business)
+   =================================== */
+
+.unlimited-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.unlimited-section.hidden {
+  display: none;
+}
+
+.unlimited-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--brand-indigo);
+  padding: 2px 10px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.unlimited-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--brand-indigo);
+}
+
+/* ===================================
+   Limit Reached Banner
+   =================================== */
+
+.limit-banner {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.limit-banner.hidden {
+  display: none;
+}
+
+.limit-banner-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-error);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.limit-banner-text svg {
+  flex-shrink: 0;
+}
+
+.btn-upgrade {
+  display: block;
+  width: 100%;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand-indigo), #8B5CF6);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn-upgrade:hover {
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+  transform: translateY(-1px);
 }
 
 /* Feature cards */

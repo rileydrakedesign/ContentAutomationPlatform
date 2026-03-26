@@ -37,10 +37,27 @@
       </div>
     </div>
 
+    <!-- Welcome / First-time install (not logged in, no account) -->
+    <div id="welcome-section" class="section hidden">
+      <div class="card welcome-card">
+        <div class="welcome-icon">
+          <svg viewBox="0 0 32 32" width="48" height="48" fill="none">
+            <circle cx="16" cy="16" r="14" fill="#6366F1"/>
+            <path d="M10 10L16 16M16 16L22 22M16 16L22 10M16 16L10 22" stroke="#F97316" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h2 class="welcome-title">Welcome to Agents For X</h2>
+        <p class="welcome-desc">AI-powered replies, opportunity scoring, and inspiration saving — right on your X timeline.</p>
+        <p class="welcome-desc">To get started, sign in or create an account on the dashboard.</p>
+        <a href="#" id="welcome-create-account" class="btn btn-primary">Create Account</a>
+        <button id="welcome-show-login" class="btn btn-ghost" style="width: 100%; margin-top: 8px;">Already have an account? Sign in</button>
+      </div>
+    </div>
+
     <!-- Login form -->
     <div id="login-section" class="section hidden">
       <div class="card">
-        <p class="description">Sign in to save posts, generate AI replies, and score opportunities on X.</p>
+        <p class="description">Sign in to your Agents For X account.</p>
 
         <form id="login-form">
           <div class="form-group">
@@ -57,6 +74,7 @@
 
           <button type="submit" id="login-btn" class="btn btn-primary">Sign in</button>
         </form>
+        <button id="login-back-btn" class="btn btn-ghost" style="width: 100%; margin-top: 8px;">Back</button>
       </div>
     </div>
 
@@ -65,6 +83,64 @@
       <!-- x.com detection banner -->
       <div id="xcom-banner" class="xcom-banner">
         <span id="xcom-banner-text"></span>
+      </div>
+
+      <!-- Setup checklist (shown when setup incomplete) -->
+      <div id="setup-checklist" class="setup-checklist hidden">
+        <div class="setup-header">
+          <span class="setup-title">Get set up</span>
+          <span class="setup-progress" id="setup-progress-text">0/3</span>
+        </div>
+        <div class="setup-items">
+          <div class="setup-item" id="setup-voice">
+            <span class="setup-check" id="setup-voice-check"></span>
+            <div class="setup-item-info">
+              <span class="setup-item-name">Configure your voice</span>
+              <span class="setup-item-desc">Teach the AI how you write</span>
+            </div>
+            <a href="#" class="setup-action" id="setup-voice-action">Set up</a>
+          </div>
+          <div class="setup-item" id="setup-x">
+            <span class="setup-check" id="setup-x-check"></span>
+            <div class="setup-item-info">
+              <span class="setup-item-name">Connect X account</span>
+              <span class="setup-item-desc">Sync analytics & schedule posts</span>
+            </div>
+            <a href="#" class="setup-action" id="setup-x-action">Connect</a>
+          </div>
+          <div class="setup-item" id="setup-extension">
+            <span class="setup-check done"></span>
+            <div class="setup-item-info">
+              <span class="setup-item-name">Install extension</span>
+              <span class="setup-item-desc">You're using it right now</span>
+            </div>
+            <span class="setup-done-label">Done</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Usage tracker (free plan) -->
+      <div id="usage-section" class="usage-section hidden">
+        <div class="usage-header">
+          <div class="usage-label">
+            <span class="usage-plan-badge" id="usage-plan-badge">Free</span>
+            <span class="usage-title">AI Generations Today</span>
+          </div>
+          <span class="usage-count" id="usage-count">0 / 5</span>
+        </div>
+        <div class="usage-bar-track">
+          <div class="usage-bar-fill" id="usage-bar-fill" style="width: 0%"></div>
+        </div>
+        <div id="usage-upgrade-hint" class="usage-upgrade-hint hidden">
+          <span>Need more?</span>
+          <a href="#" id="usage-upgrade-link">Upgrade to Pro</a>
+        </div>
+      </div>
+
+      <!-- Unlimited badge (pro/business) -->
+      <div id="unlimited-section" class="unlimited-section hidden">
+        <span class="unlimited-badge" id="unlimited-badge">Pro</span>
+        <span class="unlimited-text">Unlimited AI generations</span>
       </div>
 
       <!-- Feature cards -->
@@ -82,20 +158,20 @@
               <span class="feature-desc">Bookmark posts to learn from</span>
             </div>
           </div>
-          <span class="feature-stat" id="stat-inspired">–</span>
+          <span class="feature-stat" id="stat-inspired">--</span>
         </div>
 
         <div class="feature-card">
           <div class="feature-card-left">
             <div class="feature-icon feature-icon-replies">
-              <span style="font-size: 18px; line-height: 1;">🤖</span>
+              <span style="font-size: 18px; line-height: 1;">&#x1F916;</span>
             </div>
             <div class="feature-info">
               <span class="feature-name">AI Replies</span>
               <span class="feature-desc">Generate context-aware replies</span>
             </div>
           </div>
-          <span class="feature-stat" id="stat-replies">–</span>
+          <span class="feature-stat" id="stat-replies">--</span>
         </div>
 
         <div class="feature-card">
@@ -111,8 +187,19 @@
               <span class="feature-desc">Find high-value reply targets</span>
             </div>
           </div>
-          <span class="feature-stat" id="stat-scored">–</span>
+          <span class="feature-stat" id="stat-scored">--</span>
         </div>
+      </div>
+
+      <!-- Limit reached banner (shown when 0 remaining) -->
+      <div id="limit-banner" class="limit-banner hidden">
+        <div class="limit-banner-text">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>Daily limit reached. Upgrade for unlimited AI replies.</span>
+        </div>
+        <a href="#" id="limit-upgrade-btn" class="btn btn-upgrade">Upgrade to Pro - $19/mo</a>
       </div>
 
       <div class="actions">
@@ -154,7 +241,7 @@
 
           <!-- Collapsible Advanced section -->
           <button type="button" id="advanced-toggle" class="advanced-toggle">
-            <span class="advanced-arrow" id="advanced-arrow">▸</span>
+            <span class="advanced-arrow" id="advanced-arrow">&#x25B8;</span>
             <span>Advanced</span>
           </button>
 
@@ -197,7 +284,7 @@
     </div>
 
     <footer>
-      <span class="footer-version">v1.1.0</span>
+      <span class="footer-version">v2.0.0</span>
       <span class="footer-sep">&middot;</span>
       <a href="https://agentsforx.com/privacy" class="footer-link" id="footer-privacy">Privacy</a>
       <span class="footer-sep">&middot;</span>
