@@ -51,7 +51,7 @@ export function RefreshButton({ lastRefreshAt, onRefresh }: RefreshButtonProps) 
   return (
     <div className="flex items-center gap-3">
       {message && (
-        <span className={`text-sm ${message.includes("failed") ? "text-red-400" : "text-teal-400"}`}>
+        <span className={`text-sm ${message.includes("failed") ? "text-[var(--color-danger-400)]" : "text-teal-400"}`}>
           {message}
         </span>
       )}
@@ -59,11 +59,11 @@ export function RefreshButton({ lastRefreshAt, onRefresh }: RefreshButtonProps) 
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+          className="bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] disabled:bg-[var(--color-bg-elevated)] disabled:opacity-50 text-[var(--color-text-primary)] px-4 py-2 rounded-lg text-sm font-medium transition"
         >
           {refreshing ? "Refreshing..." : "Refresh Examples"}
         </button>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs text-[var(--color-text-muted)] mt-1">
           Last refresh: {formatLastRefresh(lastRefreshAt)}
         </p>
       </div>

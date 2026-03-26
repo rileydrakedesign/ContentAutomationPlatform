@@ -11,9 +11,9 @@ interface VoiceDialsTabProps {
 export function VoiceDialsTab({ settings, onSettingsUpdate }: VoiceDialsTabProps) {
   return (
     <div className="space-y-8">
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-white mb-2">Voice Dials</h3>
-        <p className="text-sm text-slate-400 mb-6">
+      <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-6">
+        <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">Voice Dials</h3>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-6">
           Fine-tune how your generated content sounds. These sliders affect the
           tone and style of posts created from topics.
         </p>
@@ -65,11 +65,11 @@ export function VoiceDialsTab({ settings, onSettingsUpdate }: VoiceDialsTabProps
         </div>
       </div>
 
-      <div className="bg-slate-900/50 border border-slate-800/50 rounded-lg p-4">
+      <div className="bg-[var(--color-bg-base)]/50 border border-[var(--color-border-default)]/50 rounded-lg p-4">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-[var(--color-primary-500)]/10 flex items-center justify-center flex-shrink-0">
             <svg
-              className="w-4 h-4 text-violet-400"
+              className="w-4 h-4 text-[var(--color-primary-400)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -83,7 +83,7 @@ export function VoiceDialsTab({ settings, onSettingsUpdate }: VoiceDialsTabProps
             </svg>
           </div>
           <div>
-            <p className="text-sm text-slate-300">
+            <p className="text-sm text-[var(--color-text-secondary)]">
               These dials work alongside your voice examples. The AI learns your
               style from examples and applies these adjustments on top.
             </p>

@@ -145,14 +145,14 @@ export function SettingsPage() {
   }
 
   if (loading) {
-    return <div className="text-slate-500">Loading settings...</div>;
+    return <div className="text-[var(--color-text-muted)]">Loading settings...</div>;
   }
 
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-white">Settings</h1>
-        <p className="text-slate-500 mt-1">Connect your X account, manage API keys, and configure preferences</p>
+        <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">Settings</h1>
+        <p className="text-[var(--color-text-muted)] mt-1">Connect your X account, manage API keys, and configure preferences</p>
       </div>
 
       {/* Status Messages */}
@@ -161,7 +161,7 @@ export function SettingsPage() {
           className={`mb-4 p-4 rounded-lg ${
             message.type === "success"
               ? "bg-teal-500/10 border border-teal-500/20 text-teal-400"
-              : "bg-red-500/10 border border-red-500/20 text-red-400"
+              : "bg-red-500/10 border border-red-500/20 text-[var(--color-danger-400)]"
           }`}
         >
           {message.text}
@@ -193,26 +193,26 @@ export function SettingsPage() {
             {/* X Connection */}
             <Card className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-white">X Account</h2>
+                <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">X Account</h2>
                 {xStatus?.connected && <Badge variant="success">Connected</Badge>}
               </div>
 
               {xStatus?.connected ? (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4 p-4 bg-slate-800 rounded-lg">
-                    <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-xl font-bold text-white">
+                  <div className="flex items-center gap-4 p-4 bg-[var(--color-bg-elevated)] rounded-lg">
+                    <div className="w-12 h-12 rounded-full bg-[var(--color-bg-hover)] flex items-center justify-center text-xl font-bold text-[var(--color-text-primary)]">
                       {xStatus.username?.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-white font-medium">@{xStatus.username}</p>
-                      <p className="text-sm text-slate-500">
+                      <p className="text-[var(--color-text-primary)] font-medium">@{xStatus.username}</p>
+                      <p className="text-sm text-[var(--color-text-muted)]">
                         Connected {xStatus.connectedAt && formatRelativeTime(xStatus.connectedAt)}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">
+                    <span className="text-[var(--color-text-muted)]">
                       {xStatus.lastSyncAt
                         ? `Last post sync ${formatRelativeTime(xStatus.lastSyncAt)}`
                         : "Never synced posts"}
@@ -220,14 +220,14 @@ export function SettingsPage() {
                     <button
                       onClick={syncPosts}
                       disabled={syncing}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-700 rounded text-sm transition"
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:bg-[var(--color-bg-hover)] rounded-lg text-sm transition"
                     >
                       {syncing ? "Syncing..." : "Sync Posts"}
                     </button>
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">
+                    <span className="text-[var(--color-text-muted)]">
                       {xStatus.lastApiSyncAt
                         ? `Last analytics sync ${formatRelativeTime(xStatus.lastApiSyncAt)}`
                         : "Never synced analytics"}
@@ -235,16 +235,16 @@ export function SettingsPage() {
                     <button
                       onClick={syncAnalytics}
                       disabled={syncingAnalytics}
-                      className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-slate-700 rounded text-sm transition"
+                      className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-[var(--color-bg-hover)] rounded-lg text-sm transition"
                     >
                       {syncingAnalytics ? "Syncing..." : "Sync Analytics"}
                     </button>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-800">
+                  <div className="pt-4 border-t border-[var(--color-border-default)]">
                     <button
                       onClick={disconnectX}
-                      className="text-sm text-red-400 hover:text-red-300 transition"
+                      className="text-sm text-[var(--color-danger-400)] hover:text-red-300 transition"
                     >
                       Disconnect X account
                     </button>
@@ -252,7 +252,7 @@ export function SettingsPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-[var(--color-text-muted)]">
                     Connect your X account so we can publish and schedule posts on your behalf.
                   </p>
 
@@ -278,22 +278,22 @@ export function SettingsPage() {
 
             {/* How It Works */}
             <Card className="p-4">
-              <h2 className="text-sm font-semibold text-white mb-4">How It Works</h2>
-              <div className="space-y-3 text-sm text-slate-400">
+              <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">How It Works</h2>
+              <div className="space-y-3 text-sm text-[var(--color-text-secondary)]">
                 <div className="flex gap-3">
-                  <span className="text-amber-400">1.</span>
+                  <span className="text-[var(--color-warning-400)]">1.</span>
                   <span>Connect your X account to sync your posts automatically</span>
                 </div>
                 <div className="flex gap-3">
-                  <span className="text-amber-400">2.</span>
+                  <span className="text-[var(--color-warning-400)]">2.</span>
                   <span>Your posts appear in the Library with engagement metrics</span>
                 </div>
                 <div className="flex gap-3">
-                  <span className="text-amber-400">3.</span>
+                  <span className="text-[var(--color-warning-400)]">3.</span>
                   <span>Promote top performers to use as inspiration for new content</span>
                 </div>
                 <div className="flex gap-3">
-                  <span className="text-amber-400">4.</span>
+                  <span className="text-[var(--color-warning-400)]">4.</span>
                   <span>Use voice memos to draft new posts that match your style</span>
                 </div>
               </div>

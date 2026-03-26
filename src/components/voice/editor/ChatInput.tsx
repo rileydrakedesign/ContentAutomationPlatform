@@ -35,7 +35,7 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
   };
 
   return (
-    <div className="flex items-end gap-2 p-4 border-t border-slate-800 bg-slate-900/50">
+    <div className="flex items-end gap-2 p-4 border-t border-[var(--color-border-default)] bg-[var(--color-bg-base)]/50">
       <textarea
         ref={textareaRef}
         value={message}
@@ -43,13 +43,13 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
         onKeyDown={handleKeyDown}
         disabled={disabled}
         placeholder={placeholder || "Describe how you want your voice to sound..."}
-        className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+        className="flex-1 px-4 py-3 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] text-sm placeholder-[var(--color-text-muted)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)] disabled:opacity-50"
         rows={1}
       />
       <button
         onClick={handleSubmit}
         disabled={!message.trim() || disabled}
-        className="p-3 bg-violet-600 hover:bg-violet-500 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="p-3 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-[var(--color-text-primary)] rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         <Send className="w-5 h-5" />
       </button>

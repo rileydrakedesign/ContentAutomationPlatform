@@ -36,13 +36,13 @@ export function ChatMessage({
       {/* Avatar */}
       <div
         className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-          isUser ? "bg-violet-600" : "bg-slate-700"
+          isUser ? "bg-[var(--color-primary-500)]" : "bg-[var(--color-bg-hover)]"
         }`}
       >
         {isUser ? (
-          <User className="w-4 h-4 text-white" />
+          <User className="w-4 h-4 text-[var(--color-text-primary)]" />
         ) : (
-          <Bot className="w-4 h-4 text-slate-300" />
+          <Bot className="w-4 h-4 text-[var(--color-text-secondary)]" />
         )}
       </div>
 
@@ -51,8 +51,8 @@ export function ChatMessage({
         <div
           className={`inline-block px-4 py-2 rounded-2xl text-sm ${
             isUser
-              ? "bg-violet-600 text-white rounded-tr-sm"
-              : "bg-slate-800 text-slate-200 rounded-tl-sm"
+              ? "bg-[var(--color-primary-500)] text-[var(--color-text-primary)] rounded-tr-sm"
+              : "bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] rounded-tl-sm"
           }`}
         >
           {message.content}
@@ -60,9 +60,9 @@ export function ChatMessage({
 
         {/* Sample content preview */}
         {!isUser && message.sampleContent && (
-          <div className="mt-2 px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-lg">
-            <p className="text-xs text-slate-500 mb-1">Sample {voiceType}:</p>
-            <p className="text-sm text-slate-300 whitespace-pre-wrap">
+          <div className="mt-2 px-4 py-3 bg-[var(--color-bg-elevated)]/50 border border-[var(--color-border-default)]/50 rounded-lg">
+            <p className="text-xs text-[var(--color-text-muted)] mb-1">Sample {voiceType}:</p>
+            <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">
               {message.sampleContent}
             </p>
           </div>
@@ -108,13 +108,13 @@ export function ChatMessage({
           !message.requiresAction &&
           message.suggestedChanges &&
           Object.keys(message.suggestedChanges).length > 0 && (
-            <div className="mt-2 px-4 py-3 bg-violet-500/10 border border-violet-500/20 rounded-lg">
-              <p className="text-xs text-violet-400 mb-2">Suggested changes:</p>
-              <div className="space-y-1 text-xs text-slate-400">
+            <div className="mt-2 px-4 py-3 bg-[var(--color-primary-500)]/10 border border-[var(--color-primary-500)]/20 rounded-lg">
+              <p className="text-xs text-[var(--color-primary-400)] mb-2">Suggested changes:</p>
+              <div className="space-y-1 text-xs text-[var(--color-text-secondary)]">
                 {Object.entries(message.suggestedChanges).map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between">
-                    <span className="text-slate-500">{formatSettingKey(key)}:</span>
-                    <span className="text-slate-300">{formatSettingValue(key, value)}</span>
+                    <span className="text-[var(--color-text-muted)]">{formatSettingKey(key)}:</span>
+                    <span className="text-[var(--color-text-secondary)]">{formatSettingValue(key, value)}</span>
                   </div>
                 ))}
               </div>
@@ -124,8 +124,8 @@ export function ChatMessage({
                   disabled={changesAccepted}
                   className={`mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition ${
                     changesAccepted
-                      ? "bg-green-500/20 text-green-400 cursor-default"
-                      : "bg-violet-600 hover:bg-violet-500 text-white"
+                      ? "bg-[var(--color-success-500)]/20 text-[var(--color-success-400)] cursor-default"
+                      : "bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-[var(--color-text-primary)]"
                   }`}
                 >
                   {changesAccepted ? (
@@ -142,7 +142,7 @@ export function ChatMessage({
           )}
 
         {/* Timestamp */}
-        <p className={`text-xs text-slate-600 mt-1 ${isUser ? "text-right" : ""}`}>
+        <p className={`text-xs text-[var(--color-text-muted)] mt-1 ${isUser ? "text-right" : ""}`}>
           {new Date(message.timestamp).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",

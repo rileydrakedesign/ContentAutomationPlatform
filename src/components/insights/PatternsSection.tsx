@@ -108,14 +108,14 @@ export function PatternsSection() {
 
   if (loading) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4">
         <div className="animate-pulse">
-          <div className="h-6 bg-slate-800 rounded w-48 mb-4" />
+          <div className="h-6 bg-[var(--color-bg-elevated)] rounded-lg w-48 mb-4" />
           <div className="grid grid-cols-2 gap-3">
-            <div className="h-20 bg-slate-800 rounded" />
-            <div className="h-20 bg-slate-800 rounded" />
-            <div className="h-20 bg-slate-800 rounded" />
-            <div className="h-20 bg-slate-800 rounded" />
+            <div className="h-20 bg-[var(--color-bg-elevated)] rounded-lg" />
+            <div className="h-20 bg-[var(--color-bg-elevated)] rounded-lg" />
+            <div className="h-20 bg-[var(--color-bg-elevated)] rounded-lg" />
+            <div className="h-20 bg-[var(--color-bg-elevated)] rounded-lg" />
           </div>
         </div>
       </div>
@@ -124,9 +124,9 @@ export function PatternsSection() {
 
   if (!patterns) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-        <h2 className="text-sm font-semibold text-white mb-2">Content Patterns</h2>
-        <p className="text-slate-500">
+      <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4">
+        <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">Content Patterns</h2>
+        <p className="text-[var(--color-text-muted)]">
           No posts yet. Start capturing your posts to see patterns.
         </p>
       </div>
@@ -134,46 +134,46 @@ export function PatternsSection() {
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-      <h2 className="text-sm font-semibold text-white mb-4">Content Patterns</h2>
+    <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4">
+      <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">Content Patterns</h2>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-3 gap-3 mb-4">
-        <div className="bg-slate-800 rounded-lg p-4">
-          <p className="text-sm text-slate-500 mb-1">Total Posts</p>
-          <p className="text-xl font-semibold text-white">{patterns.totalPosts}</p>
+        <div className="bg-[var(--color-bg-elevated)] rounded-lg-lg p-4">
+          <p className="text-sm text-[var(--color-text-muted)] mb-1">Total Posts</p>
+          <p className="text-xl font-semibold text-[var(--color-text-primary)]">{patterns.totalPosts}</p>
         </div>
-        <div className="bg-slate-800 rounded-lg p-4">
-          <p className="text-sm text-slate-500 mb-1">Total Impressions</p>
-          <p className="text-xl font-semibold text-white">{formatNumber(patterns.totalImpressions)}</p>
+        <div className="bg-[var(--color-bg-elevated)] rounded-lg-lg p-4">
+          <p className="text-sm text-[var(--color-text-muted)] mb-1">Total Impressions</p>
+          <p className="text-xl font-semibold text-[var(--color-text-primary)]">{formatNumber(patterns.totalImpressions)}</p>
         </div>
-        <div className="bg-slate-800 rounded-lg p-4">
-          <p className="text-sm text-slate-500 mb-1">Total Likes</p>
-          <p className="text-xl font-semibold text-white">{formatNumber(patterns.totalLikes)}</p>
+        <div className="bg-[var(--color-bg-elevated)] rounded-lg-lg p-4">
+          <p className="text-sm text-[var(--color-text-muted)] mb-1">Total Likes</p>
+          <p className="text-xl font-semibold text-[var(--color-text-primary)]">{formatNumber(patterns.totalLikes)}</p>
         </div>
       </div>
 
       {/* Pattern Details */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between py-3 border-b border-slate-800">
-          <span className="text-slate-400">Average post length</span>
-          <span className="text-white font-medium">{patterns.avgLength} characters</span>
+        <div className="flex items-center justify-between py-3 border-b border-[var(--color-border-default)]">
+          <span className="text-[var(--color-text-secondary)]">Average post length</span>
+          <span className="text-[var(--color-text-primary)] font-medium">{patterns.avgLength} characters</span>
         </div>
-        <div className="flex items-center justify-between py-3 border-b border-slate-800">
-          <span className="text-slate-400">Avg engagement / post</span>
-          <span className="text-white font-medium">{formatNumber(patterns.avgEngagement)}</span>
+        <div className="flex items-center justify-between py-3 border-b border-[var(--color-border-default)]">
+          <span className="text-[var(--color-text-secondary)]">Avg engagement / post</span>
+          <span className="text-[var(--color-text-primary)] font-medium">{formatNumber(patterns.avgEngagement)}</span>
         </div>
-        <div className="flex items-center justify-between py-3 border-b border-slate-800">
-          <span className="text-slate-400">Engagement rate</span>
-          <span className="text-white font-medium">{patterns.engagementRate}%</span>
+        <div className="flex items-center justify-between py-3 border-b border-[var(--color-border-default)]">
+          <span className="text-[var(--color-text-secondary)]">Engagement rate</span>
+          <span className="text-[var(--color-text-primary)] font-medium">{patterns.engagementRate}%</span>
         </div>
-        <div className="flex items-center justify-between py-3 border-b border-slate-800">
-          <span className="text-slate-400">Best performing day</span>
-          <span className="text-white font-medium">{patterns.bestDay}</span>
+        <div className="flex items-center justify-between py-3 border-b border-[var(--color-border-default)]">
+          <span className="text-[var(--color-text-secondary)]">Best performing day</span>
+          <span className="text-[var(--color-text-primary)] font-medium">{patterns.bestDay}</span>
         </div>
         <div className="flex items-center justify-between py-3">
-          <span className="text-slate-400">Best format</span>
-          <span className="text-white font-medium">{patterns.bestFormat}</span>
+          <span className="text-[var(--color-text-secondary)]">Best format</span>
+          <span className="text-[var(--color-text-primary)] font-medium">{patterns.bestFormat}</span>
         </div>
       </div>
     </div>

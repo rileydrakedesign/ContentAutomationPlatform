@@ -28,11 +28,11 @@ export function SpecialNotesSection({ settings, onSettingsUpdate }: SpecialNotes
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+    <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <h3 className="text-sm font-semibold text-white">Special Notes</h3>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Special Notes</h3>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
             Custom instructions for the AI to follow when generating content.
           </p>
         </div>
@@ -51,10 +51,10 @@ export function SpecialNotesSection({ settings, onSettingsUpdate }: SpecialNotes
         onChange={(e) => handleChange(e.target.value)}
         onBlur={() => isDirty && handleSave()}
         placeholder="e.g., Always mention our product when relevant. Never use first person plural. Reference industry trends when possible."
-        className="w-full h-28 px-3 py-2 mt-2 bg-slate-800 border border-slate-700 rounded-md text-white text-sm placeholder-slate-500 resize-none focus:outline-none focus:border-slate-500"
+        className="w-full h-28 px-3 py-2 mt-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-md text-[var(--color-text-primary)] text-sm placeholder-[var(--color-text-muted)] resize-none focus:outline-none focus:border-[var(--color-primary-500)]"
       />
 
-      <p className="text-xs text-slate-500 mt-1.5">
+      <p className="text-xs text-[var(--color-text-muted)] mt-1.5">
         These notes are included in every content generation prompt.
       </p>
     </div>

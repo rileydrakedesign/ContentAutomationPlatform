@@ -40,8 +40,8 @@ export function InsightsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-white">Insights</h1>
-        <p className="text-slate-500 mt-1">
+        <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">Insights</h1>
+        <p className="text-[var(--color-text-muted)] mt-1">
           Analytics, patterns, and actionable suggestions
         </p>
       </div>

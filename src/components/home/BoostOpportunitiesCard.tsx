@@ -33,7 +33,7 @@ function ScoreBadge({ score }: { score: number }) {
   const color =
     pct >= 70 ? "text-emerald-300 bg-emerald-500/10" :
     pct >= 45 ? "text-yellow-300 bg-yellow-500/10" :
-    "text-slate-400 bg-white/5";
+    "text-[var(--color-text-secondary)] bg-white/5";
   return (
     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${color}`}>
       {pct}

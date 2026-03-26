@@ -24,31 +24,31 @@ export function PostCard({
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <span className="font-medium text-white">@{post.author_handle}</span>
+            <span className="font-medium text-[var(--color-text-primary)]">@{post.author_handle}</span>
             <TypeBadge type={post.triaged_as || "my_post"} />
             {post.is_own_post && <Badge variant="primary">You</Badge>}
           </div>
 
           {/* Content */}
-          <p className="text-slate-300 whitespace-pre-wrap mb-3">
+          <p className="text-[var(--color-text-secondary)] whitespace-pre-wrap mb-3">
             {post.text_content}
           </p>
 
           {/* Metrics */}
           {Object.keys(post.metrics).length > 0 && (
-            <p className="text-sm text-slate-500 mb-3">
+            <p className="text-sm text-[var(--color-text-muted)] mb-3">
               {formatMetrics(post.metrics)}
             </p>
           )}
 
           {/* Footer */}
           <div className="flex items-center gap-4 text-sm">
-            <span className="text-slate-600">{formatRelativeTime(post.captured_at)}</span>
+            <span className="text-[var(--color-text-muted)]">{formatRelativeTime(post.captured_at)}</span>
 
             {isMyPost && onPromoteToInspiration && (
               <button
                 onClick={() => onPromoteToInspiration(post.id)}
-                className="text-purple-400 hover:text-purple-300 transition"
+                className="text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition"
               >
                 Use as inspiration
               </button>
@@ -58,14 +58,14 @@ export function PostCard({
               href={post.post_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-500 hover:text-slate-300 transition"
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition"
             >
               View on X
             </a>
 
             <button
               onClick={() => onDelete(post.id)}
-              className="text-red-400 hover:text-red-300 transition"
+              className="text-[var(--color-danger-400)] hover:text-[var(--color-danger-300)] transition"
             >
               Delete
             </button>

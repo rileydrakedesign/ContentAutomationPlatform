@@ -18,21 +18,21 @@ interface ControlKnobProps {
 
 function ControlKnob({ label, description, options, value, onChange }: ControlKnobProps) {
   return (
-    <div className="py-4 border-b border-slate-800 last:border-0">
+    <div className="py-4 border-b border-[var(--color-border-default)] last:border-0">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
-          <h4 className="text-sm font-medium text-white">{label}</h4>
-          <p className="text-xs text-slate-500 mt-0.5">{description}</p>
+          <h4 className="text-sm font-medium text-[var(--color-text-primary)]">{label}</h4>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{description}</p>
         </div>
-        <div className="flex gap-1 bg-slate-800/50 p-1 rounded-lg">
+        <div className="flex gap-1 bg-[var(--color-bg-elevated)]/50 p-1 rounded-lg">
           {options.map((option) => (
             <button
               key={option.value}
               onClick={() => onChange(option.value)}
               className={`px-3 py-1.5 rounded-md text-sm transition ${
                 value === option.value
-                  ? "bg-slate-700 text-white"
-                  : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+                  ? "bg-[var(--color-bg-hover)] text-[var(--color-text-primary)]"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)]/50"
               }`}
             >
               {option.label}
@@ -134,8 +134,8 @@ export function ControlsTab({ settings, onSettingsUpdate }: ControlsTabProps) {
         <CardContent className="space-y-4">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-white">Voice Examples Budget</label>
-              <span className="text-sm text-slate-400">{settings.max_example_tokens} tokens</span>
+              <label className="text-sm font-medium text-[var(--color-text-primary)]">Voice Examples Budget</label>
+              <span className="text-sm text-[var(--color-text-secondary)]">{settings.max_example_tokens} tokens</span>
             </div>
             <input
               type="range"
@@ -144,17 +144,17 @@ export function ControlsTab({ settings, onSettingsUpdate }: ControlsTabProps) {
               step={100}
               value={settings.max_example_tokens}
               onChange={(e) => onSettingsUpdate({ max_example_tokens: parseInt(e.target.value) })}
-              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+              className="w-full h-2 bg-[var(--color-bg-hover)] rounded-lg appearance-none cursor-pointer"
             />
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">
               Higher values include more examples but increase API costs.
             </p>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-white">Inspiration Budget</label>
-              <span className="text-sm text-slate-400">{settings.max_inspiration_tokens} tokens</span>
+              <label className="text-sm font-medium text-[var(--color-text-primary)]">Inspiration Budget</label>
+              <span className="text-sm text-[var(--color-text-secondary)]">{settings.max_inspiration_tokens} tokens</span>
             </div>
             <input
               type="range"
@@ -163,9 +163,9 @@ export function ControlsTab({ settings, onSettingsUpdate }: ControlsTabProps) {
               step={100}
               value={settings.max_inspiration_tokens}
               onChange={(e) => onSettingsUpdate({ max_inspiration_tokens: parseInt(e.target.value) })}
-              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+              className="w-full h-2 bg-[var(--color-bg-hover)] rounded-lg appearance-none cursor-pointer"
             />
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">
               Set to 0 to exclude inspiration from prompts.
             </p>
           </div>
@@ -182,15 +182,15 @@ export function ControlsTab({ settings, onSettingsUpdate }: ControlsTabProps) {
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-sm font-medium text-white">Weekly Auto-Refresh</h4>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <h4 className="text-sm font-medium text-[var(--color-text-primary)]">Weekly Auto-Refresh</h4>
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                 Automatically refresh top examples every week.
               </p>
             </div>
             <button
               onClick={() => onSettingsUpdate({ auto_refresh_enabled: !settings.auto_refresh_enabled })}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                settings.auto_refresh_enabled ? "bg-amber-500" : "bg-slate-700"
+                settings.auto_refresh_enabled ? "bg-amber-500" : "bg-[var(--color-bg-hover)]"
               }`}
             >
               <span

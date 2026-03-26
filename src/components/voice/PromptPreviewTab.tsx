@@ -37,9 +37,9 @@ export function PromptPreviewTab() {
       <div className="space-y-4">
         <Card className="p-4">
           <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-slate-800 rounded w-48"></div>
-            <div className="h-4 bg-slate-800 rounded w-96"></div>
-            <div className="h-32 bg-slate-800 rounded"></div>
+            <div className="h-6 bg-[var(--color-bg-elevated)] rounded w-48"></div>
+            <div className="h-4 bg-[var(--color-bg-elevated)] rounded w-96"></div>
+            <div className="h-32 bg-[var(--color-bg-elevated)] rounded"></div>
           </div>
         </Card>
       </div>
@@ -51,10 +51,10 @@ export function PromptPreviewTab() {
       <div className="space-y-4">
         <Card className="p-4">
           <div className="text-center py-8">
-            <p className="text-red-400">{error || "Failed to load preview"}</p>
+            <p className="text-[var(--color-danger-400)]">{error || "Failed to load preview"}</p>
             <button
               onClick={fetchPreview}
-              className="mt-2 text-sm text-amber-400 hover:text-amber-300 underline"
+              className="mt-2 text-sm text-[var(--color-warning-400)] hover:text-[var(--color-warning-300)] underline"
             >
               Try again
             </button>
@@ -78,41 +78,41 @@ export function PromptPreviewTab() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-slate-800/50 rounded-lg p-4">
-              <p className="text-xl font-semibold text-white">
+            <div className="bg-[var(--color-bg-elevated)]/50 rounded-lg p-4">
+              <p className="text-xl font-semibold text-[var(--color-text-primary)]">
                 {assembled.total_tokens.toLocaleString()}
               </p>
-              <p className="text-xs text-slate-500 mt-1">Total Tokens</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">Total Tokens</p>
             </div>
-            <div className="bg-slate-800/50 rounded-lg p-4">
-              <p className="text-xl font-semibold text-amber-400">
+            <div className="bg-[var(--color-bg-elevated)]/50 rounded-lg p-4">
+              <p className="text-xl font-semibold text-[var(--color-warning-400)]">
                 {assembled.breakdown.base_prompt_tokens.toLocaleString()}
               </p>
-              <p className="text-xs text-slate-500 mt-1">Base Prompt</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">Base Prompt</p>
             </div>
-            <div className="bg-slate-800/50 rounded-lg p-4">
+            <div className="bg-[var(--color-bg-elevated)]/50 rounded-lg p-4">
               <p className="text-xl font-semibold text-teal-400">
                 {assembled.breakdown.voice_examples_tokens.toLocaleString()}
               </p>
-              <p className="text-xs text-slate-500 mt-1">Voice Examples</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">Voice Examples</p>
             </div>
-            <div className="bg-slate-800/50 rounded-lg p-4">
+            <div className="bg-[var(--color-bg-elevated)]/50 rounded-lg p-4">
               <p className="text-xl font-semibold text-purple-400">
                 {assembled.breakdown.inspiration_tokens.toLocaleString()}
               </p>
-              <p className="text-xs text-slate-500 mt-1">Inspiration</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">Inspiration</p>
             </div>
             {assembled.breakdown.feedback_tokens > 0 && (
-              <div className="bg-slate-800/50 rounded-lg p-4">
+              <div className="bg-[var(--color-bg-elevated)]/50 rounded-lg p-4">
                 <p className="text-xl font-semibold text-rose-400">
                   {assembled.breakdown.feedback_tokens.toLocaleString()}
                 </p>
-                <p className="text-xs text-slate-500 mt-1">Feedback</p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">Feedback</p>
               </div>
             )}
           </div>
 
-          <div className="mt-4 flex items-center gap-4 text-sm text-slate-400">
+          <div className="mt-4 flex items-center gap-4 text-sm text-[var(--color-text-secondary)]">
             <span>
               Examples: {assembled.examples_included} included
               {assembled.examples_omitted > 0 && `, ${assembled.examples_omitted} omitted`}
@@ -155,22 +155,22 @@ export function PromptPreviewTab() {
         </CardHeader>
         <CardContent>
           {examples.filter(e => !e.is_excluded).length === 0 ? (
-            <p className="text-slate-500 text-sm">No examples included. Refresh or pin some examples.</p>
+            <p className="text-[var(--color-text-muted)] text-sm">No examples included. Refresh or pin some examples.</p>
           ) : (
             <div className="space-y-2">
               {examples
                 .filter(e => !e.is_excluded)
                 .slice(0, assembled.examples_included)
                 .map((example, index) => (
-                  <div key={example.id} className="flex items-start gap-2 py-2 border-b border-slate-800 last:border-0">
-                    <span className="text-xs text-slate-600 font-mono w-4">{index + 1}</span>
+                  <div key={example.id} className="flex items-start gap-2 py-2 border-b border-[var(--color-border-default)] last:border-0">
+                    <span className="text-xs text-[var(--color-text-muted)] font-mono w-4">{index + 1}</span>
                     <div className="flex-1">
-                      <p className="text-sm text-white line-clamp-2">{example.content_text}</p>
+                      <p className="text-sm text-[var(--color-text-primary)] line-clamp-2">{example.content_text}</p>
                       <div className="flex gap-2 mt-1">
                         <Badge variant={example.source === "pinned" ? "primary" : "secondary"} className="text-xs">
                           {example.source}
                         </Badge>
-                        <span className="text-xs text-slate-500">~{example.token_count} tokens</span>
+                        <span className="text-xs text-[var(--color-text-muted)]">~{example.token_count} tokens</span>
                       </div>
                     </div>
                   </div>
@@ -192,7 +192,7 @@ export function PromptPreviewTab() {
             </div>
             <button
               onClick={() => setShowFullPrompt(!showFullPrompt)}
-              className="text-sm text-slate-400 hover:text-white transition"
+              className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition"
             >
               {showFullPrompt ? "Hide" : "Show"}
             </button>
@@ -200,14 +200,14 @@ export function PromptPreviewTab() {
         </CardHeader>
         {showFullPrompt && (
           <CardContent>
-            <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 max-h-96 overflow-y-auto">
-              <pre className="text-xs text-slate-300 whitespace-pre-wrap font-mono">
+            <div className="bg-slate-950 border border-[var(--color-border-default)] rounded-lg p-4 max-h-96 overflow-y-auto">
+              <pre className="text-xs text-[var(--color-text-secondary)] whitespace-pre-wrap font-mono">
                 {assembled.system_prompt}
               </pre>
             </div>
             <button
               onClick={() => navigator.clipboard.writeText(assembled.system_prompt)}
-              className="mt-2 text-sm text-amber-400 hover:text-amber-300 transition"
+              className="mt-2 text-sm text-[var(--color-warning-400)] hover:text-[var(--color-warning-300)] transition"
             >
               Copy to clipboard
             </button>

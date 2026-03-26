@@ -55,18 +55,18 @@ export default function LoginPage() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center">
       <div className="w-full max-w-md">
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-          <h1 className="text-xl font-semibold text-white mb-4">Log in</h1>
+        <div className="bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl p-6">
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] mb-4">Log in</h1>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded mb-4">
+            <div className="bg-[var(--color-danger-500)]/10 border border-[var(--color-danger-500)]/50 text-[var(--color-danger-400)] px-4 py-3 rounded-lg mb-4">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm text-slate-400 mb-1">
+              <label htmlFor="email" className="block text-sm text-[var(--color-text-secondary)] mb-1">
                 Email
               </label>
               <input
@@ -75,13 +75,13 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white placeholder-slate-500 focus:outline-none focus:border-slate-500"
+                className="w-full px-3 py-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] focus:ring-1 focus:ring-[var(--color-primary-500)] transition"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm text-slate-400 mb-1">
+              <label htmlFor="password" className="block text-sm text-[var(--color-text-secondary)] mb-1">
                 Password
               </label>
               <input
@@ -90,7 +90,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white placeholder-slate-500 focus:outline-none focus:border-slate-500"
+                className="w-full px-3 py-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] focus:ring-1 focus:ring-[var(--color-primary-500)] transition"
                 placeholder="Your password"
               />
             </div>
@@ -98,7 +98,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 bg-white text-slate-900 font-medium rounded hover:bg-slate-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 bg-[var(--color-primary-500)] text-white font-medium rounded-lg hover:bg-[var(--color-primary-600)] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Logging in..." : "Log in"}
             </button>
@@ -106,16 +106,16 @@ export default function LoginPage() {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-700"></div>
+              <div className="w-full border-t border-[var(--color-border-default)]"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-slate-900 text-slate-500">or</span>
+              <span className="px-2 bg-[var(--color-bg-surface)] text-[var(--color-text-muted)]">or</span>
             </div>
           </div>
 
           <button
             onClick={handleGoogleLogin}
-            className="w-full py-2 bg-slate-800 border border-slate-700 text-white font-medium rounded hover:bg-slate-700 transition flex items-center justify-center gap-2"
+            className="w-full py-2.5 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] font-medium rounded-lg hover:bg-[var(--color-bg-hover)] transition flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -138,9 +138,9 @@ export default function LoginPage() {
             Continue with Google
           </button>
 
-          <p className="mt-6 text-center text-sm text-slate-500">
+          <p className="mt-6 text-center text-sm text-[var(--color-text-muted)]">
             Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-white hover:underline">
+            <Link href="/signup" className="text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition">
               Sign up
             </Link>
           </p>

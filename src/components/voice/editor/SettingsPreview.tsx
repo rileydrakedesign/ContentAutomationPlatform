@@ -40,8 +40,8 @@ export function SettingsPreview({ settings, voiceType }: SettingsPreviewProps) {
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-4">
-      <h3 className="text-sm font-medium text-white">Current Settings</h3>
+    <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4 space-y-4">
+      <h3 className="text-sm font-medium text-[var(--color-text-primary)]">Current Settings</h3>
 
       {/* Dials summary */}
       <div className="space-y-2">
@@ -68,29 +68,29 @@ export function SettingsPreview({ settings, voiceType }: SettingsPreviewProps) {
       </div>
 
       {/* Mode settings */}
-      <div className="pt-2 border-t border-slate-800 space-y-1">
+      <div className="pt-2 border-t border-[var(--color-border-default)] space-y-1">
         <div className="flex justify-between text-xs">
-          <span className="text-slate-500">Length</span>
-          <span className="text-slate-300 capitalize">{settings.length_mode}</span>
+          <span className="text-[var(--color-text-muted)]">Length</span>
+          <span className="text-[var(--color-text-secondary)] capitalize">{settings.length_mode}</span>
         </div>
         <div className="flex justify-between text-xs">
-          <span className="text-slate-500">Humor</span>
-          <span className="text-slate-300 capitalize">{settings.humor_mode}</span>
+          <span className="text-[var(--color-text-muted)]">Humor</span>
+          <span className="text-[var(--color-text-secondary)] capitalize">{settings.humor_mode}</span>
         </div>
         <div className="flex justify-between text-xs">
-          <span className="text-slate-500">Emojis</span>
-          <span className="text-slate-300 capitalize">{settings.emoji_mode}</span>
+          <span className="text-[var(--color-text-muted)]">Emojis</span>
+          <span className="text-[var(--color-text-secondary)] capitalize">{settings.emoji_mode}</span>
         </div>
       </div>
 
       {/* Preview section */}
-      <div className="pt-2 border-t border-slate-800">
+      <div className="pt-2 border-t border-[var(--color-border-default)]">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-white">Preview</span>
+          <span className="text-sm font-medium text-[var(--color-text-primary)]">Preview</span>
           <button
             onClick={generatePreview}
             disabled={loading}
-            className="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 disabled:opacity-50"
+            className="flex items-center gap-1 text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] disabled:opacity-50"
           >
             {loading ? (
               <RefreshCw className="w-3 h-3 animate-spin" />
@@ -102,12 +102,12 @@ export function SettingsPreview({ settings, voiceType }: SettingsPreviewProps) {
         </div>
 
         {preview ? (
-          <div className="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg">
-            <p className="text-sm text-slate-300 italic">"{preview}"</p>
+          <div className="p-3 bg-[var(--color-bg-elevated)]/50 border border-[var(--color-border-default)]/50 rounded-lg">
+            <p className="text-sm text-[var(--color-text-secondary)] italic">"{preview}"</p>
           </div>
         ) : (
-          <div className="p-3 bg-slate-800/30 border border-dashed border-slate-700 rounded-lg text-center">
-            <p className="text-xs text-slate-500">
+          <div className="p-3 bg-[var(--color-bg-elevated)]/30 border border-dashed border-[var(--color-border-default)] rounded-lg text-center">
+            <p className="text-xs text-[var(--color-text-muted)]">
               Click generate to see how your voice sounds
             </p>
           </div>
@@ -126,14 +126,14 @@ interface SettingRowProps {
 function SettingRow({ label, value, displayValue }: SettingRowProps) {
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs text-slate-500 w-20">{label}</span>
-      <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+      <span className="text-xs text-[var(--color-text-muted)] w-20">{label}</span>
+      <div className="flex-1 h-1.5 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-violet-600 to-violet-400 rounded-full transition-all"
+          className="h-full bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-primary-400)] rounded-full transition-all"
           style={{ width: `${value}%` }}
         />
       </div>
-      <span className="text-xs text-slate-400 w-20 text-right">{displayValue}</span>
+      <span className="text-xs text-[var(--color-text-secondary)] w-20 text-right">{displayValue}</span>
     </div>
   );
 }

@@ -37,7 +37,7 @@ export function ExampleCard({
       <CardContent>
         <div className="flex gap-3">
           {showDragHandle && (
-            <div className="flex items-center text-slate-600 cursor-grab">
+            <div className="flex items-center text-[var(--color-text-muted)] cursor-grab">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
               </svg>
@@ -52,17 +52,17 @@ export function ExampleCard({
                 </Badge>
                 <Badge variant="secondary">{example.content_type}</Badge>
                 {example.selection_reason && !isPinned && (
-                  <span className="text-xs text-slate-500">{example.selection_reason}</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">{example.selection_reason}</span>
                 )}
               </div>
             </div>
 
-            <p className="text-white text-sm leading-relaxed mb-3 whitespace-pre-wrap">
+            <p className="text-[var(--color-text-primary)] text-sm leading-relaxed mb-3 whitespace-pre-wrap">
               {example.content_text}
             </p>
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4 text-xs text-slate-500">
+              <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                 {metrics.likes !== undefined && (
                   <span>{formatMetric(metrics.likes)} likes</span>
                 )}
@@ -72,7 +72,7 @@ export function ExampleCard({
                 {metrics.replies !== undefined && (
                   <span>{formatMetric(metrics.replies)} replies</span>
                 )}
-                <span className="text-slate-600">
+                <span className="text-[var(--color-text-muted)]">
                   Score: {example.engagement_score.toFixed(0)}
                 </span>
               </div>
@@ -81,7 +81,7 @@ export function ExampleCard({
                 {isExcluded ? (
                   <button
                     onClick={onRestore}
-                    className="text-xs text-amber-400 hover:text-amber-300 transition"
+                    className="text-xs text-[var(--color-warning-400)] hover:text-[var(--color-warning-300)] transition"
                   >
                     Restore
                   </button>
@@ -90,21 +90,21 @@ export function ExampleCard({
                     {isPinned ? (
                       <button
                         onClick={onUnpin}
-                        className="text-xs text-slate-400 hover:text-white transition"
+                        className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition"
                       >
                         Unpin
                       </button>
                     ) : (
                       <button
                         onClick={onPin}
-                        className="text-xs text-amber-400 hover:text-amber-300 transition"
+                        className="text-xs text-[var(--color-warning-400)] hover:text-[var(--color-warning-300)] transition"
                       >
                         Pin
                       </button>
                     )}
                     <button
                       onClick={onExclude}
-                      className="text-xs text-red-400 hover:text-red-300 transition"
+                      className="text-xs text-[var(--color-danger-400)] hover:text-[var(--color-danger-300)] transition"
                     >
                       Exclude
                     </button>

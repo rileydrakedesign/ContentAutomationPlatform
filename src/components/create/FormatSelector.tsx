@@ -15,7 +15,7 @@ const formats: { type: DraftType; label: string; description: string }[] = [
 export function FormatSelector({ selected, onChange }: FormatSelectorProps) {
   return (
     <div>
-      <label className="block text-sm text-slate-400 mb-3">Format</label>
+      <label className="block text-sm text-[var(--color-text-secondary)] mb-3">Format</label>
       <div className="flex gap-3">
         {formats.map(({ type, label, description }) => (
           <button
@@ -23,12 +23,12 @@ export function FormatSelector({ selected, onChange }: FormatSelectorProps) {
             onClick={() => onChange(type)}
             className={`flex-1 p-4 rounded-lg border text-left transition ${
               selected === type
-                ? "border-amber-400 bg-amber-400/10"
-                : "border-slate-700 bg-slate-800 hover:border-slate-600"
+                ? "border-[var(--color-primary-400)] bg-[var(--color-primary-400)]/10"
+                : "border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] hover:border-[var(--color-border-strong)]"
             }`}
           >
-            <div className="font-medium">{label}</div>
-            <div className="text-sm text-slate-500 mt-1">{description}</div>
+            <div className="font-medium text-[var(--color-text-primary)]">{label}</div>
+            <div className="text-sm text-[var(--color-text-muted)] mt-1">{description}</div>
           </button>
         ))}
       </div>

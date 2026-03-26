@@ -10,7 +10,7 @@ export async function OPTIONS() {
 
 interface Suggestion {
   id: string;
-  type: "pattern" | "timing" | "topic" | "action";
+  type: "pattern" | "topic" | "action";
   title: string;
   description: string;
   impact: string;
@@ -73,21 +73,6 @@ export async function GET(request: NextRequest) {
         });
       }
     });
-
-    // Find timing patterns
-    const timingPatterns = (patterns || []).filter(p => p.pattern_type === "timing");
-    if (timingPatterns.length > 0) {
-      const bestTiming = timingPatterns[0];
-      suggestions.push({
-        id: `timing-${bestTiming.id}`,
-        type: "timing",
-        title: bestTiming.pattern_name,
-        description: `Posts during this time get ${bestTiming.multiplier.toFixed(1)}x more engagement`,
-        impact: `${bestTiming.multiplier.toFixed(1)}x avg engagement`,
-        action: "Schedule for this time",
-        patternId: bestTiming.id,
-      });
-    }
 
     // Find topic suggestions
     const topicPatterns = (patterns || []).filter(p => p.pattern_type === "topic");

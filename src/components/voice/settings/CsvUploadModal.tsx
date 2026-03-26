@@ -81,15 +81,15 @@ export function CsvUploadModal({ isOpen, onClose, voiceType, onImport }: CsvUplo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+      <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-800">
-          <h2 className="text-lg font-semibold text-white">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-default)]">
+          <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
             Import from X Analytics
           </h2>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-white rounded"
+            className="p-1 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] rounded"
           >
             <X className="w-5 h-5" />
           </button>
@@ -103,8 +103,8 @@ export function CsvUploadModal({ isOpen, onClose, voiceType, onImport }: CsvUplo
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition ${
                 loading
-                  ? "border-slate-700 bg-slate-800/50"
-                  : "border-slate-700 hover:border-violet-500 hover:bg-slate-800/50"
+                  ? "border-[var(--color-border-default)] bg-[var(--color-bg-elevated)]/50"
+                  : "border-[var(--color-border-default)] hover:border-[var(--color-primary-500)] hover:bg-[var(--color-bg-elevated)]/50"
               }`}
             >
               <input
@@ -116,16 +116,16 @@ export function CsvUploadModal({ isOpen, onClose, voiceType, onImport }: CsvUplo
               />
               {loading ? (
                 <div className="flex flex-col items-center gap-2">
-                  <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-sm text-slate-400">Parsing CSV...</p>
+                  <div className="w-8 h-8 border-2 border-[var(--color-primary-500)] border-t-transparent rounded-full animate-spin" />
+                  <p className="text-sm text-[var(--color-text-secondary)]">Parsing CSV...</p>
                 </div>
               ) : (
                 <>
-                  <Upload className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-                  <p className="text-sm text-slate-300">
+                  <Upload className="w-10 h-10 text-[var(--color-text-muted)] mx-auto mb-3" />
+                  <p className="text-sm text-[var(--color-text-secondary)]">
                     Drop your X Analytics CSV here or click to browse
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
                     Download from X Analytics {">"} Export data
                   </p>
                 </>
@@ -135,8 +135,8 @@ export function CsvUploadModal({ isOpen, onClose, voiceType, onImport }: CsvUplo
 
           {/* Error */}
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4">
-              <p className="text-sm text-red-400">{error}</p>
+            <div className="bg-[var(--color-danger-500)]/10 border border-[var(--color-danger-500)]/20 rounded-lg p-3 mb-4">
+              <p className="text-sm text-[var(--color-danger-400)]">{error}</p>
             </div>
           )}
 
@@ -144,10 +144,10 @@ export function CsvUploadModal({ isOpen, onClose, voiceType, onImport }: CsvUplo
           {posts.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">
+                <span className="text-[var(--color-text-secondary)]">
                   Top {voiceType === "reply" ? "replies" : "posts"} by engagement
                 </span>
-                <span className="text-violet-400">{selectedCount} selected</span>
+                <span className="text-[var(--color-primary-400)]">{selectedCount} selected</span>
               </div>
 
               <div className="space-y-2 max-h-96 overflow-auto">
@@ -157,29 +157,29 @@ export function CsvUploadModal({ isOpen, onClose, voiceType, onImport }: CsvUplo
                     onClick={() => togglePostSelection(post.id)}
                     className={`p-3 rounded-lg border cursor-pointer transition ${
                       post.selected
-                        ? "bg-violet-500/10 border-violet-500/30"
-                        : "bg-slate-800/50 border-slate-700/50 hover:border-slate-600"
+                        ? "bg-[var(--color-primary-500)]/10 border-[var(--color-primary-500)]/30"
+                        : "bg-[var(--color-bg-elevated)]/50 border-[var(--color-border-default)]/50 hover:border-[var(--color-border-strong)]"
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       <div
                         className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 ${
                           post.selected
-                            ? "bg-violet-500 text-white"
-                            : "bg-slate-700 text-transparent"
+                            ? "bg-[var(--color-primary-500)] text-[var(--color-text-primary)]"
+                            : "bg-[var(--color-bg-hover)] text-transparent"
                         }`}
                       >
                         <Check className="w-3 h-3" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-300 line-clamp-2">
+                        <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">
                           {post.text}
                         </p>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                        <div className="flex items-center gap-3 mt-2 text-xs text-[var(--color-text-muted)]">
                           <span>{post.likes} likes</span>
                           <span>{post.reposts} reposts</span>
                           <span>{post.replies} replies</span>
-                          <span className="text-violet-400">
+                          <span className="text-[var(--color-primary-400)]">
                             Score: {Math.round(post.engagementScore)}
                           </span>
                         </div>
@@ -194,21 +194,21 @@ export function CsvUploadModal({ isOpen, onClose, voiceType, onImport }: CsvUplo
 
         {/* Footer */}
         {posts.length > 0 && (
-          <div className="flex items-center justify-between p-4 border-t border-slate-800">
+          <div className="flex items-center justify-between p-4 border-t border-[var(--color-border-default)]">
             <button
               onClick={() => {
                 setFile(null);
                 setPosts([]);
                 setError(null);
               }}
-              className="px-4 py-2 text-sm text-slate-400 hover:text-white transition"
+              className="px-4 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition"
             >
               Choose different file
             </button>
             <button
               onClick={handleImport}
               disabled={selectedCount === 0 || importing}
-              className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-[var(--color-text-primary)] text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {importing ? "Importing..." : `Import ${selectedCount} examples`}
             </button>

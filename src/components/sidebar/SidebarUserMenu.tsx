@@ -31,12 +31,12 @@ export function SidebarUserMenu() {
     <div className="relative px-3 pb-4" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-900 hover:text-white transition-colors ${
-          isOpen ? "bg-slate-900 text-white" : ""
+        className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-base)] hover:text-[var(--color-text-primary)] transition-colors ${
+          isOpen ? "bg-[var(--color-bg-base)] text-[var(--color-text-primary)]" : ""
         }`}
         title={isCollapsed ? user.email || "User menu" : undefined}
       >
-        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-medium text-slate-300 flex-shrink-0">
+        <div className="w-8 h-8 rounded-full bg-[var(--color-bg-hover)] flex items-center justify-center text-sm font-medium text-[var(--color-text-secondary)] flex-shrink-0">
           {initials}
         </div>
         {!isCollapsed && (
@@ -48,12 +48,12 @@ export function SidebarUserMenu() {
         <div
           className={`absolute bottom-full mb-2 ${
             isCollapsed ? "left-0" : "left-3 right-3"
-          } bg-slate-900 border border-slate-800 rounded-lg py-1 z-50 min-w-[180px]`}
+          } bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg py-1 z-50 min-w-[180px]`}
         >
           <Link
             href="/settings"
             onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 transition"
+            className="flex items-center gap-3 px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] transition"
           >
             <Settings size={16} />
             Settings
@@ -64,7 +64,7 @@ export function SidebarUserMenu() {
               setIsOpen(false);
               signOut();
             }}
-            className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 transition"
+            className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] transition"
           >
             <LogOut size={16} />
             Sign out

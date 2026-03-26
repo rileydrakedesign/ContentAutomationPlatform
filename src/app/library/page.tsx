@@ -3,7 +3,7 @@ import { LibraryPage } from "@/components/library";
 
 export default function Library() {
   return (
-    <Suspense fallback={<div className="text-slate-500">Loading library...</div>}>
+    <Suspense fallback={<div className="text-[var(--color-text-muted)]">Loading library...</div>}>
       <LibraryPage />
     </Suspense>
   );

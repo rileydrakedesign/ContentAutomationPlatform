@@ -139,6 +139,13 @@ export default function LandingPage() {
               Pricing
             </a>
             <a
+              href="/blog"
+              className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors no-underline"
+              style={{ color: "var(--color-text-secondary)" }}
+            >
+              Blog
+            </a>
+            <a
               href="#faq"
               className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors no-underline"
               style={{ color: "var(--color-text-secondary)" }}
@@ -1554,6 +1561,13 @@ function Footer() {
               Resources
             </h5>
             <div className="flex flex-col gap-2">
+              <a
+                href="/blog"
+                className="text-sm hover:text-[var(--color-text-secondary)] transition-colors no-underline"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                Blog
+              </a>
               <a
                 href="#faq"
                 className="text-sm hover:text-[var(--color-text-secondary)] transition-colors no-underline"

@@ -14,7 +14,7 @@ function getBarColor(value: number, isBest: boolean): string {
 }
 
 function ConfidenceDot({ confidence }: { confidence: "high" | "medium" | "low" }) {
-  const color = confidence === "high" ? "bg-teal-400" : confidence === "medium" ? "bg-yellow-400" : "bg-slate-500";
+  const color = confidence === "high" ? "bg-teal-400" : confidence === "medium" ? "bg-yellow-400" : "bg-[var(--color-text-muted)]";
   return <span className={`inline-block w-1.5 h-1.5 rounded-full ${color}`} />;
 }
 
@@ -22,20 +22,20 @@ function DayDetail({ day }: { day: DayOfWeekStats }) {
   return (
     <div className="grid grid-cols-4 gap-3 text-center">
       <div>
-        <p className="text-xs text-slate-500">Avg Impressions</p>
-        <p className="text-sm font-medium text-white">{day.avgImpressions.toLocaleString()}</p>
+        <p className="text-xs text-[var(--color-text-muted)]">Avg Impressions</p>
+        <p className="text-sm font-medium text-[var(--color-text-primary)]">{day.avgImpressions.toLocaleString()}</p>
       </div>
       <div>
-        <p className="text-xs text-slate-500">Avg Likes</p>
-        <p className="text-sm font-medium text-white">{day.avgLikes}</p>
+        <p className="text-xs text-[var(--color-text-muted)]">Avg Likes</p>
+        <p className="text-sm font-medium text-[var(--color-text-primary)]">{day.avgLikes}</p>
       </div>
       <div>
-        <p className="text-xs text-slate-500">Avg Reposts</p>
-        <p className="text-sm font-medium text-white">{day.avgReposts}</p>
+        <p className="text-xs text-[var(--color-text-muted)]">Avg Reposts</p>
+        <p className="text-sm font-medium text-[var(--color-text-primary)]">{day.avgReposts}</p>
       </div>
       <div>
-        <p className="text-xs text-slate-500">Avg Replies</p>
-        <p className="text-sm font-medium text-white">{day.avgReplies}</p>
+        <p className="text-xs text-[var(--color-text-muted)]">Avg Replies</p>
+        <p className="text-sm font-medium text-[var(--color-text-primary)]">{day.avgReplies}</p>
       </div>
     </div>
   );
@@ -66,12 +66,12 @@ export function BestTimesSection() {
 
   if (loading) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4">
         <div className="animate-pulse">
-          <div className="h-5 bg-slate-800 rounded w-48 mb-4" />
+          <div className="h-5 bg-[var(--color-bg-elevated)] rounded-lg w-48 mb-4" />
           <div className="flex gap-2 items-end h-32 mb-4">
             {[65, 45, 80, 55, 70, 90, 50].map((h, i) => (
-              <div key={i} className="flex-1 bg-slate-800 rounded" style={{ height: `${h}%` }} />
+              <div key={i} className="flex-1 bg-[var(--color-bg-elevated)] rounded-lg" style={{ height: `${h}%` }} />
             ))}
           </div>
         </div>
@@ -81,18 +81,18 @@ export function BestTimesSection() {
 
   if (error) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-        <h2 className="text-sm font-semibold text-white mb-2">Best Days to Post</h2>
-        <p className="text-red-400 text-sm">Failed to load analytics: {error}</p>
+      <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4">
+        <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">Best Days to Post</h2>
+        <p className="text-[var(--color-danger-400)] text-sm">Failed to load analytics: {error}</p>
       </div>
     );
   }
 
   if (!analytics || !analytics.hasEnoughData) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-        <h2 className="text-sm font-semibold text-white mb-2">Best Days to Post</h2>
-        <p className="text-slate-500 text-sm">
+      <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4">
+        <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">Best Days to Post</h2>
+        <p className="text-[var(--color-text-muted)] text-sm">
           Not enough data yet. Upload your analytics CSV with at least 5 posts to see day-of-week performance.
         </p>
       </div>
@@ -103,17 +103,17 @@ export function BestTimesSection() {
   const activeDayData = selectedDay !== null ? days[selectedDay] : null;
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+    <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-white">Best Days to Post</h2>
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Best Days to Post</h2>
           {bestDay && (
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
               {bestDay.dayName}s perform best with {bestDay.avgImpressions.toLocaleString()} avg impressions
             </p>
           )}
         </div>
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-[var(--color-text-muted)]">
           {totalPostsAnalyzed} posts analyzed
         </span>
       </div>
@@ -133,7 +133,7 @@ export function BestTimesSection() {
               style={{ height: "100%" }}
             >
               {/* Post count label */}
-              <span className="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-[10px] text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
                 {day.postCount}
               </span>
               {/* Bar */}
@@ -160,7 +160,7 @@ export function BestTimesSection() {
             <div
               key={day.dayOfWeek}
               className={`flex-1 text-center text-xs ${
-                isSelected ? "text-indigo-400 font-medium" : isBest ? "text-white" : "text-slate-500"
+                isSelected ? "text-indigo-400 font-medium" : isBest ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]"
               }`}
             >
               {DAY_SHORT[day.dayOfWeek]}
@@ -171,11 +171,11 @@ export function BestTimesSection() {
 
       {/* Selected day detail */}
       {activeDayData && activeDayData.postCount > 0 && (
-        <div className="pt-3 border-t border-slate-800">
+        <div className="pt-3 border-t border-[var(--color-border-default)]">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-medium text-white">{activeDayData.dayName}</span>
+            <span className="text-xs font-medium text-[var(--color-text-primary)]">{activeDayData.dayName}</span>
             <ConfidenceDot confidence={activeDayData.confidence} />
-            <span className="text-[10px] text-slate-500">
+            <span className="text-[10px] text-[var(--color-text-muted)]">
               {activeDayData.postCount} post{activeDayData.postCount !== 1 ? "s" : ""} · {activeDayData.confidence} confidence
             </span>
           </div>

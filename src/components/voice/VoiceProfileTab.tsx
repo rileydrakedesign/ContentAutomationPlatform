@@ -33,7 +33,7 @@ export function VoiceProfileTab({
         </CardHeader>
         <CardContent>
           {pinnedExamples.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
+            <div className="text-center py-8 text-[var(--color-text-muted)]">
               <p>No pinned examples yet.</p>
               <p className="text-sm mt-1">Pin examples from the auto-selected list below.</p>
             </div>
@@ -65,7 +65,7 @@ export function VoiceProfileTab({
         </CardHeader>
         <CardContent>
           {autoExamples.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
+            <div className="text-center py-8 text-[var(--color-text-muted)]">
               <p>No auto-selected examples yet.</p>
               <p className="text-sm mt-1">Click "Refresh Examples" to populate from your top posts.</p>
             </div>
@@ -97,7 +97,7 @@ export function VoiceProfileTab({
               </div>
               <button
                 onClick={() => setShowExcluded(!showExcluded)}
-                className="text-sm text-slate-400 hover:text-white transition"
+                className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition"
               >
                 {showExcluded ? "Hide" : `Show (${excludedExamples.length})`}
               </button>

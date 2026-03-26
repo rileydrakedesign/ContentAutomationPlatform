@@ -471,19 +471,12 @@ export function CreatePage() {
 
               {/* Pattern Selection Card */}
               <Card>
-                <CardContent>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg bg-[var(--color-success-500)]/10 flex items-center justify-center">
-                      <Wand2 className="w-4 h-4 text-[var(--color-success-400)]" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                        Patterns
-                      </h3>
-                      <p className="text-xs text-[var(--color-text-muted)]">
-                        Apply your winning patterns
-                      </p>
-                    </div>
+                <CardContent className="py-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Wand2 className="w-4 h-4 text-[var(--color-success-400)]" />
+                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                      Patterns
+                    </h3>
                   </div>
                   <PatternSelector
                     selectedPatterns={selectedPatterns}

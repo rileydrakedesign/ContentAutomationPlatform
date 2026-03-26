@@ -30,13 +30,13 @@ export function TopPostsSection() {
 
   if (loading) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4">
         <div className="animate-pulse">
-          <div className="h-6 bg-slate-800 rounded w-48 mb-4" />
+          <div className="h-6 bg-[var(--color-bg-elevated)] rounded-lg w-48 mb-4" />
           <div className="space-y-3">
-            <div className="h-20 bg-slate-800 rounded" />
-            <div className="h-20 bg-slate-800 rounded" />
-            <div className="h-20 bg-slate-800 rounded" />
+            <div className="h-20 bg-[var(--color-bg-elevated)] rounded-lg" />
+            <div className="h-20 bg-[var(--color-bg-elevated)] rounded-lg" />
+            <div className="h-20 bg-[var(--color-bg-elevated)] rounded-lg" />
           </div>
         </div>
       </div>
@@ -47,9 +47,9 @@ export function TopPostsSection() {
 
   if (onlyPosts.length === 0) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-        <h2 className="text-sm font-semibold text-white mb-2">Top Performing Posts</h2>
-        <p className="text-slate-500">
+      <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4">
+        <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">Top Performing Posts</h2>
+        <p className="text-[var(--color-text-muted)]">
           Upload your X analytics CSV to see rankings.
         </p>
       </div>
@@ -66,12 +66,12 @@ export function TopPostsSection() {
     .slice(0, 5);
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+    <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-white">Top Performing Posts</h2>
+        <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Top Performing Posts</h2>
         <Link
           href="/insights?tab=overview#performance"
-          className="text-sm text-amber-400 hover:text-amber-300 transition"
+          className="text-sm text-[var(--color-warning-400)] hover:text-amber-300 transition"
         >
           View all
         </Link>
@@ -81,20 +81,20 @@ export function TopPostsSection() {
         {sortedPosts.map((post, index) => (
           <div
             key={post.id}
-            className="flex items-start gap-3 p-3 bg-slate-800 rounded-lg"
+            className="flex items-start gap-3 p-3 bg-[var(--color-bg-elevated)] rounded-lg-lg"
           >
-            <div className="w-6 h-6 flex items-center justify-center rounded-full bg-slate-700 text-slate-300 text-sm font-medium shrink-0">
+            <div className="w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] text-sm font-medium shrink-0">
               {index + 1}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-slate-300 line-clamp-2 mb-2">
+              <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2 mb-2">
                 {post.text}
               </p>
               <div className="flex items-center gap-3 text-xs">
-                <span className="text-slate-400">
+                <span className="text-[var(--color-text-secondary)]">
                   {formatNumber(post.impressions || 0)} impressions
                 </span>
-                <span className="text-slate-400">
+                <span className="text-[var(--color-text-secondary)]">
                   {formatNumber(post.likes || 0)} likes
                 </span>
                 {post.post_url && (
@@ -102,7 +102,7 @@ export function TopPostsSection() {
                     href={post.post_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-amber-400 hover:text-amber-300 transition"
+                  className="text-[var(--color-warning-400)] hover:text-amber-300 transition"
                 >
                     View
                   </a>

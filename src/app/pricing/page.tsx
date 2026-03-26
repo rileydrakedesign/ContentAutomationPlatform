@@ -98,12 +98,12 @@ export default function PricingPage() {
             key={plan.id}
             className={`rounded-xl border p-6 flex flex-col ${
               plan.highlighted
-                ? "border-amber-500/50 bg-amber-500/5 ring-1 ring-amber-500/20"
-                : "border-[var(--color-border)] bg-[var(--color-bg-card)]"
+                ? "border-[var(--color-primary-500)]/50 bg-[var(--color-primary-500)]/5 ring-1 ring-[var(--color-primary-500)]/20"
+                : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)]"
             }`}
           >
             {plan.highlighted && (
-              <div className="text-xs font-medium text-amber-400 mb-2 uppercase tracking-wide">
+              <div className="text-xs font-medium text-[var(--color-primary-400)] mb-2 uppercase tracking-wide">
                 Most Popular
               </div>
             )}
@@ -129,7 +129,7 @@ export default function PricingPage() {
                   key={feature}
                   className="flex items-start gap-2 text-sm text-[var(--color-text-secondary)]"
                 >
-                  <Check className="w-4 h-4 text-teal-400 mt-0.5 shrink-0" />
+                  <Check className="w-4 h-4 text-[var(--color-success-400)] mt-0.5 shrink-0" />
                   {feature}
                 </li>
               ))}
@@ -140,10 +140,10 @@ export default function PricingPage() {
               disabled={plan.id === "free" || loading === plan.id}
               className={`mt-6 w-full py-2.5 rounded-lg text-sm font-medium transition ${
                 plan.highlighted
-                  ? "bg-amber-500 hover:bg-amber-400 text-black disabled:opacity-50"
+                  ? "bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-white disabled:opacity-50"
                   : plan.id === "free"
-                    ? "bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] cursor-default"
-                    : "bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] disabled:opacity-50"
+                    ? "bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] cursor-default"
+                    : "bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] disabled:opacity-50"
               }`}
             >
               {loading === plan.id ? "Loading..." : plan.cta}
@@ -155,7 +155,7 @@ export default function PricingPage() {
       {!user && (
         <p className="mt-8 text-center text-sm text-[var(--color-text-muted)]">
           You need to be logged in to subscribe.{" "}
-          <a href="/login" className="text-amber-400 hover:underline">
+          <a href="/login" className="text-[var(--color-primary-400)] hover:underline">
             Log in
           </a>
         </p>

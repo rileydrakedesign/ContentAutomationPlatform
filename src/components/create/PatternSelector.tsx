@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, Sparkles, TrendingUp, Clock, MessageSquare, Zap } from "lucide-react";
+import { Check, Sparkles, TrendingUp, MessageSquare, Zap } from "lucide-react";
 
 interface Pattern {
   id: string;
@@ -20,7 +20,6 @@ interface PatternSelectorProps {
 const PATTERN_TYPE_ICONS: Record<string, React.ReactNode> = {
   hook_style: <MessageSquare className="w-3 h-3" />,
   format: <Sparkles className="w-3 h-3" />,
-  timing: <Clock className="w-3 h-3" />,
   topic: <TrendingUp className="w-3 h-3" />,
   engagement_trigger: <Zap className="w-3 h-3" />,
 };
@@ -38,9 +37,12 @@ export function PatternSelector({
         const res = await fetch("/api/patterns?enabled_only=true");
         if (res.ok) {
           const data = await res.json();
-          setPatterns(data.patterns || []);
+          const nonTimingPatterns = (data.patterns || []).filter(
+            (p: Pattern) => p.pattern_type !== "timing"
+          );
+          setPatterns(nonTimingPatterns);
           // Auto-select top 3 patterns by default
-          const topPatterns = (data.patterns || [])
+          const topPatterns = nonTimingPatterns
             .sort((a: Pattern, b: Pattern) => b.multiplier - a.multiplier)
             .slice(0, 3)
             .map((p: Pattern) => p.id);

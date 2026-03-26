@@ -42,13 +42,13 @@ export function DraftsList() {
   }
 
   if (loading) {
-    return <div className="text-slate-500 py-8 text-center">Loading drafts...</div>;
+    return <div className="text-[var(--color-text-muted)] py-8 text-center">Loading drafts...</div>;
   }
 
   return (
     <div className="space-y-4">
       {drafts.length === 0 ? (
-        <div className="text-center py-12 text-slate-400">
+        <div className="text-center py-12 text-[var(--color-text-secondary)]">
           No drafts yet. Create your first draft above.
         </div>
       ) : (

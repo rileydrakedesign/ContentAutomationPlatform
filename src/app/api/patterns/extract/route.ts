@@ -129,8 +129,8 @@ Posted: ${p.posted_at || 'Unknown'}
 `).join('\n')}
 
 Return a JSON array of patterns found. Each pattern must have:
-- pattern_type: one of "hook_style", "format", "timing", "topic", "engagement_trigger"
-- pattern_name: short name (e.g., "Question Hook", "Tuesday Morning")
+- pattern_type: one of "hook_style", "format", "topic", "engagement_trigger"
+- pattern_name: short name (e.g., "Question Hook", "Hot Takes")
 - pattern_value: actionable description (what to do, not just what you saw)
 - confidence_score: 0-1 based on consistency
 - matched_post_indices: array of 0-based indices of posts (from the list above) that best match this pattern

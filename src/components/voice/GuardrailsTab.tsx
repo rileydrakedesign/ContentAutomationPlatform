@@ -65,9 +65,9 @@ export function GuardrailsTab({ settings, onSettingsUpdate }: GuardrailsTabProps
   return (
     <div className="space-y-6">
       {/* Words to Avoid */}
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-white mb-2">Words to Avoid</h3>
-        <p className="text-sm text-slate-400 mb-4">
+      <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-6">
+        <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">Words to Avoid</h3>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-4">
           The AI will never use these words in generated content.
         </p>
 
@@ -75,19 +75,19 @@ export function GuardrailsTab({ settings, onSettingsUpdate }: GuardrailsTabProps
           {guardrails.avoid_words.map((word) => (
             <span
               key={word}
-              className="inline-flex items-center gap-1 px-3 py-1 bg-red-500/10 text-red-400 rounded-full text-sm"
+              className="inline-flex items-center gap-1 px-3 py-1 bg-[var(--color-danger-500)]/10 text-[var(--color-danger-400)] rounded-full text-sm"
             >
               {word}
               <button
                 onClick={() => removeWord(word)}
-                className="p-0.5 hover:bg-red-500/20 rounded-full"
+                className="p-0.5 hover:bg-[var(--color-danger-500)]/20 rounded-full"
               >
                 <X className="w-3 h-3" />
               </button>
             </span>
           ))}
           {guardrails.avoid_words.length === 0 && (
-            <span className="text-sm text-slate-500 italic">No words added yet</span>
+            <span className="text-sm text-[var(--color-text-muted)] italic">No words added yet</span>
           )}
         </div>
 
@@ -98,12 +98,12 @@ export function GuardrailsTab({ settings, onSettingsUpdate }: GuardrailsTabProps
             onChange={(e) => setNewWord(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addWord()}
             placeholder="Add a word..."
-            className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="flex-1 px-3 py-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] text-sm placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)]"
           />
           <button
             onClick={addWord}
             disabled={!newWord.trim()}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 bg-[var(--color-bg-hover)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -111,9 +111,9 @@ export function GuardrailsTab({ settings, onSettingsUpdate }: GuardrailsTabProps
       </div>
 
       {/* Topics to Avoid */}
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-white mb-2">Topics to Avoid</h3>
-        <p className="text-sm text-slate-400 mb-4">
+      <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-6">
+        <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">Topics to Avoid</h3>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-4">
           The AI will steer clear of these subjects in generated content.
         </p>
 
@@ -133,7 +133,7 @@ export function GuardrailsTab({ settings, onSettingsUpdate }: GuardrailsTabProps
             </span>
           ))}
           {guardrails.avoid_topics.length === 0 && (
-            <span className="text-sm text-slate-500 italic">No topics added yet</span>
+            <span className="text-sm text-[var(--color-text-muted)] italic">No topics added yet</span>
           )}
         </div>
 
@@ -144,12 +144,12 @@ export function GuardrailsTab({ settings, onSettingsUpdate }: GuardrailsTabProps
             onChange={(e) => setNewTopic(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addTopic()}
             placeholder="Add a topic..."
-            className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="flex-1 px-3 py-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] text-sm placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)]"
           />
           <button
             onClick={addTopic}
             disabled={!newTopic.trim()}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 bg-[var(--color-bg-hover)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -157,9 +157,9 @@ export function GuardrailsTab({ settings, onSettingsUpdate }: GuardrailsTabProps
       </div>
 
       {/* Custom Rules */}
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-white mb-2">Custom Rules</h3>
-        <p className="text-sm text-slate-400 mb-4">
+      <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-6">
+        <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">Custom Rules</h3>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-4">
           Add specific instructions the AI should always follow.
         </p>
 
@@ -167,19 +167,19 @@ export function GuardrailsTab({ settings, onSettingsUpdate }: GuardrailsTabProps
           {guardrails.custom_rules.map((rule, index) => (
             <div
               key={index}
-              className="flex items-start gap-2 p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg"
+              className="flex items-start gap-2 p-3 bg-[var(--color-bg-elevated)]/50 border border-[var(--color-border-default)]/50 rounded-lg"
             >
-              <span className="text-sm text-slate-300 flex-1">{rule}</span>
+              <span className="text-sm text-[var(--color-text-secondary)] flex-1">{rule}</span>
               <button
                 onClick={() => removeRule(rule)}
-                className="p-1 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded"
+                className="p-1 text-[var(--color-text-secondary)] hover:text-[var(--color-danger-400)] hover:bg-[var(--color-danger-500)]/10 rounded"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
           ))}
           {guardrails.custom_rules.length === 0 && (
-            <p className="text-sm text-slate-500 italic">No custom rules added yet</p>
+            <p className="text-sm text-[var(--color-text-muted)] italic">No custom rules added yet</p>
           )}
         </div>
 
@@ -190,12 +190,12 @@ export function GuardrailsTab({ settings, onSettingsUpdate }: GuardrailsTabProps
             onChange={(e) => setNewRule(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addRule()}
             placeholder="e.g., Always end with a call to action"
-            className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="flex-1 px-3 py-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] text-sm placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)]"
           />
           <button
             onClick={addRule}
             disabled={!newRule.trim()}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 bg-[var(--color-bg-hover)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Plus className="w-4 h-4" />
           </button>

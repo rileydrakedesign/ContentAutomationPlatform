@@ -63,34 +63,34 @@ export function GuardrailsSection({ settings, onSettingsUpdate }: GuardrailsSect
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-4">
+    <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4 space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Guardrails</h3>
-        <p className="text-xs text-slate-500">
+        <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Guardrails</h3>
+        <p className="text-xs text-[var(--color-text-muted)]">
           Set boundaries for AI-generated content.
         </p>
       </div>
 
       {/* Words to Avoid */}
       <div>
-        <h4 className="text-sm font-medium text-slate-300 mb-2">Words to Avoid</h4>
+        <h4 className="text-sm font-medium text-[var(--color-text-secondary)] mb-2">Words to Avoid</h4>
         <div className="flex flex-wrap gap-2 mb-3">
           {guardrails.avoid_words.map((word) => (
             <span
               key={word}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-red-500/10 text-red-400 rounded text-xs"
+              className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--color-danger-500)]/10 text-[var(--color-danger-400)] rounded text-xs"
             >
               {word}
               <button
                 onClick={() => removeWord(word)}
-                className="p-0.5 hover:bg-red-500/20 rounded"
+                className="p-0.5 hover:bg-[var(--color-danger-500)]/20 rounded"
               >
                 <X className="w-3 h-3" />
               </button>
             </span>
           ))}
           {guardrails.avoid_words.length === 0 && (
-            <span className="text-xs text-slate-500 italic">None</span>
+            <span className="text-xs text-[var(--color-text-muted)] italic">None</span>
           )}
         </div>
         <div className="flex gap-2">
@@ -100,12 +100,12 @@ export function GuardrailsSection({ settings, onSettingsUpdate }: GuardrailsSect
             onChange={(e) => setNewWord(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addWord()}
             placeholder="Add word..."
-            className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:outline-none focus:border-slate-500"
+            className="flex-1 px-2 py-1.5 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] text-sm placeholder-[var(--color-text-muted)] focus:outline-none focus:outline-none focus:border-[var(--color-primary-500)]"
           />
           <button
             onClick={addWord}
             disabled={!newWord.trim()}
-            className="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded disabled:opacity-50"
+            className="p-1.5 bg-[var(--color-bg-hover)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] rounded-lg disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -114,7 +114,7 @@ export function GuardrailsSection({ settings, onSettingsUpdate }: GuardrailsSect
 
       {/* Topics to Avoid */}
       <div>
-        <h4 className="text-sm font-medium text-slate-300 mb-2">Topics to Avoid</h4>
+        <h4 className="text-sm font-medium text-[var(--color-text-secondary)] mb-2">Topics to Avoid</h4>
         <div className="flex flex-wrap gap-2 mb-3">
           {guardrails.avoid_topics.map((topic) => (
             <span
@@ -131,7 +131,7 @@ export function GuardrailsSection({ settings, onSettingsUpdate }: GuardrailsSect
             </span>
           ))}
           {guardrails.avoid_topics.length === 0 && (
-            <span className="text-xs text-slate-500 italic">None</span>
+            <span className="text-xs text-[var(--color-text-muted)] italic">None</span>
           )}
         </div>
         <div className="flex gap-2">
@@ -141,12 +141,12 @@ export function GuardrailsSection({ settings, onSettingsUpdate }: GuardrailsSect
             onChange={(e) => setNewTopic(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addTopic()}
             placeholder="Add topic..."
-            className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:outline-none focus:border-slate-500"
+            className="flex-1 px-2 py-1.5 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] text-sm placeholder-[var(--color-text-muted)] focus:outline-none focus:outline-none focus:border-[var(--color-primary-500)]"
           />
           <button
             onClick={addTopic}
             disabled={!newTopic.trim()}
-            className="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded disabled:opacity-50"
+            className="p-1.5 bg-[var(--color-bg-hover)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] rounded-lg disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -155,24 +155,24 @@ export function GuardrailsSection({ settings, onSettingsUpdate }: GuardrailsSect
 
       {/* Custom Rules */}
       <div>
-        <h4 className="text-sm font-medium text-slate-300 mb-2">Custom Rules</h4>
+        <h4 className="text-sm font-medium text-[var(--color-text-secondary)] mb-2">Custom Rules</h4>
         <div className="space-y-2 mb-3">
           {guardrails.custom_rules.map((rule, index) => (
             <div
               key={index}
-              className="flex items-start gap-2 p-2 bg-slate-800/50 border border-slate-700/50 rounded"
+              className="flex items-start gap-2 p-2 bg-[var(--color-bg-elevated)]/50 border border-[var(--color-border-default)]/50 rounded-lg"
             >
-              <span className="text-xs text-slate-300 flex-1">{rule}</span>
+              <span className="text-xs text-[var(--color-text-secondary)] flex-1">{rule}</span>
               <button
                 onClick={() => removeRule(rule)}
-                className="p-0.5 text-slate-400 hover:text-red-400"
+                className="p-0.5 text-[var(--color-text-secondary)] hover:text-[var(--color-danger-400)]"
               >
                 <X className="w-3 h-3" />
               </button>
             </div>
           ))}
           {guardrails.custom_rules.length === 0 && (
-            <p className="text-xs text-slate-500 italic">None</p>
+            <p className="text-xs text-[var(--color-text-muted)] italic">None</p>
           )}
         </div>
         <div className="flex gap-2">
@@ -182,12 +182,12 @@ export function GuardrailsSection({ settings, onSettingsUpdate }: GuardrailsSect
             onChange={(e) => setNewRule(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addRule()}
             placeholder="e.g., Always end with a call to action"
-            className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:outline-none focus:border-slate-500"
+            className="flex-1 px-2 py-1.5 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] text-sm placeholder-[var(--color-text-muted)] focus:outline-none focus:outline-none focus:border-[var(--color-primary-500)]"
           />
           <button
             onClick={addRule}
             disabled={!newRule.trim()}
-            className="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded disabled:opacity-50"
+            className="p-1.5 bg-[var(--color-bg-hover)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] rounded-lg disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
           </button>

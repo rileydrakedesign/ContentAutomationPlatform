@@ -24,7 +24,7 @@ export function SidebarLogo() {
   );
 
   return (
-    <div className="px-4 py-4 border-b border-slate-800">
+    <div className="px-4 py-4 border-b border-[var(--color-border-default)]">
       <Link href="/" className="flex items-center gap-1">
         {isCollapsed ? (
           xBox
@@ -35,7 +35,7 @@ export function SidebarLogo() {
               style={{ height: BOX_H }}
             >
               <span
-                className="font-extrabold text-white uppercase tracking-tight whitespace-nowrap block"
+                className="font-extrabold text-[var(--color-text-primary)] uppercase tracking-tight whitespace-nowrap block"
                 style={{ fontSize: 24, lineHeight: 1, marginTop: -4 }}
               >
                 Agents For

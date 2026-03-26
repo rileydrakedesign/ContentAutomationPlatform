@@ -96,17 +96,17 @@ export function ExamplesSection({ voiceType, onExamplesChange }: ExamplesSection
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+    <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-4">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h3 className="text-sm font-semibold text-white">Voice Examples</h3>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Voice Examples</h3>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
             {voiceType === "reply" ? "Replies" : "Posts"} that demonstrate your voice style.
           </p>
         </div>
         <button
           onClick={() => setShowCsvModal(true)}
-          className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-sm rounded-lg transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] text-sm rounded-lg transition-colors"
         >
           <Upload className="w-4 h-4" />
           Upload CSV
@@ -117,26 +117,26 @@ export function ExamplesSection({ voiceType, onExamplesChange }: ExamplesSection
       <div className="space-y-2 mb-3 max-h-56 overflow-auto">
         {loading ? (
           <div className="animate-pulse space-y-2">
-            <div className="h-16 bg-slate-800 rounded-lg" />
-            <div className="h-16 bg-slate-800 rounded-lg" />
+            <div className="h-16 bg-[var(--color-bg-elevated)] rounded-lg" />
+            <div className="h-16 bg-[var(--color-bg-elevated)] rounded-lg" />
           </div>
         ) : examples.length === 0 ? (
-          <div className="text-center py-8 text-slate-500 text-sm">
+          <div className="text-center py-8 text-[var(--color-text-muted)] text-sm">
             No examples yet. Add some {voiceType === "reply" ? "replies" : "posts"} to train your voice.
           </div>
         ) : (
           examples.map((example) => (
             <div
               key={example.id}
-              className="flex items-start gap-2 p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg group"
+              className="flex items-start gap-2 p-3 bg-[var(--color-bg-elevated)]/50 border border-[var(--color-border-default)]/50 rounded-lg group"
             >
-              <GripVertical className="w-4 h-4 text-slate-600 mt-1 flex-shrink-0 cursor-grab" />
-              <p className="flex-1 text-sm text-slate-300 line-clamp-3">
+              <GripVertical className="w-4 h-4 text-[var(--color-text-muted)] mt-1 flex-shrink-0 cursor-grab" />
+              <p className="flex-1 text-sm text-[var(--color-text-secondary)] line-clamp-3">
                 {example.content_text}
               </p>
               <button
                 onClick={() => removeExample(example.id)}
-                className="p-1 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"
+                className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger-400)] opacity-0 group-hover:opacity-100 transition"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -151,13 +151,13 @@ export function ExamplesSection({ voiceType, onExamplesChange }: ExamplesSection
           value={newExample}
           onChange={(e) => setNewExample(e.target.value)}
           placeholder={`Add a ${voiceType === "reply" ? "reply" : "post"} example...`}
-          className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 resize-none focus:outline-none focus:border-slate-500"
+          className="flex-1 px-3 py-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] text-sm placeholder-[var(--color-text-muted)] resize-none focus:outline-none focus:border-[var(--color-primary-500)]"
           rows={2}
         />
         <button
           onClick={addExample}
           disabled={!newExample.trim() || adding}
-          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors self-end"
+          className="px-4 py-2 bg-[var(--color-bg-hover)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors self-end"
         >
           {adding ? "..." : <Plus className="w-5 h-5" />}
         </button>

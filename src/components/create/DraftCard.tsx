@@ -35,13 +35,13 @@ export function DraftCard({ draft, onDelete }: DraftCardProps) {
           <TypeBadge type={draft.type} />
           <StatusBadge status={draft.status} />
         </div>
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-[var(--color-text-muted)]">
           {formatRelativeTime(draft.created_at)}
         </span>
       </div>
 
       <Link href={`/drafts/${draft.id}`}>
-        <p className="text-sm text-slate-300 line-clamp-3 mb-3 hover:text-white transition">
+        <p className="text-sm text-[var(--color-text-secondary)] line-clamp-3 mb-3 hover:text-[var(--color-text-primary)] transition">
           {getPreview()}
         </p>
       </Link>
@@ -49,7 +49,7 @@ export function DraftCard({ draft, onDelete }: DraftCardProps) {
       <div className="flex items-center gap-3">
         <Link
           href={`/drafts/${draft.id}`}
-          className="text-sm text-amber-400 hover:text-amber-300 transition"
+          className="text-sm text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition"
         >
           Edit
         </Link>
@@ -57,7 +57,7 @@ export function DraftCard({ draft, onDelete }: DraftCardProps) {
         {onDelete && (
           <button
             onClick={() => onDelete(draft.id)}
-            className="text-sm text-slate-500 hover:text-red-400 transition"
+            className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-danger-400)] transition"
           >
             Delete
           </button>

@@ -48,12 +48,12 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
     return (
       <div className="animate-pulse space-y-4">
         <div className="grid grid-cols-4 gap-3">
-          <div className="h-20 bg-slate-800 rounded-lg"></div>
-          <div className="h-20 bg-slate-800 rounded-lg"></div>
-          <div className="h-20 bg-slate-800 rounded-lg"></div>
-          <div className="h-20 bg-slate-800 rounded-lg"></div>
+          <div className="h-20 bg-[var(--color-bg-elevated)] rounded-lg"></div>
+          <div className="h-20 bg-[var(--color-bg-elevated)] rounded-lg"></div>
+          <div className="h-20 bg-[var(--color-bg-elevated)] rounded-lg"></div>
+          <div className="h-20 bg-[var(--color-bg-elevated)] rounded-lg"></div>
         </div>
-        <div className="h-64 bg-slate-800 rounded-lg"></div>
+        <div className="h-64 bg-[var(--color-bg-elevated)] rounded-lg"></div>
       </div>
     );
   }
@@ -61,14 +61,14 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
   if (posts.length === 0) {
     return (
       <Card className="p-8 text-center">
-        <Upload className="w-8 h-8 text-slate-500 mx-auto mb-3" />
-        <h3 className="text-white font-medium mb-1">No analytics data</h3>
-        <p className="text-sm text-slate-500 mb-4">
+        <Upload className="w-8 h-8 text-[var(--color-text-muted)] mx-auto mb-3" />
+        <h3 className="text-[var(--color-text-primary)] font-medium mb-1">No analytics data</h3>
+        <p className="text-sm text-[var(--color-text-muted)] mb-4">
           Upload your X analytics CSV to see performance insights.
         </p>
         <button
           onClick={onUploadClick}
-          className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg transition-colors"
+          className="px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-white text-sm rounded-lg transition-colors"
         >
           Upload CSV
         </button>
@@ -81,28 +81,28 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
       {/* 1-minute snapshot */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-[var(--color-text-secondary)] mb-1">
             <Eye className="w-4 h-4" />
             <span className="text-xs uppercase">Posts analyzed</span>
           </div>
-          <p className="text-2xl font-semibold text-white font-mono">{formatNumber(posts.length)}</p>
+          <p className="text-2xl font-semibold text-[var(--color-text-primary)] font-mono">{formatNumber(posts.length)}</p>
         </Card>
 
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-[var(--color-text-secondary)] mb-1">
             <Eye className="w-4 h-4" />
             <span className="text-xs uppercase">Avg impressions / post</span>
           </div>
-          <p className="text-2xl font-semibold text-white font-mono">{formatNumber(avgImpressions)}</p>
+          <p className="text-2xl font-semibold text-[var(--color-text-primary)] font-mono">{formatNumber(avgImpressions)}</p>
         </Card>
 
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-[var(--color-text-secondary)] mb-1">
             <Repeat className="w-4 h-4" />
             <span className="text-xs uppercase">Engagement rate</span>
           </div>
-          <p className="text-2xl font-semibold text-white font-mono">{engagementRate}%</p>
-          <p className="text-xs text-slate-500 mt-1">vs impressions</p>
+          <p className="text-2xl font-semibold text-[var(--color-text-primary)] font-mono">{engagementRate}%</p>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">vs impressions</p>
         </Card>
       </div>
 
@@ -111,15 +111,15 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
         <Card className="p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-medium text-white">Posts</h3>
-              <p className="text-xs text-slate-500 mt-1">{formatNumber(onlyPosts.length)} original posts</p>
+              <h3 className="font-medium text-[var(--color-text-primary)]">Posts</h3>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">{formatNumber(onlyPosts.length)} original posts</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500">Sort:</span>
+              <span className="text-xs text-[var(--color-text-muted)]">Sort:</span>
               <select
                 value={postsSortBy}
                 onChange={(e) => setPostsSortBy(e.target.value as SortKey)}
-                className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                className="px-2 py-1 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)]"
               >
                 <option value="engagement">Engagement</option>
                 <option value="recent">Recent</option>
@@ -130,14 +130,14 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
           </div>
 
           {sortedOnlyPosts.length === 0 ? (
-            <div className="text-sm text-slate-500">No posts yet. Upload your analytics CSV.</div>
+            <div className="text-sm text-[var(--color-text-muted)]">No posts yet. Upload your analytics CSV.</div>
           ) : (
             <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: '520px' }}>
               {sortedOnlyPosts.map((post, index) => (
-                <div key={post.id || index} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
+                <div key={post.id || index} className="flex items-start gap-3 p-3 bg-[var(--color-bg-elevated)]/50 rounded-lg">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-200 line-clamp-2">{post.text}</p>
-                    <div className="flex items-center justify-between gap-3 mt-2 text-xs text-slate-500">
+                    <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">{post.text}</p>
+                    <div className="flex items-center justify-between gap-3 mt-2 text-xs text-[var(--color-text-muted)]">
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{formatNumber(post.impressions || 0)}</span>
                         <span className="flex items-center gap-1"><Heart className="w-3 h-3" />{formatNumber(post.likes || 0)}</span>
@@ -148,7 +148,7 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
                     </div>
                   </div>
                   {post.post_url && (
-                    <a href={post.post_url} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-white">
+                    <a href={post.post_url} target="_blank" rel="noopener noreferrer" className="p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   )}
@@ -161,15 +161,15 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
         <Card className="p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-medium text-white">Replies</h3>
-              <p className="text-xs text-slate-500 mt-1">{formatNumber(onlyReplies.length)} replies</p>
+              <h3 className="font-medium text-[var(--color-text-primary)]">Replies</h3>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">{formatNumber(onlyReplies.length)} replies</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500">Sort:</span>
+              <span className="text-xs text-[var(--color-text-muted)]">Sort:</span>
               <select
                 value={repliesSortBy}
                 onChange={(e) => setRepliesSortBy(e.target.value as SortKey)}
-                className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                className="px-2 py-1 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)]"
               >
                 <option value="engagement">Engagement</option>
                 <option value="recent">Recent</option>
@@ -180,14 +180,14 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
           </div>
 
           {sortedOnlyReplies.length === 0 ? (
-            <div className="text-sm text-slate-500">No replies yet.</div>
+            <div className="text-sm text-[var(--color-text-muted)]">No replies yet.</div>
           ) : (
             <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: '520px' }}>
               {sortedOnlyReplies.map((post, index) => (
-                <div key={post.id || index} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
+                <div key={post.id || index} className="flex items-start gap-3 p-3 bg-[var(--color-bg-elevated)]/50 rounded-lg">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-200 line-clamp-2">{post.text}</p>
-                    <div className="flex items-center justify-between gap-3 mt-2 text-xs text-slate-500">
+                    <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">{post.text}</p>
+                    <div className="flex items-center justify-between gap-3 mt-2 text-xs text-[var(--color-text-muted)]">
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{formatNumber(post.impressions || 0)}</span>
                         <span className="flex items-center gap-1"><Heart className="w-3 h-3" />{formatNumber(post.likes || 0)}</span>
@@ -198,7 +198,7 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
                     </div>
                   </div>
                   {post.post_url && (
-                    <a href={post.post_url} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-white">
+                    <a href={post.post_url} target="_blank" rel="noopener noreferrer" className="p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   )}

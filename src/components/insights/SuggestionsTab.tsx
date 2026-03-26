@@ -64,8 +64,8 @@ export function SuggestionsTab() {
   if (loading) {
     return (
       <div className="animate-pulse space-y-4">
-        <div className="h-32 bg-slate-800 rounded-lg"></div>
-        <div className="h-32 bg-slate-800 rounded-lg"></div>
+        <div className="h-32 bg-[var(--color-bg-elevated)] rounded-lg"></div>
+        <div className="h-32 bg-[var(--color-bg-elevated)] rounded-lg"></div>
       </div>
     );
   }
@@ -76,16 +76,16 @@ export function SuggestionsTab() {
         <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-amber-500/10 flex items-center justify-center">
           <Lightbulb className="w-6 h-6 text-amber-400" />
         </div>
-        <h3 className="text-lg font-medium text-white mb-2">
+        <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">
           No Suggestions Yet
         </h3>
-        <p className="text-slate-400 mb-4 max-w-md mx-auto">
+        <p className="text-[var(--color-text-secondary)] mb-4 max-w-md mx-auto">
           Extract patterns from your posts to receive personalized suggestions
           for improving engagement.
         </p>
         <Link
           href="/insights?tab=patterns"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg font-medium transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-white rounded-lg font-medium transition-colors"
         >
           Extract Patterns
           <ArrowRight className="w-4 h-4" />
@@ -116,30 +116,30 @@ export function SuggestionsTab() {
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Card className="p-4">
-            <p className="text-xs text-slate-500 uppercase mb-1">Patterns enabled</p>
-            <p className="text-2xl font-semibold text-white font-mono">{stats.totalPatterns}</p>
+            <p className="text-xs text-[var(--color-text-muted)] uppercase mb-1">Patterns enabled</p>
+            <p className="text-2xl font-semibold text-[var(--color-text-primary)] font-mono">{stats.totalPatterns}</p>
           </Card>
           <Card className="p-4">
-            <p className="text-xs text-slate-500 uppercase mb-1">Posts analyzed</p>
-            <p className="text-2xl font-semibold text-white font-mono">{stats.postsAnalyzed}</p>
+            <p className="text-xs text-[var(--color-text-muted)] uppercase mb-1">Posts analyzed</p>
+            <p className="text-2xl font-semibold text-[var(--color-text-primary)] font-mono">{stats.postsAnalyzed}</p>
           </Card>
           <Card className="p-4">
-            <p className="text-xs text-slate-500 uppercase mb-1">Avg views</p>
-            <p className="text-2xl font-semibold text-white font-mono">{stats.avgViews.toLocaleString()}</p>
+            <p className="text-xs text-[var(--color-text-muted)] uppercase mb-1">Avg views</p>
+            <p className="text-2xl font-semibold text-[var(--color-text-primary)] font-mono">{stats.avgViews.toLocaleString()}</p>
           </Card>
         </div>
       )}
 
       {focus && (
-        <Card className="p-6 bg-slate-900/50">
-          <h3 className="font-medium text-white mb-2">{focus.title}</h3>
-          <p className="text-sm text-slate-400">{focus.body}</p>
+        <Card className="p-6 bg-[var(--color-bg-base)]/50">
+          <h3 className="font-medium text-[var(--color-text-primary)] mb-2">{focus.title}</h3>
+          <p className="text-sm text-[var(--color-text-secondary)]">{focus.body}</p>
         </Card>
       )}
 
       {/* Suggestions */}
       <div>
-        <h3 className="font-medium text-white mb-4">Recommended actions</h3>
+        <h3 className="font-medium text-[var(--color-text-primary)] mb-4">Recommended actions</h3>
         <div className="space-y-4">
           {topSuggestions.map((suggestion) => (
             <Card
@@ -152,12 +152,12 @@ export function SuggestionsTab() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-start justify-between mb-2 gap-3">
-                    <h4 className="font-semibold text-white text-lg">{suggestion.title}</h4>
+                    <h4 className="font-semibold text-[var(--color-text-primary)] text-lg">{suggestion.title}</h4>
                     <span className="px-3 py-1 bg-white/10 rounded-full text-sm font-medium whitespace-nowrap">
                       {suggestion.impact}
                     </span>
                   </div>
-                  <p className="text-slate-300 mb-4">{suggestion.description}</p>
+                  <p className="text-[var(--color-text-secondary)] mb-4">{suggestion.description}</p>
                   {suggestion.action && (
                     <Link
                       href={
@@ -180,7 +180,7 @@ export function SuggestionsTab() {
         </div>
 
         {suggestions.length > 5 && (
-          <p className="text-xs text-slate-500 mt-3">
+          <p className="text-xs text-[var(--color-text-muted)] mt-3">
             Showing top 5. Tight list on purpose.
           </p>
         )}
