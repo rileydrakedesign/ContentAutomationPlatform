@@ -274,14 +274,14 @@ export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheP
             </div>
             <button
               onClick={() => onToggle(!useNicheContext)}
-              className={`relative w-12 h-6 rounded-full transition-colors ${
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
                 useNicheContext ? "bg-[var(--color-primary-500)]" : "bg-[var(--color-bg-elevated)]"
               }`}
               style={{ border: "1px solid var(--color-border-default)" }}
             >
               <span
-                className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${
-                  useNicheContext ? "translate-x-6" : "translate-x-1"
+                className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                  useNicheContext ? "translate-x-[22px]" : "translate-x-[3px]"
                 }`}
               />
             </button>

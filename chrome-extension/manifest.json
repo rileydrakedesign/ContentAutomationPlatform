@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Content Pipeline - X Post Saver",
+  "name": "Agents For X",
   "version": "1.2.0",
-  "description": "Save X posts to your Content Pipeline dashboard for inspiration and learning",
+  "description": "AI-powered reply generation, opportunity scoring, and post saving for X (Twitter)",
   "permissions": [
     "storage",
     "activeTab"
@@ -10,10 +10,11 @@
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*",
-    "http://localhost:3000/*",
-    "https://app.agentsforx.com/*",
-    "https://contentautomationplatform-production.up.railway.app/*"
+    "https://app.agentsforx.com/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  },
   "background": {
     "service_worker": "background.js"
   },
@@ -26,6 +27,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
+    "default_title": "Agents For X",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
