@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createAuthClient } from "@/lib/supabase/server";
 import { analyzeInspirationPost } from "@/lib/openai";
 import { corsHeaders, handleCors } from "@/lib/cors";
+import { requireAiGeneration } from "@/lib/stripe/gate";
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -93,6 +94,9 @@ export async function POST(request: NextRequest) {
         { status: 401, headers: corsHeaders }
       );
     }
+
+    const gateError = await requireAiGeneration(user.id, "inspiration-create");
+    if (gateError) return gateError;
 
     const body = await request.json();
     const { content, url, authorHandle, metrics, post_timestamp, source } =

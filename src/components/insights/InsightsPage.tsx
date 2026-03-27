@@ -12,11 +12,14 @@ import { BestDayIndicator } from "./overview/BestDayIndicator";
 import { EngagementFunnel } from "./overview/EngagementFunnel";
 import { PostLengthSweetSpot } from "./overview/PostLengthSweetSpot";
 import { CsvUploadDrawer } from "@/components/home/CsvUploadDrawer";
+import { useSubscription } from "@/components/auth/SubscriptionProvider";
+import { Lock } from "lucide-react";
 import type { UserAnalyticsData } from "@/types/analytics";
 
 export function InsightsPage() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") || "overview";
+  const { isFreePlan } = useSubscription();
 
   const [analyticsData, setAnalyticsData] = useState<UserAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,9 +52,19 @@ export function InsightsPage() {
       <Tabs defaultValue={initialTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="patterns">Patterns</TabsTrigger>
+          <TabsTrigger value="patterns">
+            <span className="flex items-center gap-1.5">
+              Patterns
+              {isFreePlan && <Lock className="w-3 h-3 text-[var(--color-primary-400)]" />}
+            </span>
+          </TabsTrigger>
           <TabsTrigger value="actions">Actions</TabsTrigger>
-          <TabsTrigger value="assistant">Assistant</TabsTrigger>
+          <TabsTrigger value="assistant">
+            <span className="flex items-center gap-1.5">
+              Assistant
+              {isFreePlan && <Lock className="w-3 h-3 text-[var(--color-primary-400)]" />}
+            </span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">

@@ -4,6 +4,7 @@ import { getOpenAI } from "@/lib/openai/client";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { weightedEngagement } from "@/lib/utils/engagement";
 import { TopicCluster } from "@/types/niche";
+import { requireAiGeneration } from "@/lib/stripe/gate";
 
 export async function OPTIONS() {
   return handleCors();
@@ -43,6 +44,9 @@ export async function POST() {
         { status: 401, headers: corsHeaders }
       );
     }
+
+    const gateError = await requireAiGeneration(user.id, "niche-analyze");
+    if (gateError) return gateError;
 
     // ── 1. Pull data in parallel ───────────────────────────────
     const [analyticsResult, capturedResult, patternResult] = await Promise.all([

@@ -53,6 +53,11 @@ const unlimitedBadge = document.getElementById('unlimited-badge');
 const limitBanner = document.getElementById('limit-banner');
 const limitUpgradeBtn = document.getElementById('limit-upgrade-btn');
 
+// Free plan CTA
+const freePlanCta = document.getElementById('free-plan-cta');
+const freeCtaUpgradeBtn = document.getElementById('free-cta-upgrade-btn');
+const repliesDesc = document.getElementById('replies-desc');
+
 // Setup checklist
 const setupChecklist = document.getElementById('setup-checklist');
 const setupProgressText = document.getElementById('setup-progress-text');
@@ -114,6 +119,7 @@ async function init() {
 
     if (authResponse.loggedIn) {
       showLoggedIn();
+      showDefaultFreePlanState(); // Show free plan UI immediately while loading
       await detectXcomTab();
       // Load stats and extension status in parallel
       await Promise.all([loadStats(), loadExtensionStatus()]);
@@ -191,26 +197,44 @@ async function detectXcomTab() {
   }
 }
 
+// Show default free plan state (before API confirms)
+function showDefaultFreePlanState() {
+  unlimitedSection.classList.add('hidden');
+  usageSection.classList.remove('hidden');
+  if (freePlanCta) freePlanCta.classList.remove('hidden');
+  usagePlanBadge.textContent = 'Free';
+  usageCount.textContent = '0 / 5';
+  usageBarFill.style.width = '0%';
+  usageBarFill.className = 'usage-bar-fill';
+  if (repliesDesc) repliesDesc.textContent = '5 of 5 replies left today';
+}
+
 // Load extension status (plan, usage, setup)
 async function loadExtensionStatus() {
   try {
     const result = await chrome.runtime.sendMessage({ type: 'GET_EXTENSION_STATUS' });
 
-    if (!result.success || !result.data) return;
+    if (!result.success || !result.data) {
+      showDefaultFreePlanState();
+      return;
+    }
 
     const { plan, usage, setup } = result.data;
 
     // --- Usage / Plan display ---
     if (usage.unlimited) {
-      // Pro or Business — show unlimited badge
+      // Pro or Business — show unlimited badge, hide free plan elements
       usageSection.classList.add('hidden');
       unlimitedSection.classList.remove('hidden');
       limitBanner.classList.add('hidden');
+      if (freePlanCta) freePlanCta.classList.add('hidden');
       unlimitedBadge.textContent = plan.name;
+      if (repliesDesc) repliesDesc.textContent = 'Unlimited context-aware replies';
     } else {
-      // Free plan — show usage bar
+      // Free plan — show usage bar + upgrade CTA
       unlimitedSection.classList.add('hidden');
       usageSection.classList.remove('hidden');
+      if (freePlanCta) freePlanCta.classList.remove('hidden');
       usagePlanBadge.textContent = plan.name;
 
       const used = usage.used || 0;
@@ -220,6 +244,9 @@ async function loadExtensionStatus() {
 
       usageCount.textContent = `${used} / ${limit}`;
       usageBarFill.style.width = `${pct}%`;
+
+      // Update reply feature description for free users
+      if (repliesDesc) repliesDesc.textContent = `${remaining} of ${limit} replies left today`;
 
       // Color the bar based on usage
       if (pct >= 100) {
@@ -279,7 +306,8 @@ async function loadExtensionStatus() {
     }
   } catch (error) {
     console.error('Failed to load extension status:', error);
-    // Silently fail — features still work without status
+    // Show free plan UI as fallback
+    showDefaultFreePlanState();
   }
 }
 
@@ -481,6 +509,13 @@ limitUpgradeBtn.addEventListener('click', (e) => {
   e.preventDefault();
   openDashboard('/pricing');
 });
+
+if (freeCtaUpgradeBtn) {
+  freeCtaUpgradeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    openDashboard('/pricing');
+  });
+}
 
 // Gear icon opens settings
 headerGearBtn.addEventListener('click', () => {

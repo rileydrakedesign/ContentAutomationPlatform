@@ -3,54 +3,21 @@
 import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Check } from "lucide-react";
+import { PLANS, PlanId } from "@/types/subscription";
 
-const plans = [
-  {
-    id: "free",
-    name: "Free",
-    price: 0,
-    description: "Get started with CSV imports and basic AI",
-    features: [
-      "CSV & extension post imports",
-      "5 AI generations per day",
-      "Manual posting",
-      "Basic analytics",
-      "Voice configuration",
-    ],
-    cta: "Current Plan",
-    highlighted: false,
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: 19,
-    description: "Full power for serious X creators",
-    features: [
-      "Everything in Free",
-      "X API sync & analytics",
-      "Unlimited AI generations",
-      "Post scheduling",
-      "Pattern extraction",
-      "Insights chat",
-      "Niche analysis",
-    ],
-    cta: "Upgrade to Pro",
-    highlighted: true,
-  },
-  {
-    id: "business",
-    name: "Business",
-    price: 39,
-    description: "For power users who want the edge",
-    features: [
-      "Everything in Pro",
-      "Priority support",
-      "Early access to new features",
-    ],
-    cta: "Upgrade to Business",
-    highlighted: false,
-  },
-];
+const planMeta: Record<PlanId, { description: string; cta: string; highlighted: boolean }> = {
+  free: { description: "Get started with CSV imports and basic AI", cta: "Current Plan", highlighted: false },
+  pro: { description: "Full power for serious X creators", cta: "Upgrade to Pro", highlighted: true },
+  business: { description: "For power users who want the edge", cta: "Upgrade to Business", highlighted: false },
+};
+
+const plans = (Object.keys(PLANS) as PlanId[]).map((id) => ({
+  id,
+  name: PLANS[id].name,
+  price: PLANS[id].price,
+  features: PLANS[id].features,
+  ...planMeta[id],
+}));
 
 export default function PricingPage() {
   const { user } = useAuth();

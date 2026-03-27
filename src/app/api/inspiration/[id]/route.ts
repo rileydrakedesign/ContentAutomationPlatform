@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { analyzeInspirationPost } from "@/lib/openai";
+import { requireAiGeneration } from "@/lib/stripe/gate";
 
 /**
  * GET /api/inspiration/[id]
@@ -174,6 +175,9 @@ export async function POST(
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const gateError = await requireAiGeneration(user.id, "inspiration-reanalyze");
+    if (gateError) return gateError;
 
     // Fetch the existing post
     const { data: post, error: fetchError } = await supabase

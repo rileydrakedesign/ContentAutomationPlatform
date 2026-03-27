@@ -1312,6 +1312,12 @@ function showLimitReachedPicker(picker, replyButton) {
   limitDiv.className = 'cp-reply-option';
   limitDiv.style.textAlign = 'center';
 
+  // Lightning bolt icon
+  const iconDiv = document.createElement('div');
+  iconDiv.style.cssText = 'width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(139,92,246,0.15));display:flex;align-items:center;justify-content:center;margin:0 auto 8px;';
+  iconDiv.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#6366F1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
+  limitDiv.appendChild(iconDiv);
+
   const title = document.createElement('span');
   title.className = 'cp-reply-approach';
   title.textContent = 'Daily Limit Reached';
@@ -1320,13 +1326,24 @@ function showLimitReachedPicker(picker, replyButton) {
 
   const desc = document.createElement('p');
   desc.className = 'cp-reply-text';
-  desc.textContent = 'You\'ve used all 5 free AI generations for today. Upgrade to Pro for unlimited replies.';
+  desc.textContent = 'You\'ve used all 5 free AI generations for today.';
   desc.style.color = '#94A3B8';
   limitDiv.appendChild(desc);
 
+  // Feature bullets
+  const features = document.createElement('div');
+  features.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin:10px 0;text-align:left;';
+  ['Unlimited AI replies', 'Pattern extraction', 'Post scheduling'].forEach(text => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;color:#94A3B8;';
+    row.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#22C55E" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>${text}</span>`;
+    features.appendChild(row);
+  });
+  limitDiv.appendChild(features);
+
   const upgradeLink = document.createElement('a');
-  upgradeLink.textContent = 'Upgrade to Pro - $19/mo';
-  upgradeLink.style.cssText = 'display:inline-block;margin-top:10px;padding:8px 20px;background:linear-gradient(135deg,#6366F1,#8B5CF6);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;cursor:pointer;';
+  upgradeLink.textContent = 'Upgrade to Pro — $19/mo';
+  upgradeLink.style.cssText = 'display:inline-block;margin-top:6px;padding:10px 24px;background:linear-gradient(135deg,#6366F1,#8B5CF6);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;cursor:pointer;width:100%;text-align:center;box-sizing:border-box;';
   upgradeLink.addEventListener('click', (e) => {
     e.preventDefault();
     // Get the dashboard URL from storage and open pricing page

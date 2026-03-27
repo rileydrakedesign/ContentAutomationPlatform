@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useSubscription } from "@/components/auth/SubscriptionProvider";
+import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
 
 type Turn = { role: "user" | "assistant"; content: string };
 
@@ -27,6 +29,8 @@ function Bubble({ role, content }: { role: Turn["role"]; content: string }) {
 }
 
 export function AssistantTab() {
+  const { canUseFeature } = useSubscription();
+  const canChat = canUseFeature("insightsChat");
   const [history, setHistory] = useState<Turn[]>([]);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -69,6 +73,22 @@ export function AssistantTab() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!canChat) {
+    return (
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          <div className="px-5 py-4 border-b border-[var(--color-border-default)] bg-[var(--color-bg-card)]">
+            <h2 className="text-heading text-base font-semibold text-[var(--color-text-primary)]">Assistant</h2>
+            <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+              Ask questions based on your captured posts, patterns, and inspiration.
+            </p>
+          </div>
+          <UpgradePrompt feature="Insights chat" variant="overlay" />
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

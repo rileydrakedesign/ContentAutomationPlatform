@@ -14,7 +14,12 @@ export async function requireFeature(
   const sub = await getUserSubscription(userId);
   const plan = PLANS[sub.plan_id] || PLANS.free;
 
-  const isActive = sub.status === "active" || sub.status === "trialing";
+  const isActive =
+    sub.status === "active" ||
+    sub.status === "trialing" ||
+    (sub.status === "past_due" &&
+      sub.current_period_end &&
+      new Date(sub.current_period_end) > new Date());
   const effectivePlan = isActive ? plan : PLANS.free;
 
   const hasAccess = effectivePlan.limits[feature];

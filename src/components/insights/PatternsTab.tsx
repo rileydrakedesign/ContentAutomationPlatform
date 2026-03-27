@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { Sparkles, Loader2, RefreshCw, MessageSquare, TrendingUp, Zap } from "lucide-react";
+import { useSubscription } from "@/components/auth/SubscriptionProvider";
+import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
+import { parseGateError } from "@/lib/utils/gate-error";
 
 interface Pattern {
   id: string;
@@ -39,6 +42,8 @@ const PATTERN_TYPE_COLORS: Record<string, string> = {
 };
 
 export function PatternsTab() {
+  const { canUseFeature } = useSubscription();
+  const canExtract = canUseFeature("patternExtraction");
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [loading, setLoading] = useState(true);
   const [extracting, setExtracting] = useState(false);
@@ -73,7 +78,8 @@ export function PatternsTab() {
         await fetchPatterns();
       } else {
         const data = await res.json();
-        alert(data.error || "Failed to extract patterns");
+        const gateErr = parseGateError(res.status, data);
+        alert(gateErr ? gateErr.message : data.error || "Failed to extract patterns");
       }
     } catch (error) {
       console.error("Failed to extract patterns:", error);
@@ -121,6 +127,11 @@ export function PatternsTab() {
 
   return (
     <div className="space-y-6">
+      {/* Pro gate banner */}
+      {!canExtract && (
+        <UpgradePrompt feature="Pattern extraction" variant="inline" className="mb-2" />
+      )}
+
       {/* Extract Button */}
       <div className="flex items-center justify-between">
         <div>
@@ -131,8 +142,8 @@ export function PatternsTab() {
         </div>
         <button
           onClick={handleExtractPatterns}
-          disabled={extracting}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] disabled:bg-[var(--color-bg-hover)] text-white rounded-lg font-medium transition-colors"
+          disabled={extracting || !canExtract}
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-muted)] text-white rounded-lg font-medium transition-colors"
         >
           {extracting ? (
             <>

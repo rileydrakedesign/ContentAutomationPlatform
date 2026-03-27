@@ -28,6 +28,9 @@ import {
   Trash2,
   Send,
 } from "lucide-react";
+import { useSubscription } from "@/components/auth/SubscriptionProvider";
+import { AiUsageCounter } from "@/components/ui/AiUsageCounter";
+import { parseGateError } from "@/lib/utils/gate-error";
 
 type DraftType = "X_POST" | "X_THREAD";
 
@@ -66,6 +69,8 @@ export function CreatePage() {
   const [inspirationPickerOpen, setInspirationPickerOpen] = useState(false);
   const [inspirationSearch, setInspirationSearch] = useState("");
   const [loadingInspirationList, setLoadingInspirationList] = useState(false);
+
+  const { aiLimitReached, refetch: refetchSubscription } = useSubscription();
 
   // Compose (manual draft) state
   const [composeType, setComposeType] = useState<DraftType>("X_POST");
@@ -146,11 +151,18 @@ export function CreatePage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to generate drafts");
+        const gateErr = parseGateError(res.status, data);
+        if (gateErr) {
+          setError(gateErr.message);
+        } else {
+          setError(data.error || "Failed to generate drafts");
+        }
+        return;
       }
 
       const data = await res.json();
       setGeneratedDrafts(data.options || []);
+      refetchSubscription();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate");
     } finally {
@@ -485,17 +497,18 @@ export function CreatePage() {
                 </CardContent>
               </Card>
 
-              {/* Generate Button */}
+              {/* AI Usage + Generate Button */}
+              <AiUsageCounter className="mb-2" />
               <Button
                 onClick={handleGenerate}
                 loading={generating}
-                disabled={!topic.trim()}
+                disabled={!topic.trim() || aiLimitReached}
                 fullWidth
                 glow
                 icon={<Sparkles className="w-5 h-5" />}
                 className="h-14 text-base"
               >
-                {generating ? "Generating..." : "Generate Drafts"}
+                {aiLimitReached ? "Daily Limit Reached" : generating ? "Generating..." : "Generate Drafts"}
               </Button>
 
               {/* Error Display */}

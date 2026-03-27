@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { formatRelativeTime } from "@/lib/utils/formatting";
+import { useSubscription } from "@/components/auth/SubscriptionProvider";
+import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
 
 type ScheduledPost = {
   id: string;
@@ -91,6 +93,8 @@ function ActionButton({
 }
 
 export function QueuePage() {
+  const { canUseFeature } = useSubscription();
+  const canSchedule = canUseFeature("scheduling");
   const [items, setItems] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState<string | null>(null);
@@ -181,6 +185,14 @@ export function QueuePage() {
           Create
         </Link>
       </div>
+
+      {!canSchedule && (
+        <Card>
+          <CardContent>
+            <UpgradePrompt feature="Post scheduling" variant="overlay" />
+          </CardContent>
+        </Card>
+      )}
 
       {loading ? (
         <div className="text-sm text-[var(--color-text-muted)]">Loading…</div>

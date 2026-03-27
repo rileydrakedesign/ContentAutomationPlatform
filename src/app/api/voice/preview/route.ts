@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai/client";
 import { UserVoiceSettings, VoiceType, DEFAULT_VOICE_SETTINGS } from "@/types/voice";
+import { requireAiGeneration } from "@/lib/stripe/gate";
 
 function buildPreviewPrompt(settings: UserVoiceSettings, voiceType: VoiceType): string {
   const toneDesc =
@@ -72,6 +73,9 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const gateError = await requireAiGeneration(user.id, "voice-preview");
+    if (gateError) return gateError;
 
     const { voice_type, topic, context } = await request.json();
     const voiceType = (voice_type as VoiceType) || "reply";

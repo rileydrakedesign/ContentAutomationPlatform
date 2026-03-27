@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { analyzeInspirationPost } from "@/lib/openai/analyze-inspiration";
+import { requireAiGeneration } from "@/lib/stripe/gate";
 
 // POST /api/captured/[id]/promote - Convert captured post to inspiration post
 export async function POST(
@@ -18,6 +19,9 @@ export async function POST(
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const gateError = await requireAiGeneration(user.id, "captured-promote");
+    if (gateError) return gateError;
 
     // Get the captured post
     const { data: capturedPost, error: fetchError } = await supabase

@@ -5,6 +5,9 @@ import { Brain, RefreshCw, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { NicheProfile, TopicCluster } from "@/types/niche";
 import { VoiceType } from "@/types/voice";
+import { useSubscription } from "@/components/auth/SubscriptionProvider";
+import { AiUsageCounter } from "@/components/ui/AiUsageCounter";
+import { parseGateError } from "@/lib/utils/gate-error";
 
 interface NicheProfileTabProps {
   voiceType: VoiceType;
@@ -60,6 +63,7 @@ function ClusterBar({ cluster }: { cluster: TopicCluster }) {
 }
 
 export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheProfileTabProps) {
+  const { aiLimitReached, refetch: refetchSubscription } = useSubscription();
   const [profile, setProfile] = useState<NicheProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
@@ -99,9 +103,11 @@ export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheP
       const res = await fetch("/api/niche/analyze", { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        setAnalyzeError(data.error || "Analysis failed");
+        const gateErr = parseGateError(res.status, data);
+        setAnalyzeError(gateErr ? gateErr.message : data.error || "Analysis failed");
       } else {
         setProfile(data.profile);
+        refetchSubscription();
       }
     } catch {
       setAnalyzeError("Analysis failed — please try again");
@@ -164,12 +170,14 @@ export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheP
           variant="secondary"
           size="sm"
           onClick={handleAnalyze}
-          disabled={analyzing}
+          disabled={analyzing || aiLimitReached}
           icon={<RefreshCw className={`w-4 h-4 ${analyzing ? "animate-spin" : ""}`} />}
         >
-          {analyzing ? "Analysing…" : profile ? "Re-analyse" : "Analyse"}
+          {aiLimitReached ? "Limit reached" : analyzing ? "Analysing…" : profile ? "Re-analyse" : "Analyse"}
         </Button>
       </div>
+
+      <AiUsageCounter />
 
       {analyzeError && (
         <div className="px-4 py-3 rounded-lg border border-[var(--color-danger-500)]/40 bg-[var(--color-danger-500)]/10 text-sm text-[var(--color-danger-400)]">
@@ -193,10 +201,10 @@ export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheP
             variant="primary"
             size="sm"
             onClick={handleAnalyze}
-            disabled={analyzing}
+            disabled={analyzing || aiLimitReached}
             icon={<Brain className="w-4 h-4" />}
           >
-            {analyzing ? "Analysing…" : "Analyse my niche"}
+            {aiLimitReached ? "Limit reached" : analyzing ? "Analysing…" : "Analyse my niche"}
           </Button>
         </div>
       )}

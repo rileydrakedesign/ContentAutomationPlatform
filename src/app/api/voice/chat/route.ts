@@ -10,6 +10,7 @@ import {
   VoiceGuardrails,
 } from "@/types/voice";
 import { v4 as uuidv4 } from "uuid";
+import { requireAiGeneration } from "@/lib/stripe/gate";
 
 // Stage-specific system prompts
 const PROPOSE_CHANGES_PROMPT = `You are a voice configuration assistant helping users define their writing style for social media content.
@@ -306,6 +307,9 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const gateError = await requireAiGeneration(user.id, "voice-chat");
+    if (gateError) return gateError;
 
     const body = await request.json();
     const { voice_type, message, action, actionData } = body;

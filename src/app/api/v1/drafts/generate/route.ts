@@ -1,6 +1,7 @@
 import { withApiAuth, apiSuccess, apiError, apiOptions } from "@/lib/api/v1-handler";
 import { createAdminClient } from "@/lib/supabase/server";
 import { createChatCompletion, AIProvider } from "@/lib/ai";
+import { requireAiGeneration } from "@/lib/stripe/gate";
 
 export const OPTIONS = apiOptions;
 
@@ -8,6 +9,9 @@ type DraftType = "X_POST" | "X_THREAD";
 
 // POST /api/v1/drafts/generate — Generate draft options from a topic
 export const POST = withApiAuth(["drafts:generate"], async ({ auth, request }) => {
+  const aiGate = await requireAiGeneration(auth.userId, "v1-drafts-generate");
+  if (aiGate) return apiError("Daily AI generation limit reached", "ai_limit", 429);
+
   const supabase = createAdminClient();
 
   let body: {

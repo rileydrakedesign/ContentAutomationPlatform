@@ -9,6 +9,8 @@ import { ApiKeysTab } from "./ApiKeysTab";
 import { BillingTab } from "./BillingTab";
 import { formatRelativeTime } from "@/lib/utils/formatting";
 import { Key, CreditCard } from "lucide-react";
+import { useSubscription } from "@/components/auth/SubscriptionProvider";
+import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
 
 interface XConnectionStatus {
   connected: boolean;
@@ -21,6 +23,8 @@ interface XConnectionStatus {
 
 export function SettingsPage() {
   const searchParams = useSearchParams();
+  const { canUseFeature } = useSubscription();
+  const canSync = canUseFeature("xApiSync");
   const [xStatus, setXStatus] = useState<XConnectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
@@ -217,10 +221,11 @@ export function SettingsPage() {
                         ? `Last post sync ${formatRelativeTime(xStatus.lastSyncAt)}`
                         : "Never synced posts"}
                     </span>
+                    {!canSync && <UpgradePrompt feature="X API sync" variant="badge" />}
                     <button
                       onClick={syncPosts}
-                      disabled={syncing}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:bg-[var(--color-bg-hover)] rounded-lg text-sm transition"
+                      disabled={syncing || !canSync}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-muted)] rounded-lg text-sm transition"
                     >
                       {syncing ? "Syncing..." : "Sync Posts"}
                     </button>
@@ -232,10 +237,11 @@ export function SettingsPage() {
                         ? `Last analytics sync ${formatRelativeTime(xStatus.lastApiSyncAt)}`
                         : "Never synced analytics"}
                     </span>
+                    {!canSync && <UpgradePrompt feature="Analytics sync" variant="badge" />}
                     <button
                       onClick={syncAnalytics}
-                      disabled={syncingAnalytics}
-                      className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-[var(--color-bg-hover)] rounded-lg text-sm transition"
+                      disabled={syncingAnalytics || !canSync}
+                      className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-muted)] rounded-lg text-sm transition"
                     >
                       {syncingAnalytics ? "Syncing..." : "Sync Analytics"}
                     </button>

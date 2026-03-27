@@ -64,7 +64,16 @@ export async function checkAiGenerationLimit(userId: string): Promise<{
   const sub = await getUserSubscription(userId);
   const plan = PLANS[sub.plan_id] || PLANS.free;
 
-  if (plan.limits.aiGenerationsPerDay === Infinity) {
+  // Apply grace period: past_due users keep access until period ends
+  const isActive =
+    sub.status === "active" ||
+    sub.status === "trialing" ||
+    (sub.status === "past_due" &&
+      sub.current_period_end &&
+      new Date(sub.current_period_end) > new Date());
+  const effectivePlan = isActive ? plan : PLANS.free;
+
+  if (effectivePlan.limits.aiGenerationsPerDay === Infinity) {
     return { allowed: true, remaining: Infinity, limit: Infinity };
   }
 
@@ -78,12 +87,12 @@ export async function checkAiGenerationLimit(userId: string): Promise<{
     .gte("created_at", `${today}T00:00:00Z`);
 
   const used = count ?? 0;
-  const remaining = Math.max(0, plan.limits.aiGenerationsPerDay - used);
+  const remaining = Math.max(0, effectivePlan.limits.aiGenerationsPerDay - used);
 
   return {
     allowed: remaining > 0,
     remaining,
-    limit: plan.limits.aiGenerationsPerDay,
+    limit: effectivePlan.limits.aiGenerationsPerDay,
   };
 }
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Space_Grotesk, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { SubscriptionProvider } from "@/components/auth/SubscriptionProvider";
 import { SidebarProvider, Sidebar } from "@/components/sidebar";
 import { OnboardingGate } from "@/components/onboarding";
 
@@ -42,6 +43,7 @@ export default function RootLayout({
         className={`${dmSans.variable} ${spaceGrotesk.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
         <AuthProvider>
+          <SubscriptionProvider>
           <SidebarProvider>
             <OnboardingGate>
               <div className="flex min-h-screen">
@@ -52,6 +54,7 @@ export default function RootLayout({
               </div>
             </OnboardingGate>
           </SidebarProvider>
+          </SubscriptionProvider>
         </AuthProvider>
       </body>
     </html>

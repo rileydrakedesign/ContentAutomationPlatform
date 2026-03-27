@@ -137,6 +137,35 @@
         </div>
       </div>
 
+      <!-- Free plan upgrade card -->
+      <div id="free-plan-cta" class="free-plan-cta hidden">
+        <div class="free-cta-header">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          <span>Unlock the full power</span>
+        </div>
+        <div class="free-cta-features">
+          <div class="free-cta-feature">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Unlimited AI replies</span>
+          </div>
+          <div class="free-cta-feature">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Post scheduling</span>
+          </div>
+          <div class="free-cta-feature">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Pattern extraction</span>
+          </div>
+          <div class="free-cta-feature">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>X API analytics sync</span>
+          </div>
+        </div>
+        <a href="#" id="free-cta-upgrade-btn" class="btn btn-upgrade-cta">Upgrade to Pro — $19/mo</a>
+      </div>
+
       <!-- Unlimited badge (pro/business) -->
       <div id="unlimited-section" class="unlimited-section hidden">
         <span class="unlimited-badge" id="unlimited-badge">Pro</span>
@@ -168,7 +197,7 @@
             </div>
             <div class="feature-info">
               <span class="feature-name">AI Replies</span>
-              <span class="feature-desc">Generate context-aware replies</span>
+              <span class="feature-desc" id="replies-desc">Generate context-aware replies</span>
             </div>
           </div>
           <span class="feature-stat" id="stat-replies">--</span>

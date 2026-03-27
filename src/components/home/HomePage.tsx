@@ -10,6 +10,7 @@ import { BoostOpportunitiesCard } from "./BoostOpportunitiesCard";
 import { StrategyProgress } from "./StrategyProgress";
 import { CsvUploadDrawer } from "./CsvUploadDrawer";
 import { SetupChecklist } from "./SetupChecklist";
+import { FreePlanBanner } from "./FreePlanBanner";
 // (removed) CapturedPost import — dashboard inspiration now uses inspiration_posts
 import { UserAnalyticsData } from "@/types/analytics";
 import { InspirationPost } from "@/types/inspiration";
@@ -120,6 +121,9 @@ export function HomePage() {
         </div>
         <QuickActionsBar onUploadClick={() => setShowUploadDrawer(true)} />
       </div>
+
+      {/* Free Plan Banner */}
+      <FreePlanBanner />
 
       {/* Main Layout: Left stacked items | Right sidebar */}
       <div className="grid grid-cols-[1fr_360px] gap-5">

@@ -7,6 +7,7 @@ import { SidebarLogo } from "./SidebarLogo";
 import { SidebarNav } from "./SidebarNav";
 import { SidebarToggle } from "./SidebarToggle";
 import { SidebarUserMenu } from "./SidebarUserMenu";
+import { SidebarUpgradeBanner } from "./SidebarUpgradeBanner";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -31,6 +32,8 @@ export function Sidebar() {
       <SidebarLogo />
 
       {user && <SidebarNav />}
+
+      {user && <SidebarUpgradeBanner />}
 
       <div className="mt-auto border-t border-[var(--color-border-subtle)] p-2">
         <SidebarToggle />

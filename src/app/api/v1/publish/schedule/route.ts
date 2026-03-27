@@ -1,11 +1,15 @@
 import { withApiAuth, apiSuccess, apiError, apiOptions } from "@/lib/api/v1-handler";
 import { createAdminClient } from "@/lib/supabase/server";
 import { qstash } from "@/lib/qstash/client";
+import { requireFeature } from "@/lib/stripe/gate";
 
 export const OPTIONS = apiOptions;
 
 // POST /api/v1/publish/schedule — Schedule a post for later
 export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => {
+  const featureGate = await requireFeature(auth.userId, "scheduling");
+  if (featureGate) return apiError("Upgrade required — scheduling requires a Pro plan", "plan_limit", 403);
+
   const supabase = createAdminClient();
 
   let body: { contentType?: string; payload?: Record<string, unknown>; scheduledFor?: string; draftId?: string };
