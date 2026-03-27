@@ -174,6 +174,8 @@ This is an **implementation-based** feature inventory.
 ## 11) “Create” page: draft generation (topic → drafts) — **P3**
 **What it does:** UI exists to generate `X_POST`/`X_THREAD` drafts from a topic and selected patterns.
 
+**Supported content types:** `X_POST`, `X_THREAD` only. `REEL_SCRIPT` has been removed — all reel script types, interfaces, editor UI, and generation logic have been stripped from the codebase.
+
 **Why it’s lower now:** it’s outside the extension-first loop you described, but still useful as a fallback.
 
 **Where in code:**
