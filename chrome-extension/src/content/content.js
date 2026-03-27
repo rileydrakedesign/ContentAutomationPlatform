@@ -1291,6 +1291,87 @@ function hideReplyPicker(picker) {
   picker.classList.remove('cp-visible');
 }
 
+// Show limit-reached upgrade prompt inside the reply picker
+function showLimitReachedPicker(picker, replyButton) {
+  const optionsContainer = picker.querySelector('.cp-picker-options');
+  const indicator = picker.querySelector('.cp-nav-indicator');
+  const prevBtn = picker.querySelector('.cp-nav-prev');
+  const nextBtn = picker.querySelector('.cp-nav-next');
+  const useBtn = picker.querySelector('.cp-picker-use');
+  const closeBtn = picker.querySelector('.cp-picker-close');
+
+  // Hide navigation elements
+  prevBtn.style.display = 'none';
+  nextBtn.style.display = 'none';
+  indicator.textContent = '';
+
+  // Build limit-reached content
+  optionsContainer.textContent = '';
+
+  const limitDiv = document.createElement('div');
+  limitDiv.className = 'cp-reply-option';
+  limitDiv.style.textAlign = 'center';
+
+  const title = document.createElement('span');
+  title.className = 'cp-reply-approach';
+  title.textContent = 'Daily Limit Reached';
+  title.style.color = '#EF4444';
+  limitDiv.appendChild(title);
+
+  const desc = document.createElement('p');
+  desc.className = 'cp-reply-text';
+  desc.textContent = 'You\'ve used all 5 free AI generations for today. Upgrade to Pro for unlimited replies.';
+  desc.style.color = '#94A3B8';
+  limitDiv.appendChild(desc);
+
+  const upgradeLink = document.createElement('a');
+  upgradeLink.textContent = 'Upgrade to Pro - $19/mo';
+  upgradeLink.style.cssText = 'display:inline-block;margin-top:10px;padding:8px 20px;background:linear-gradient(135deg,#6366F1,#8B5CF6);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;cursor:pointer;';
+  upgradeLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    // Get the dashboard URL from storage and open pricing page
+    if (isExtensionContextValid()) {
+      chrome.storage.local.get(['apiUrl'], (result) => {
+        const baseUrl = result.apiUrl || 'https://app.agentsforx.com';
+        window.open(`${baseUrl}/pricing`, '_blank');
+      });
+    } else {
+      window.open('https://app.agentsforx.com/pricing', '_blank');
+    }
+  });
+  limitDiv.appendChild(upgradeLink);
+
+  optionsContainer.appendChild(limitDiv);
+
+  // Update "Use" button to just close
+  useBtn.textContent = 'Close';
+  useBtn.onclick = () => {
+    hideReplyPicker(picker);
+    // Restore button defaults
+    prevBtn.style.display = '';
+    nextBtn.style.display = '';
+    useBtn.textContent = 'Use this reply';
+    useBtn.onclick = null;
+  };
+
+  closeBtn.onclick = () => {
+    hideReplyPicker(picker);
+    prevBtn.style.display = '';
+    nextBtn.style.display = '';
+    useBtn.textContent = 'Use this reply';
+    useBtn.onclick = null;
+  };
+
+  // Position and show picker
+  picker.style.position = 'fixed';
+  picker.style.zIndex = '10001';
+
+  const rect = replyButton.getBoundingClientRect();
+  picker.style.top = `${rect.bottom + 8}px`;
+  picker.style.left = `${Math.max(10, rect.left - 120)}px`;
+  picker.classList.add('cp-visible');
+}
+
 // Handle reply button click - generate replies and show picker
 // Optional tone parameter for tone-specific generation
 async function handleReplyClick(event, replyButton, replyPicker, toneDropdown, tone = null) {
@@ -1353,6 +1434,12 @@ async function handleReplyClick(event, replyButton, replyPicker, toneDropdown, t
 
       // Show the picker with options
       showReplyPicker(replyPicker, replyButton, response.replies, articleElement);
+    } else if (response.code === 'AI_LIMIT') {
+      // Rate limited — show upgrade prompt in picker
+      replyButton.classList.remove(GENERATING_CLASS);
+      iconSpan.innerHTML = getReplyIcon();
+      replyButton.title = 'Daily limit reached';
+      showLimitReachedPicker(replyPicker, replyButton);
     } else {
       throw new Error(response.error || 'No replies generated');
     }
