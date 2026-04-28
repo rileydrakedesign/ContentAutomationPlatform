@@ -388,14 +388,15 @@ export default function LandingPage() {
                 transform: "perspective(1000px) rotateX(2deg)",
               }}
             >
-              <Image
-                src="/demo-extension.gif"
-                alt="Agents For X demo"
-                fill
-                priority
-                unoptimized
-                sizes="(min-width: 1024px) 896px, 100vw"
-                className="object-cover"
+              <video
+                src="/extension-demo.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="auto"
+                aria-label="Agents For X demo"
+                className="absolute inset-0 w-full h-full object-cover"
               />
             </div>
           </div>
