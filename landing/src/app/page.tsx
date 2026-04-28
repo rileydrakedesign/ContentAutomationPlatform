@@ -380,7 +380,7 @@ export default function LandingPage() {
             }}
           >
             <div
-              className="w-full aspect-[16/9] rounded-[var(--radius-2xl)] flex items-center justify-center"
+              className="w-full aspect-[16/9] rounded-[var(--radius-2xl)] overflow-hidden relative"
               style={{
                 background: "var(--color-bg-surface)",
                 border: "1px solid var(--color-border-default)",
@@ -388,12 +388,15 @@ export default function LandingPage() {
                 transform: "perspective(1000px) rotateX(2deg)",
               }}
             >
-              <span
-                className="text-sm"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                App screenshot
-              </span>
+              <Image
+                src="/demo-extension.gif"
+                alt="Agents For X demo"
+                fill
+                priority
+                unoptimized
+                sizes="(min-width: 1024px) 896px, 100vw"
+                className="object-cover"
+              />
             </div>
           </div>
         </div>
