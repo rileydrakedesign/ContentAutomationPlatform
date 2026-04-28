@@ -24,8 +24,7 @@ import {
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL || "https://app.agentsforx.com";
+const APP_URL = "https://app.agentsforx.com";
 
 const CYCLING_WORDS = [
   "your personal voice",
@@ -137,13 +136,6 @@ export default function LandingPage() {
               style={{ color: "var(--color-text-secondary)" }}
             >
               Pricing
-            </a>
-            <a
-              href="/blog"
-              className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors no-underline"
-              style={{ color: "var(--color-text-secondary)" }}
-            >
-              Blog
             </a>
             <a
               href="#faq"
@@ -1572,13 +1564,6 @@ function Footer() {
               Resources
             </h5>
             <div className="flex flex-col gap-2">
-              <a
-                href="/blog"
-                className="text-sm hover:text-[var(--color-text-secondary)] transition-colors no-underline"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                Blog
-              </a>
               <a
                 href="#faq"
                 className="text-sm hover:text-[var(--color-text-secondary)] transition-colors no-underline"
