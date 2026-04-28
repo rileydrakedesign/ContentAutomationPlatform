@@ -737,6 +737,7 @@ function FeatureShowcase() {
         { icon: <MessageSquare size={16} />, text: "In-timeline reply generation" },
         { icon: <Zap size={16} />, text: "5 tone presets for any context" },
       ],
+      image: "/chrome-extension.png",
     },
     {
       badge: "Voice Engine",
@@ -749,6 +750,7 @@ function FeatureShowcase() {
         { icon: <Layers size={16} />, text: "Custom guardrails & rules" },
         { icon: <RefreshCw size={16} />, text: "Auto-refreshing examples" },
       ],
+      image: "/voice.png",
     },
     {
       badge: "Pattern Intelligence",
@@ -761,6 +763,7 @@ function FeatureShowcase() {
         { icon: <BarChart3 size={16} />, text: "Engagement multiplier scoring" },
         { icon: <Target size={16} />, text: "One-click pattern application" },
       ],
+      image: "/patterns.png",
     },
     {
       badge: "Publishing",
@@ -773,6 +776,7 @@ function FeatureShowcase() {
         { icon: <Zap size={16} />, text: "Best-time recommendations" },
         { icon: <RefreshCw size={16} />, text: "Auto-retry on failure" },
       ],
+      image: "/scheduler.png",
     },
   ];
 
@@ -822,6 +826,7 @@ function FeatureSection({
   title,
   description,
   bullets,
+  image,
   reversed,
 }: {
   badge: string;
@@ -829,6 +834,7 @@ function FeatureSection({
   title: string;
   description: string;
   bullets: { icon: React.ReactNode; text: string }[];
+  image: string;
   reversed: boolean;
 }) {
   const ref = useReveal();
@@ -887,22 +893,23 @@ function FeatureSection({
         </div>
       </div>
 
-      {/* Image placeholder */}
+      {/* Image */}
       <div className={reversed ? "lg:[direction:ltr]" : ""}>
         <div
-          className="w-full aspect-[4/3] rounded-[var(--radius-xl)] flex items-center justify-center"
+          className="w-full aspect-[4/3] rounded-[var(--radius-xl)] overflow-hidden relative"
           style={{
             background: "var(--color-bg-surface)",
             border: "1px solid var(--color-border-default)",
             boxShadow: "var(--shadow-lg)",
           }}
         >
-          <span
-            className="text-sm"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            {badge} screenshot
-          </span>
+          <Image
+            src={image}
+            alt={`${badge} screenshot`}
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="object-cover"
+          />
         </div>
       </div>
     </div>
