@@ -29,34 +29,32 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session if expired
+  // Refresh session if expired (also keeps cookies fresh on /api/* tabs).
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protected routes - redirect to login if not authenticated
-  const protectedPaths = [
-    "/", // dashboard
-    "/create",
-    "/drafts",
-    "/insights",
-    "/library",
-    "/queue",
-    "/settings",
-    "/voice",
-    "/inspiration",
-    "/sources",
-    "/developers",
-    "/pricing",
+  const path = request.nextUrl.pathname;
+
+  // API routes own their own auth (API keys, webhooks, cron secrets, etc.).
+  // Middleware only refreshes the session cookie for them — no redirect logic.
+  if (path.startsWith("/api/")) {
+    return supabaseResponse;
+  }
+
+  // Page routes are deny-by-default: anything not in this allowlist requires
+  // an authenticated user. Adding a new page now defaults to "logged-in only".
+  const PUBLIC_PAGE_PATHS = [
+    "/login",
+    "/signup",
+    "/agent-for-x", // privacy, terms, marketing legal
   ];
 
-  const isProtectedPath = protectedPaths.some(
-    (path) =>
-      request.nextUrl.pathname === path ||
-      request.nextUrl.pathname.startsWith(path + "/")
+  const isPublicPath = PUBLIC_PAGE_PATHS.some(
+    (p) => path === p || path.startsWith(p + "/")
   );
 
-  if (isProtectedPath && !user) {
+  if (!isPublicPath && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
@@ -64,9 +62,7 @@ export async function middleware(request: NextRequest) {
 
   // Redirect logged-in users away from auth pages
   const authPaths = ["/login", "/signup"];
-  const isAuthPath = authPaths.includes(request.nextUrl.pathname);
-
-  if (isAuthPath && user) {
+  if (authPaths.includes(path) && user) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
@@ -82,8 +78,10 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - api routes that need to handle their own auth
+     *
+     * /api/* IS matched so getUser() refreshes the Supabase session cookie,
+     * but middleware does not enforce auth on API routes.
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/).*)",
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

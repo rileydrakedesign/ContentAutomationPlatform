@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { getUserTimeline, mapV2ToPostAnalytics, getValidAccessToken } from "@/lib/x-api";
+import { requireFeature } from "@/lib/stripe/gate";
 import type { PostAnalytics } from "@/types/analytics";
 
 // POST /api/analytics/sync - User-triggered API analytics sync
@@ -16,6 +17,9 @@ export async function POST() {
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const gateError = await requireFeature(user.id, "xApiSync");
+    if (gateError) return gateError;
 
     const { accessToken, connection } = await getValidAccessToken(supabase, user.id);
 

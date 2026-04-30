@@ -123,8 +123,11 @@ export async function GET(request: NextRequest) {
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
 
-    // In production, require CRON_SECRET; in development, allow without auth
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret) {
+      console.error("CRON_SECRET is not set; refusing cron request");
+      return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
+    }
+    if (authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

@@ -13,7 +13,7 @@ function getRedis(): Redis | null {
   return redis;
 }
 
-// Check rate limit for an API key. Returns null if rate limiting is not configured (no Redis).
+// Check rate limit for an API key.
 export async function checkRateLimit(
   keyId: string,
   limit: number
@@ -21,7 +21,17 @@ export async function checkRateLimit(
   const r = getRedis();
 
   if (!r) {
-    // No Redis configured — allow all requests (dev/local)
+    // Fail closed in production — never serve unlimited traffic.
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "Rate limiter has no Redis configured (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN). Rejecting request."
+      );
+      return {
+        allowed: false,
+        info: { limit, remaining: 0, reset: Math.floor(Date.now() / 1000) + 60 },
+      };
+    }
+    // Dev/local: allow without Redis
     return {
       allowed: true,
       info: { limit, remaining: limit, reset: Math.floor(Date.now() / 1000) + 60 },

@@ -210,6 +210,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
+    const MAX_CSV_BYTES = 10 * 1024 * 1024; // 10 MB
+    if (file.size > MAX_CSV_BYTES) {
+      return NextResponse.json(
+        { error: "File too large. Maximum size is 10MB." },
+        { status: 413 }
+      );
+    }
+
+    // Some browsers send an empty mime for CSV; allow that as long as the
+    // extension is .csv. Otherwise the mime must be one of the CSV variants.
+    const allowedMimes = new Set(["text/csv", "application/vnd.ms-excel", "application/csv", ""]);
+    const hasCsvExtension = file.name.toLowerCase().endsWith(".csv");
+    if (!hasCsvExtension || !allowedMimes.has(file.type)) {
+      return NextResponse.json(
+        { error: "Only .csv files are accepted." },
+        { status: 415 }
+      );
+    }
+
     const csvContent = await file.text();
     const rows = parseXAnalyticsCsv(csvContent);
 
