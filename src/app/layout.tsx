@@ -28,8 +28,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Content Pipeline",
-  description: "Content automation for X",
+  title: "Agents For X",
+  description: "AI replies and reply targeting for X.",
 };
 
 export default function RootLayout({
