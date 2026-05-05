@@ -84,6 +84,13 @@ export async function POST(request: NextRequest) {
       line_items: [{ price: plan.stripePriceId!, quantity: 1 }],
       success_url: `${appUrl}/settings?success=subscribed&plan=${planId}`,
       cancel_url: `${appUrl}/pricing`,
+      // Stripe Tax: collect billing address + tax id, compute tax automatically.
+      // Requires Stripe Tax to be activated in the dashboard. customer_update
+      // is required so automatic_tax can read/update the customer's address.
+      automatic_tax: { enabled: true },
+      tax_id_collection: { enabled: true },
+      billing_address_collection: "required",
+      customer_update: { address: "auto", name: "auto" },
       subscription_data: {
         metadata: { supabase_user_id: user.id, plan_id: planId },
       },

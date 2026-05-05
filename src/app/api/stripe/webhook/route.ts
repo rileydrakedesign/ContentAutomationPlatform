@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
             stripe_subscription_id: subscription.id,
             status: subscription.status as string,
             current_period_end: getPeriodEnd(subscription),
+            cancel_at_period_end: subscription.cancel_at_period_end,
           });
         }
         break;
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
           stripe_subscription_id: subscription.id,
           status: subscription.status as string,
           current_period_end: getPeriodEnd(subscription),
+          cancel_at_period_end: subscription.cancel_at_period_end,
         });
         break;
       }
@@ -141,12 +143,25 @@ export async function POST(request: NextRequest) {
           break;
         }
 
+        // Honor any remaining paid period: keep the previous plan_id while
+        // current_period_end is still in the future. isSubscriptionActive()
+        // will grace status="canceled" with future period_end.
+        const periodEnd = getPeriodEnd(subscription);
+        const isInGracePeriod = new Date(periodEnd) > new Date();
+
+        const priceId = subscription.items.data[0]?.price?.id;
+        const plan = priceId ? getPlanByPriceId(priceId) : null;
+        const planId: PlanId = isInGracePeriod
+          ? ((plan?.id || subscription.metadata?.plan_id || "pro") as PlanId)
+          : "free";
+
         await upsertSubscription(userId, {
-          plan_id: "free",
+          plan_id: planId,
           stripe_customer_id: subscription.customer as string,
           stripe_subscription_id: subscription.id,
           status: "canceled",
-          current_period_end: getPeriodEnd(subscription),
+          current_period_end: periodEnd,
+          cancel_at_period_end: false,
         });
         break;
       }
@@ -171,6 +186,7 @@ export async function POST(request: NextRequest) {
               stripe_subscription_id: subscription.id,
               status: subscription.status as string,
               current_period_end: getPeriodEnd(subscription),
+              cancel_at_period_end: subscription.cancel_at_period_end,
             });
           }
         }
@@ -197,6 +213,7 @@ export async function POST(request: NextRequest) {
               stripe_subscription_id: subscription.id,
               status: "past_due",
               current_period_end: getPeriodEnd(subscription),
+              cancel_at_period_end: subscription.cancel_at_period_end,
             });
           }
         }

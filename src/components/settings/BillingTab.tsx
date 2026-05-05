@@ -9,6 +9,7 @@ interface SubscriptionInfo {
   plan_name: string;
   status: string;
   current_period_end: string | null;
+  cancel_at_period_end: boolean;
   has_billing: boolean;
 }
 
@@ -82,12 +83,22 @@ export function BillingTab() {
           {sub?.current_period_end && (
             <div className="flex items-center justify-between">
               <span className="text-[var(--color-text-secondary)]">
-                {sub.status === "canceled" ? "Access until" : "Next billing date"}
+                {sub.status === "canceled" || sub.cancel_at_period_end
+                  ? "Access until"
+                  : "Next billing date"}
               </span>
               <span className="text-[var(--color-text-primary)]">
                 {new Date(sub.current_period_end).toLocaleDateString()}
               </span>
             </div>
+          )}
+
+          {sub?.cancel_at_period_end && sub.status !== "canceled" && sub.current_period_end && (
+            <p className="text-xs text-[var(--color-warning-400)]">
+              Your subscription will end on{" "}
+              {new Date(sub.current_period_end).toLocaleDateString()}. Resume any time
+              before then via Manage Billing.
+            </p>
           )}
         </div>
       </Card>
@@ -123,6 +134,21 @@ export function BillingTab() {
             No billing information on file.
           </p>
         )}
+      </Card>
+
+      <Card className="p-4">
+        <p className="text-sm text-[var(--color-text-muted)]">
+          Need help? DM{" "}
+          <a
+            href="https://x.com/AgentsForX"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--color-primary-400)] hover:underline"
+          >
+            @AgentsForX
+          </a>{" "}
+          on X for support.
+        </p>
       </Card>
     </div>
   );

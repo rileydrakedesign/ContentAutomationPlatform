@@ -1,4 +1,4 @@
-export type PlanId = "free" | "pro" | "business";
+export type PlanId = "free" | "pro";
 
 export interface PlanConfig {
   id: PlanId;
@@ -38,7 +38,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
   pro: {
     id: "pro",
     name: "Pro",
-    price: 19,
+    price: 29,
     stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "",
     features: [
       "Everything in Free",
@@ -47,24 +47,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       "Post scheduling",
       "Pattern extraction",
       "Insights chat",
-    ],
-    limits: {
-      aiGenerationsPerDay: Infinity,
-      xApiSync: true,
-      scheduling: true,
-      patternExtraction: true,
-      insightsChat: true,
-    },
-  },
-  business: {
-    id: "business",
-    name: "Business",
-    price: 39,
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID || "",
-    features: [
-      "Everything in Pro",
-      "Priority support",
-      "Early access to new features",
+      "Support via @AgentsForX DM",
     ],
     limits: {
       aiGenerationsPerDay: Infinity,
@@ -82,8 +65,24 @@ export interface UserSubscription {
   stripe_subscription_id: string | null;
   status: "active" | "canceled" | "past_due" | "trialing" | "incomplete";
   current_period_end: string | null;
+  cancel_at_period_end: boolean;
 }
 
 export function getPlanByPriceId(priceId: string): PlanConfig | undefined {
   return Object.values(PLANS).find((p) => p.stripePriceId === priceId);
+}
+
+/** Whether a subscription should currently grant paid-tier access. */
+export function isSubscriptionActive(sub: UserSubscription): boolean {
+  if (sub.status === "active" || sub.status === "trialing") return true;
+  // Grace through period end on past_due (failed renewal, recoverable) and
+  // canceled (user/admin cancellation that takes effect at period end).
+  if (
+    (sub.status === "past_due" || sub.status === "canceled") &&
+    sub.current_period_end &&
+    new Date(sub.current_period_end) > new Date()
+  ) {
+    return true;
+  }
+  return false;
 }

@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import type { PlanId, UserSubscription } from "@/types/subscription";
-import { PLANS } from "@/types/subscription";
+import { PLANS, isSubscriptionActive } from "@/types/subscription";
 
 const DEFAULT_SUBSCRIPTION: UserSubscription = {
   plan_id: "free",
@@ -8,6 +8,7 @@ const DEFAULT_SUBSCRIPTION: UserSubscription = {
   stripe_subscription_id: null,
   status: "active",
   current_period_end: null,
+  cancel_at_period_end: false,
 };
 
 /**
@@ -20,9 +21,11 @@ export async function getUserSubscription(
 
   const { data, error } = await supabase
     .from("subscriptions")
-    .select("plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end")
+    .select(
+      "plan_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, cancel_at_period_end"
+    )
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     return DEFAULT_SUBSCRIPTION;
@@ -41,16 +44,10 @@ export async function checkFeatureAccess(
     : never
 ): Promise<boolean> {
   const sub = await getUserSubscription(userId);
+  const plan = PLANS[sub.plan_id] || PLANS.free;
+  const effectivePlan = isSubscriptionActive(sub) ? plan : PLANS.free;
 
-  if (sub.status !== "active" && sub.status !== "trialing") {
-    // Canceled/past_due users fall back to free
-    return PLANS.free.limits[feature as keyof typeof PLANS.free.limits] as boolean;
-  }
-
-  const plan = PLANS[sub.plan_id];
-  if (!plan) return false;
-
-  return plan.limits[feature as keyof typeof plan.limits] as boolean;
+  return effectivePlan.limits[feature as keyof typeof plan.limits] as boolean;
 }
 
 /**
@@ -63,15 +60,7 @@ export async function checkAiGenerationLimit(userId: string): Promise<{
 }> {
   const sub = await getUserSubscription(userId);
   const plan = PLANS[sub.plan_id] || PLANS.free;
-
-  // Apply grace period: past_due users keep access until period ends
-  const isActive =
-    sub.status === "active" ||
-    sub.status === "trialing" ||
-    (sub.status === "past_due" &&
-      sub.current_period_end &&
-      new Date(sub.current_period_end) > new Date());
-  const effectivePlan = isActive ? plan : PLANS.free;
+  const effectivePlan = isSubscriptionActive(sub) ? plan : PLANS.free;
 
   if (effectivePlan.limits.aiGenerationsPerDay === Infinity) {
     return { allowed: true, remaining: Infinity, limit: Infinity };
@@ -123,6 +112,7 @@ export async function upsertSubscription(
     stripe_subscription_id: string;
     status: string;
     current_period_end: string;
+    cancel_at_period_end?: boolean;
   }
 ): Promise<void> {
   const supabase = await createAdminClient();
@@ -131,6 +121,7 @@ export async function upsertSubscription(
     {
       user_id: userId,
       ...data,
+      cancel_at_period_end: data.cancel_at_period_end ?? false,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" }

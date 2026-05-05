@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserSubscription, checkAiGenerationLimit, logAiGeneration } from "./subscription";
-import { PLANS } from "@/types/subscription";
+import { PLANS, isSubscriptionActive } from "@/types/subscription";
 
 type FeatureKey = keyof typeof PLANS.pro.limits;
 
@@ -13,14 +13,7 @@ export async function requireFeature(
 ): Promise<NextResponse | null> {
   const sub = await getUserSubscription(userId);
   const plan = PLANS[sub.plan_id] || PLANS.free;
-
-  const isActive =
-    sub.status === "active" ||
-    sub.status === "trialing" ||
-    (sub.status === "past_due" &&
-      sub.current_period_end &&
-      new Date(sub.current_period_end) > new Date());
-  const effectivePlan = isActive ? plan : PLANS.free;
+  const effectivePlan = isSubscriptionActive(sub) ? plan : PLANS.free;
 
   const hasAccess = effectivePlan.limits[feature];
 

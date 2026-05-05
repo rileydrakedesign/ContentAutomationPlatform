@@ -8,7 +8,6 @@ import { PLANS, PlanId } from "@/types/subscription";
 const planMeta: Record<PlanId, { description: string; cta: string; highlighted: boolean }> = {
   free: { description: "Get started with CSV imports and basic AI", cta: "Current Plan", highlighted: false },
   pro: { description: "Full power for serious X creators", cta: "Upgrade to Pro", highlighted: true },
-  business: { description: "For power users who want the edge", cta: "Upgrade to Business", highlighted: false },
 };
 
 const plans = (Object.keys(PLANS) as PlanId[]).map((id) => ({
@@ -59,7 +58,7 @@ export default function PricingPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
         {plans.map((plan) => (
           <div
             key={plan.id}
@@ -115,6 +114,28 @@ export default function PricingPage() {
             >
               {loading === plan.id ? "Loading..." : plan.cta}
             </button>
+
+            {plan.id !== "free" && (
+              <p className="mt-3 text-xs text-[var(--color-text-muted)] text-center leading-relaxed">
+                Cancel anytime · No refunds.
+                <br />
+                By subscribing you agree to our{" "}
+                <a
+                  href="/agent-for-x/terms"
+                  className="text-[var(--color-primary-400)] hover:underline"
+                >
+                  Terms
+                </a>{" "}
+                and{" "}
+                <a
+                  href="/agent-for-x/privacy"
+                  className="text-[var(--color-primary-400)] hover:underline"
+                >
+                  Privacy Policy
+                </a>
+                .
+              </p>
+            )}
           </div>
         ))}
       </div>

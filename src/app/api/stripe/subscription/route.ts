@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { getUserSubscription, checkAiGenerationLimit } from "@/lib/stripe/subscription";
-import { PLANS } from "@/types/subscription";
+import { PLANS, isSubscriptionActive } from "@/types/subscription";
 
 export async function GET() {
   try {
@@ -17,14 +17,7 @@ export async function GET() {
 
     const sub = await getUserSubscription(user.id);
     const plan = PLANS[sub.plan_id] || PLANS.free;
-
-    // Check if subscription is effectively active (includes past_due grace period)
-    const isActive =
-      sub.status === "active" ||
-      sub.status === "trialing" ||
-      (sub.status === "past_due" &&
-        sub.current_period_end &&
-        new Date(sub.current_period_end) > new Date());
+    const isActive = isSubscriptionActive(sub);
     const effectivePlan = isActive ? plan : PLANS.free;
 
     const { remaining, limit } = await checkAiGenerationLimit(user.id);
@@ -35,6 +28,7 @@ export async function GET() {
       plan_name: effectivePlan.name,
       status: sub.status,
       current_period_end: sub.current_period_end,
+      cancel_at_period_end: sub.cancel_at_period_end,
       has_billing: !!sub.stripe_customer_id,
       limits: effectivePlan.limits,
       usage: {
