@@ -9,11 +9,6 @@ type DraftType = "X_POST" | "X_THREAD";
 
 // POST /api/v1/drafts/generate — Generate draft options from a topic
 export const POST = withApiAuth(["drafts:generate"], async ({ auth, request }) => {
-  const aiGate = await requireAiGeneration(auth.userId, "v1-drafts-generate");
-  if (aiGate) return apiError("Daily AI generation limit reached", "ai_limit", 429);
-
-  const supabase = createAdminClient();
-
   let body: {
     topic?: string;
     draftType?: DraftType;
@@ -37,6 +32,12 @@ export const POST = withApiAuth(["drafts:generate"], async ({ auth, request }) =
     return apiError("draftType must be X_POST or X_THREAD", "validation_error", 400);
   }
 
+  // Quota check + log only after the request is known-valid, so a 400 doesn't
+  // burn a free user's daily AI generation.
+  const aiGate = await requireAiGeneration(auth.userId, "v1-drafts-generate");
+  if (aiGate) return apiError("Daily AI generation limit reached", "ai_limit", 429);
+
+  const supabase = createAdminClient();
   const count = Math.min(5, Math.max(1, generateCount));
 
   // Fetch patterns

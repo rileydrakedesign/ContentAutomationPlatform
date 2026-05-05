@@ -81,8 +81,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create key" }, { status: 500 });
   }
 
-  return NextResponse.json({
-    ...key,
-    key: raw,
-  }, { status: 201 });
+  return NextResponse.json(
+    {
+      ...key,
+      key: raw,
+    },
+    {
+      status: 201,
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
 }

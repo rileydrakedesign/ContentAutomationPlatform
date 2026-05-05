@@ -23,6 +23,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!appUrl) {
+      console.error("NEXT_PUBLIC_APP_URL is not set");
+      return NextResponse.json(
+        { error: "Server misconfigured" },
+        { status: 500 }
+      );
+    }
+
     const plan = PLANS[planId];
     const stripe = getStripe();
     const admin = createAdminClient();
@@ -32,12 +41,23 @@ export async function POST(request: NextRequest) {
       .from("subscriptions")
       .select("stripe_customer_id")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     let customerId = sub?.stripe_customer_id;
 
+    if (!customerId && user.email) {
+      // Re-use any Stripe customer that already exists for this email so we
+      // don't create duplicates when the local subscriptions row is missing.
+      const existing = await stripe.customers.list({
+        email: user.email,
+        limit: 1,
+      });
+      if (existing.data.length > 0) {
+        customerId = existing.data[0].id;
+      }
+    }
+
     if (!customerId) {
-      // Create Stripe customer
       const customer = await stripe.customers.create({
         email: user.email,
         metadata: { supabase_user_id: user.id },
@@ -45,7 +65,18 @@ export async function POST(request: NextRequest) {
       customerId = customer.id;
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    // Persist the customer id so the next checkout call (if the user closes
+    // the page before paying) doesn't end up creating yet another customer.
+    await admin.from("subscriptions").upsert(
+      {
+        user_id: user.id,
+        stripe_customer_id: customerId,
+        plan_id: sub ? undefined : "free",
+        status: sub ? undefined : "active",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
