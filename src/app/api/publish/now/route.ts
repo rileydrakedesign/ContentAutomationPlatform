@@ -81,22 +81,25 @@ export async function POST(request: NextRequest) {
     }
 
     const postedIds: string[] = [];
+    let publishError: string | null = null;
 
-    // Tweet 1
-    const first = await postTweet(accessToken, cleaned[0]);
-    postedIds.push(first.id_str);
-
-    // Replies for thread
-    let replyTo = first.id_str;
-    for (let i = 1; i < cleaned.length; i++) {
-      const next = await postTweet(accessToken, cleaned[i], {
-        inReplyToStatusId: replyTo,
-      });
-      postedIds.push(next.id_str);
-      replyTo = next.id_str;
+    // Post the thread; on mid-thread failure, keep the posted prefix so we
+    // can report it — a blind full retry would double-post those tweets.
+    try {
+      let replyTo: string | undefined;
+      for (let i = 0; i < cleaned.length; i++) {
+        const next = await postTweet(accessToken, cleaned[i], {
+          inReplyToStatusId: replyTo,
+        });
+        postedIds.push(next.id_str);
+        replyTo = next.id_str;
+      }
+    } catch (err) {
+      publishError = err instanceof Error ? err.message : "Failed to publish";
+      if (postedIds.length === 0) throw err;
     }
 
-    // Backfill captured_posts (one row per tweet)
+    // Backfill captured_posts (one row per tweet posted, even on partial failure)
     try {
       const username = connection.x_username || null;
       const rows = postedIds.map((id, idx) => ({
@@ -114,6 +117,18 @@ export async function POST(request: NextRequest) {
       await supabase.from("captured_posts").insert(rows);
     } catch (e) {
       console.warn("publish now: failed to backfill captured_posts (thread)", e);
+    }
+
+    if (publishError) {
+      return NextResponse.json(
+        {
+          error: `Thread partially posted: ${postedIds.length}/${cleaned.length} tweets went out before failing (${publishError}). Do not retry the full thread — the remaining tweets are returned for resuming.`,
+          postedIds,
+          failedAtIndex: postedIds.length,
+          remainingTweets: cleaned.slice(postedIds.length),
+        },
+        { status: 500 }
+      );
     }
 
     // Mark draft as POSTED (best-effort)

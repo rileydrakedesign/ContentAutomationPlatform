@@ -59,21 +59,33 @@
 - [x] **B1. Build fails from working tree** — `landing/` is swept into the root
   app typecheck. Add `landing` to `exclude` in root `tsconfig.json`. Verify:
   `npm run build` exits 0. — done: added "landing" to tsconfig exclude; `npm run build` prints "✓ Compiled successfully in 7.9s".
-- [ ] **B2. Double-publish race** — `src/lib/publish/execute.ts:24-29` sets
+- [x] **B2. Double-publish race** — `src/lib/publish/execute.ts:24-29` sets
   `status='publishing'` without `WHERE status='scheduled'` and ignores rows
   affected. Make it an atomic compare-and-swap (`.update(...).eq("id", id)
   .eq("user_id", userId).eq("status", "scheduled").select()`) and abort if 0 rows
   returned. Apply the same TOCTOU fix in `src/app/api/qstash/publish/route.ts` and
   the loop in `src/app/api/cron/publish-scheduled/route.ts`. Reference pattern:
-  the CAS in `src/lib/x-api/client.ts:171`.
-- [ ] **B3. Stuck-`publishing` posts dropped forever** — add recovery: in
+  the CAS in `src/lib/x-api/client.ts:171`. — done: claim in executeScheduledPost is now
+  `.eq("status","scheduled").select()` aborting on 0 rows; both the QStash route and the
+  cron loop delegate to executeScheduledPost, so the CAS guards every path (their own
+  status checks remain as fast-path skips). Verified via tsc + reading the diff.
+- [x] **B3. Stuck-`publishing` posts dropped forever** — add recovery: in
   `cron/publish-scheduled`, also select rows with `status='publishing'` older than
   ~10 min and transition them to `failed` with an error message (visible + retryable
-  in the queue UI). Do NOT auto-republish (tweets may have partially posted).
-- [ ] **B4. Thread retry double-posts** — `src/lib/publish/execute.ts:54-58`:
+  in the queue UI). Do NOT auto-republish (tweets may have partially posted). — done:
+  cron now flips `publishing` rows with `updated_at` >10 min old to `failed` with an
+  explanatory error, returns `recovered` count; never republishes. executeScheduledPost
+  touches `updated_at` on every thread-tweet progress write so active publishes aren't
+  reaped. Verified via tsc + reading the diff.
+- [x] **B4. Thread retry double-posts** — `src/lib/publish/execute.ts:54-58`:
   persist successfully-posted tweet IDs on the row as each thread tweet posts; on
   retry, resume from the first unposted tweet instead of re-posting from index 0.
-  Same flaw in `src/app/api/publish/now/route.ts:86-97`.
+  Same flaw in `src/app/api/publish/now/route.ts:86-97`. — done: execute.ts persists
+  `posted_post_ids` after each tweet and resumes the loop at index `postedIds.length`
+  (captured_posts backfill only covers newly posted). publish/now is stateless, so on
+  mid-thread failure it now backfills the posted prefix and returns 500 with
+  `postedIds`/`failedAtIndex`/`remainingTweets` so callers resume instead of re-posting.
+  Verified via tsc + reading the diff.
 - [ ] **B5. Schema not reproducible** — dump the live schema into a baseline
   migration: use Supabase MCP/`pg_dump --schema-only` to create
   `supabase/migrations/00000000000000_baseline.sql` covering the ~11 ad-hoc tables
