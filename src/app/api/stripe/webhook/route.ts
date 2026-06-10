@@ -124,14 +124,18 @@ export async function POST(request: NextRequest) {
         const plan = priceId ? getPlanByPriceId(priceId) : null;
         const planId = (plan?.id || subscription.metadata?.plan_id || "pro") as PlanId;
 
-        await upsertSubscription(userId, {
-          plan_id: planId,
-          stripe_customer_id: subscription.customer as string,
-          stripe_subscription_id: subscription.id,
-          status: subscription.status as string,
-          current_period_end: getPeriodEnd(subscription),
-          cancel_at_period_end: subscription.cancel_at_period_end,
-        });
+        await upsertSubscription(
+          userId,
+          {
+            plan_id: planId,
+            stripe_customer_id: subscription.customer as string,
+            stripe_subscription_id: subscription.id,
+            status: subscription.status as string,
+            current_period_end: getPeriodEnd(subscription),
+            cancel_at_period_end: subscription.cancel_at_period_end,
+          },
+          event.created
+        );
         break;
       }
 
@@ -156,14 +160,18 @@ export async function POST(request: NextRequest) {
           ? ((plan?.id || subscription.metadata?.plan_id || "pro") as PlanId)
           : "free";
 
-        await upsertSubscription(userId, {
-          plan_id: planId,
-          stripe_customer_id: subscription.customer as string,
-          stripe_subscription_id: subscription.id,
-          status: "canceled",
-          current_period_end: periodEnd,
-          cancel_at_period_end: false,
-        });
+        await upsertSubscription(
+          userId,
+          {
+            plan_id: planId,
+            stripe_customer_id: subscription.customer as string,
+            stripe_subscription_id: subscription.id,
+            status: "canceled",
+            current_period_end: periodEnd,
+            cancel_at_period_end: false,
+          },
+          event.created
+        );
         break;
       }
 

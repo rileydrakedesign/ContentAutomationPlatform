@@ -206,9 +206,14 @@
 
 ## MEDIUM
 
-- [ ] **M1. Stripe out-of-order events** — guard `customer.subscription.*`
+- [x] **M1. Stripe out-of-order events** — guard `customer.subscription.*`
   handlers: skip the upsert if stored `updated_at` is newer than `event.created`
-  (store event timestamp on the row).
+  (store event timestamp on the row). — done: added `stripe_event_created`
+  column (migration applied to live), upsertSubscription takes optional
+  eventCreated and does a guarded update (`stripe_event_created is null OR <=
+  event time`), logging + skipping stale events; created/updated/deleted handlers
+  pass event.created (checkout/invoice handlers re-fetch from the API so stay
+  unguarded). tsc clean.
 - [ ] **M2. Unknown price ID defaults to `"pro"`** — webhook plan resolution
   (`route.ts:124,155,184,211`): log loudly + keep existing stored plan (or map to
   free) instead of silently granting pro on lookup failure.

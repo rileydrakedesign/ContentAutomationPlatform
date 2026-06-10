@@ -103,6 +103,11 @@ export async function logAiGeneration(
 
 /**
  * Upsert a subscription record after Stripe webhook events.
+ *
+ * Pass eventCreated (Stripe event.created, epoch seconds) for handlers that
+ * write data taken from the event payload: a delayed/out-of-order older event
+ * must not overwrite a newer one. Handlers that re-fetch the subscription from
+ * the Stripe API should omit it (their data is current by construction).
  */
 export async function upsertSubscription(
   userId: string,
@@ -113,19 +118,56 @@ export async function upsertSubscription(
     status: string;
     current_period_end: string;
     cancel_at_period_end?: boolean;
-  }
+  },
+  eventCreated?: number
 ): Promise<void> {
   const supabase = await createAdminClient();
 
-  const { error } = await supabase.from("subscriptions").upsert(
-    {
-      user_id: userId,
-      ...data,
-      cancel_at_period_end: data.cancel_at_period_end ?? false,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" }
-  );
+  const row = {
+    user_id: userId,
+    ...data,
+    cancel_at_period_end: data.cancel_at_period_end ?? false,
+    updated_at: new Date().toISOString(),
+    stripe_event_created: eventCreated
+      ? new Date(eventCreated * 1000).toISOString()
+      : null,
+  };
+
+  if (row.stripe_event_created) {
+    // Guarded update: only touch rows whose last-applied event is not newer.
+    const { data: updated, error } = await supabase
+      .from("subscriptions")
+      .update(row)
+      .eq("user_id", userId)
+      .or(
+        `stripe_event_created.is.null,stripe_event_created.lte.${row.stripe_event_created}`
+      )
+      .select("user_id");
+
+    if (error) {
+      console.error("Failed to update subscription:", error);
+      throw error;
+    }
+    if (updated && updated.length > 0) return;
+
+    const { data: existing } = await supabase
+      .from("subscriptions")
+      .select("stripe_event_created")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existing) {
+      console.warn(
+        `Skipping out-of-order Stripe event for user ${userId}: row already at ${existing.stripe_event_created}, event at ${row.stripe_event_created}`
+      );
+      return;
+    }
+    // No row yet — fall through to insert via upsert below.
+  }
+
+  const { error } = await supabase
+    .from("subscriptions")
+    .upsert(row, { onConflict: "user_id" });
 
   if (error) {
     console.error("Failed to upsert subscription:", error);
