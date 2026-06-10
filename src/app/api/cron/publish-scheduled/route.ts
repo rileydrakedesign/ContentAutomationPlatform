@@ -25,17 +25,34 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    // Recover posts stuck in 'publishing' (process died mid-publish): mark
+    // failed so they surface in the queue UI. Never auto-republish — tweets
+    // may have partially posted.
+    const stuckCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: stuckPosts } = await supabase
+      .from("scheduled_posts")
+      .update({
+        status: "failed",
+        error:
+          "Publishing did not complete (process interrupted). Some tweets may already be on X — check before retrying.",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("status", "publishing")
+      .lt("updated_at", stuckCutoff)
+      .select("id");
+    const recovered = stuckPosts?.length ?? 0;
+
     // Find all posts due for publishing
     const { data: duePosts, error: queryError } = await supabase
       .from("scheduled_posts")
-      .select("id, user_id, content_type, payload, scheduled_for")
+      .select("id, user_id, content_type, payload, scheduled_for, draft_id")
       .eq("status", "scheduled")
       .lte("scheduled_for", new Date().toISOString())
       .order("scheduled_for", { ascending: true });
 
     if (queryError) throw queryError;
     if (!duePosts || duePosts.length === 0) {
-      return NextResponse.json({ published: 0, failed: 0 });
+      return NextResponse.json({ published: 0, failed: 0, recovered });
     }
 
     let published = 0;
@@ -50,7 +67,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ published, failed, total: duePosts.length });
+    return NextResponse.json({ published, failed, recovered, total: duePosts.length });
   } catch (error) {
     console.error("Cron publish-scheduled error:", error);
     return NextResponse.json(
