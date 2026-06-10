@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
         .from("x_connections")
         .select("id")
         .eq("user_id", user.id)
-        .eq("status", "active")
         .limit(1),
     ]);
 

@@ -20,11 +20,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // x-real-ip is set by the Vercel proxy and not client-spoofable, unlike
+    // the leftmost x-forwarded-for entry
     const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+      request.headers.get("x-real-ip") ||
+      request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
+      "unknown";
     const [ipAllowed, emailAllowed] = await Promise.all([
       checkAuthRateLimit(`login:ip:${ip}`, 5, "1 m"),
-      checkAuthRateLimit(`login:email:${String(email).toLowerCase()}`, 10, "1 h"),
+      checkAuthRateLimit(`login:email:${String(email).trim().toLowerCase()}`, 10, "1 h"),
     ]);
     if (!ipAllowed || !emailAllowed) {
       return NextResponse.json(

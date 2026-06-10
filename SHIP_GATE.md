@@ -386,9 +386,20 @@
   execute.ts's terminal posted/failed writes CAS on status='publishing';
   (4) per-tweet progress persist now aborts the thread on DB error, and the
   failure path persists posted_post_ids. Verified via tsc + lint (0 errors).
-- [ ] **V2.** Spawn a fresh subagent to adversarially review the security changes
+- [x] **V2.** Spawn a fresh subagent to adversarially review the security changes
   (H4, H7, H8, M9): headers present in a build, login rate limit fails closed in
   prod, no client path can select X token columns. Fix anything it finds first.
+  — done: fresh subagent verified the lockdown against the LIVE DB grants (anon: no
+  SELECT; authenticated: exactly the 9 non-secret columns; no route breaks), headers
+  on "/(.*)" in the build, CORS fail-closed without EXTENSION_ID in prod, login
+  fails closed without Redis + generic error, health gated on CRON_SECRET. Its
+  findings — ALL FIXED: (1) per-IP buckets keyed on spoofable leftmost XFF → now
+  x-real-ip with rightmost-XFF fallback in login+refresh; (2) refresh leaked
+  Supabase error strings → generic message; (3) CSP connect-src missing regional
+  Sentry ingest hosts → added *.ingest.us/de.sentry.io, dropped unused
+  api.twitter.com; (4) email bucket now trimmed; (5) pre-existing bug:
+  extension/status filtered x_connections on a non-existent `status` column making
+  xConnected always false → filter removed. Verified via tsc + build + lint.
 - [ ] **V3.** Run all five gates and print full results in the GATE STATUS block:
   `grep -cE '^- \[ \]' SHIP_GATE.md` (must be 0), `npm run build`,
   `npx tsc --noEmit`, `npm run lint`, `git status --porcelain`. If any fail, add

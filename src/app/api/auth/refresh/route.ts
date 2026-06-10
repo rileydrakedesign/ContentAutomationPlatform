@@ -20,8 +20,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // x-real-ip is set by the Vercel proxy and not client-spoofable, unlike
+    // the leftmost x-forwarded-for entry
     const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+      request.headers.get("x-real-ip") ||
+      request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
+      "unknown";
     if (!(await checkAuthRateLimit(`refresh:ip:${ip}`, 10, "1 m"))) {
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },
@@ -40,8 +44,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
+      // Generic message — never pass Supabase auth errors through to the client
       return NextResponse.json(
-        { error: error.message },
+        { error: "Invalid or expired refresh token" },
         { status: 401, headers: corsHeaders }
       );
     }
