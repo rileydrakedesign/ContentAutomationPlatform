@@ -137,10 +137,12 @@
   id/type), executeScheduledPost catch, and all 4 cron catches. `enabled` is gated
   on the DSN env so it's a no-op when unset. Verified: build + tsc clean. Project
   creation + DSN env remains HU6's handoff.
-- [ ] **H3. Publish safety-net cron is daily** — change `vercel.json`
+- [x] **H3. Publish safety-net cron is daily** — change `vercel.json`
   `publish-scheduled` schedule to `*/5 * * * *`. ONLY do this after B2 is checked
   (CAS prevents the double-publish the frequent cron would otherwise amplify).
   Note in HANDOFF: requires Vercel Pro for sub-daily crons — confirm plan (HU1).
+  — done: schedule changed after B2's CAS landed; verified by reading vercel.json.
+  HANDOFF reminder: sub-daily crons need Vercel Pro — confirm under HU1.
 - [ ] **H4. `/api/auth/login` unthrottled** — add per-IP + per-email rate limiting
   (reuse `@upstash/ratelimit` from `src/lib/api/rate-limit.ts`, e.g. 5/min/IP,
   10/hr/email) to `src/app/api/auth/login/route.ts` and `auth/refresh`. Return a
