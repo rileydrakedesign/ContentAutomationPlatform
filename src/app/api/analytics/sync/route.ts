@@ -21,7 +21,7 @@ export async function POST() {
     const gateError = await requireFeature(user.id, "xApiSync");
     if (gateError) return gateError;
 
-    const { accessToken, connection } = await getValidAccessToken(supabase, user.id);
+    const { accessToken, connection } = await getValidAccessToken(user.id);
 
     // Fetch up to 200 tweets via pagination
     const allTweets: PostAnalytics[] = [];

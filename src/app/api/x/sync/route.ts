@@ -21,7 +21,7 @@ export async function POST() {
     const gateError = await requireFeature(user.id, "xApiSync");
     if (gateError) return gateError;
 
-    const { accessToken, connection } = await getValidAccessToken(supabase, user.id);
+    const { accessToken, connection } = await getValidAccessToken(user.id);
 
     // Fetch user's tweets via v2 API
     const { data: tweets } = await getUserTimeline(

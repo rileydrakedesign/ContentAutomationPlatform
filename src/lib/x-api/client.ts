@@ -2,7 +2,7 @@
 import crypto from "crypto";
 import { weightedEngagement } from "@/lib/utils/engagement";
 import type { PostAnalytics } from "@/types/analytics";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const X_API_BASE = "https://api.twitter.com";
 
@@ -136,11 +136,18 @@ export async function refreshAccessToken(
 /**
  * Gets a valid access token for the user, refreshing if needed.
  * Race-safe: uses WHERE refresh_token = <old> to prevent double-refresh.
+ *
+ * Always uses the service role internally: token columns on x_connections are
+ * not SELECTable by the authenticated role (token-lockdown migration). Row
+ * scope is enforced by the userId the caller resolved from its own auth.
  */
 export async function getValidAccessToken(
-  supabase: SupabaseClient,
   userId: string
 ): Promise<{ accessToken: string; connection: { x_user_id: string; x_username: string } }> {
+  const supabase: SupabaseClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
   const { data: conn, error } = await supabase
     .from("x_connections")
     .select("access_token, refresh_token, access_token_expires_at, x_user_id, x_username")

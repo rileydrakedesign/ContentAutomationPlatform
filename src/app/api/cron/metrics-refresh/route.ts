@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     for (const conn of connections) {
       try {
-        const { accessToken } = await getValidAccessToken(supabase, conn.user_id);
+        const { accessToken } = await getValidAccessToken(conn.user_id);
 
         // Get captured posts with x_post_id, oldest-updated first
         const { data: posts } = await supabase

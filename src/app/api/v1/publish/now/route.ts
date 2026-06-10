@@ -30,7 +30,7 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
   let accessToken: string;
   let connection: { x_user_id: string; x_username: string };
   try {
-    ({ accessToken, connection } = await getValidAccessToken(supabase, auth.userId));
+    ({ accessToken, connection } = await getValidAccessToken(auth.userId));
   } catch (e) {
     return apiError(
       `X account not connected or token expired — reconnect X. (${e instanceof Error ? e.message : "unknown"})`,

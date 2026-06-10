@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     // Process users sequentially to respect rate limits
     for (const conn of connections) {
       try {
-        const { accessToken, connection } = await getValidAccessToken(supabase, conn.user_id);
+        const { accessToken, connection } = await getValidAccessToken(conn.user_id);
 
         // Fetch up to 200 tweets
         const allTweets: PostAnalytics[] = [];

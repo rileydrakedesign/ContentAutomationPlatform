@@ -19,7 +19,7 @@ export const GET = withApiAuth(["analytics:read"], async ({ auth, params }) => {
 
   let accessToken: string;
   try {
-    ({ accessToken } = await getValidAccessToken(supabase, auth.userId));
+    ({ accessToken } = await getValidAccessToken(auth.userId));
   } catch {
     return apiError("X account not connected", "x_not_connected", 400);
   }

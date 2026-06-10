@@ -22,7 +22,7 @@ export const GET = withApiAuth([], async ({ auth }) => {
   let xTokenError: string | null = null;
   if (xLinked) {
     try {
-      await getValidAccessToken(supabase, auth.userId);
+      await getValidAccessToken(auth.userId);
       xConnected = true;
     } catch (e) {
       xTokenError = e instanceof Error ? e.message : "token unavailable";

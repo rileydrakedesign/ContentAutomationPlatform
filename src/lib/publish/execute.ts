@@ -46,7 +46,7 @@ export async function executeScheduledPost(
   try {
 
     // Get valid access token
-    const { accessToken, connection } = await getValidAccessToken(supabase, userId);
+    const { accessToken, connection } = await getValidAccessToken(userId);
     const username = connection?.x_username || null;
 
     // Resolve content to publish

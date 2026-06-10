@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { accessToken, connection } = await getValidAccessToken(supabase, user.id);
+    const { accessToken, connection } = await getValidAccessToken(user.id);
 
     const body = await request.json();
     const contentType: ContentType = body?.contentType;

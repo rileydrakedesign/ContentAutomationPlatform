@@ -167,12 +167,18 @@
   Cross-checked via comm against grep of src/ — only undocumented names are
   NODE_ENV/NEXT_RUNTIME (runtime-provided) and DATABASE_URL/REDIS_URL (dead BullMQ
   code removed by M6).
-- [ ] **H7. X tokens readable from the browser** — `x_connections` has a client
+- [x] **H7. X tokens readable from the browser** — `x_connections` has a client
   SELECT policy exposing plaintext `access_token`/`refresh_token` to any XSS.
   Write a migration replacing the SELECT policy with one excluding token columns
   (column-level: revoke SELECT on token columns from `authenticated`, or move
   tokens to a service-role-only table). Verify no client code reads them
-  (`grep -r "x_connections" src/components src/lib/supabase`).
+  (`grep -r "x_connections" src/components src/lib/supabase`). — done: migration
+  20260610_x_connections_token_lockdown.sql revokes table SELECT from anon+
+  authenticated and re-grants column-level SELECT on the 9 non-secret columns;
+  applied to live and verified via information_schema.column_privileges (token
+  columns absent). getValidAccessToken now reads/rotates tokens via service role
+  internally (signature → getValidAccessToken(userId), all 10 call sites updated).
+  grep of src/components + src/lib/supabase: 0 hits. tsc clean.
 - [ ] **H8. No security headers** — add `headers()` to `next.config.ts`:
   `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
   `Referrer-Policy: strict-origin-when-cross-origin`,
