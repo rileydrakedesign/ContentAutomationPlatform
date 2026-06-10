@@ -176,7 +176,36 @@ export async function getValidAccessToken(
     throw new Error("No refresh token available — reconnect X account");
   }
 
-  const tokens = await refreshAccessToken(conn.refresh_token);
+  let tokens: { access_token: string; refresh_token: string; expires_in: number };
+  try {
+    tokens = await refreshAccessToken(conn.refresh_token);
+  } catch (err) {
+    // invalid_grant usually means another process already used (and rotated)
+    // this refresh token — re-read the row and use the fresh token if so.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("invalid_grant") || msg.includes("invalid_request")) {
+      const { data: reread } = await supabase
+        .from("x_connections")
+        .select("access_token, refresh_token, access_token_expires_at, x_user_id, x_username")
+        .eq("user_id", userId)
+        .single();
+
+      const rereadExpiresAt = reread?.access_token_expires_at
+        ? new Date(reread.access_token_expires_at).getTime()
+        : 0;
+      if (
+        reread?.access_token &&
+        reread.refresh_token !== conn.refresh_token &&
+        Date.now() < rereadExpiresAt - bufferMs
+      ) {
+        return {
+          accessToken: reread.access_token,
+          connection: { x_user_id: reread.x_user_id, x_username: reread.x_username },
+        };
+      }
+    }
+    throw err;
+  }
   const newExpiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
   // Race-safe update: only update if refresh_token hasn't changed

@@ -236,10 +236,14 @@
   .limits.xApiSync (skipped users reported as skipped:"plan" in analytics-sync).
   DECIDED to schedule (API analytics sync is an active feature): vercel.json runs
   analytics-sync daily 06:00, metrics-refresh daily 07:00. tsc clean.
-- [ ] **M5. Token refresh HTTP race** — `src/lib/x-api/client.ts:125`: wrap the
+- [x] **M5. Token refresh HTTP race** — `src/lib/x-api/client.ts:125`: wrap the
   refresh HTTP call so an `invalid_grant` triggers the existing re-read-from-DB
   recovery path (another process may have already rotated the token) instead of
-  failing the publish.
+  failing the publish. — done: refreshAccessToken call wrapped; on
+  invalid_grant/invalid_request it re-reads x_connections and, if the stored
+  refresh_token rotated AND the stored access token is still unexpired (5-min
+  buffer), uses it; otherwise rethrows (genuine revocation still fails loudly).
+  tsc clean.
 - [ ] **M6. Delete dead BullMQ system** — remove `scripts/publish-worker.mjs`,
   `src/lib/queue/`, the `worker:publish` script, and `bullmq`/`ioredis` deps
   (verify nothing imports them first: `grep -r "lib/queue\|bullmq\|ioredis" src/ scripts/`).
