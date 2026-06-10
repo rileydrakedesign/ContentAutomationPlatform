@@ -4,6 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 import { getUserTimeline, mapV2ToPostAnalytics, getValidAccessToken } from "@/lib/x-api";
 import type { PostAnalytics } from "@/types/analytics";
 import { capPostsByRecency } from "@/lib/utils/analytics-retention";
+import { getUserSubscription } from "@/lib/stripe/subscription";
+import { PLANS, isSubscriptionActive } from "@/types/subscription";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -40,11 +42,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "No connections to sync", synced: 0 });
     }
 
-    const results: Array<{ userId: string; synced: number; error?: string }> = [];
+    const results: Array<{
+      userId: string;
+      synced: number;
+      error?: string;
+      skipped?: string;
+    }> = [];
 
     // Process users sequentially to respect rate limits
     for (const conn of connections) {
       try {
+        // API sync is a paid-plan feature — apply the same gate as the UI
+        const sub = await getUserSubscription(conn.user_id);
+        const plan = isSubscriptionActive(sub)
+          ? PLANS[sub.plan_id] || PLANS.free
+          : PLANS.free;
+        if (!plan.limits.xApiSync) {
+          results.push({ userId: conn.user_id, synced: 0, skipped: "plan" });
+          continue;
+        }
+
         const { accessToken, connection } = await getValidAccessToken(conn.user_id);
 
         // Fetch up to 200 tweets

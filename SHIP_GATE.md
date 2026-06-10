@@ -227,11 +227,15 @@
   payment_failed/payment_disputed it sets plan_id=free and current_period_end to
   the event time (so isSubscriptionActive's canceled-grace can't apply); voluntary
   cancellations keep period-end grace. tsc clean.
-- [ ] **M4. Cron analytics-sync ungated** — `src/app/api/cron/analytics-sync/route.ts:29-44`
+- [x] **M4. Cron analytics-sync ungated** — `src/app/api/cron/analytics-sync/route.ts:29-44`
   syncs every `x_connections` row regardless of plan. Filter to users whose
   effective plan includes `xApiSync` (reuse the gate logic server-side). Also
   DECIDE: schedule `analytics-sync`/`metrics-refresh` in `vercel.json` or delete
-  both routes — don't leave dead authenticated endpoints.
+  both routes — don't leave dead authenticated endpoints. — done: both cron loops
+  now gate per-user via getUserSubscription + isSubscriptionActive + PLANS
+  .limits.xApiSync (skipped users reported as skipped:"plan" in analytics-sync).
+  DECIDED to schedule (API analytics sync is an active feature): vercel.json runs
+  analytics-sync daily 06:00, metrics-refresh daily 07:00. tsc clean.
 - [ ] **M5. Token refresh HTTP race** — `src/lib/x-api/client.ts:125`: wrap the
   refresh HTTP call so an `invalid_grant` triggers the existing re-read-from-DB
   recovery path (another process may have already rotated the token) instead of

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { getTweetsBatch, getValidAccessToken } from "@/lib/x-api";
+import { getUserSubscription } from "@/lib/stripe/subscription";
+import { PLANS, isSubscriptionActive } from "@/types/subscription";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -41,6 +43,13 @@ export async function GET(request: NextRequest) {
 
     for (const conn of connections) {
       try {
+        // API sync is a paid-plan feature — apply the same gate as the UI
+        const sub = await getUserSubscription(conn.user_id);
+        const plan = isSubscriptionActive(sub)
+          ? PLANS[sub.plan_id] || PLANS.free
+          : PLANS.free;
+        if (!plan.limits.xApiSync) continue;
+
         const { accessToken } = await getValidAccessToken(conn.user_id);
 
         // Get captured posts with x_post_id, oldest-updated first
