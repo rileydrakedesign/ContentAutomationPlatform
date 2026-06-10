@@ -179,11 +179,14 @@
   columns absent). getValidAccessToken now reads/rotates tokens via service role
   internally (signature → getValidAccessToken(userId), all 10 call sites updated).
   grep of src/components + src/lib/supabase: 0 hits. tsc clean.
-- [ ] **H8. No security headers** — add `headers()` to `next.config.ts`:
+- [x] **H8. No security headers** — add `headers()` to `next.config.ts`:
   `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
   `Referrer-Policy: strict-origin-when-cross-origin`,
   `Permissions-Policy: camera=(), microphone=(), geolocation=()`, and a
   Report-Only CSP to start. Verify with `npm run build` + reading the config.
+  — done: headers() on source "/(.*)" with all four headers plus a Report-Only CSP
+  (self + supabase/sentry/twitter connect-src, frame-ancestors 'none'). Build
+  compiles successfully with the config.
 - [x] **H9. PII + debris in repo root** — delete `waitlist_signups.dev.jsonl`,
   root `*.png` screenshots, `CONSOLE_OUTPUT.md`; add `.gitignore` rules for
   `*.dev.jsonl`, root screenshots pattern, `.claude/worktrees/`. Verify with
