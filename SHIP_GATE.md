@@ -106,11 +106,14 @@
 - [x] **B7. packageManager conflict** — uncommitted `"packageManager": "pnpm@..."`
   in `package.json` vs committed npm `package-lock.json`. Remove the pnpm field
   (repo is npm). Verify `git diff package.json` is clean of it. — done: removed the pnpm packageManager field; `git diff package.json` shows only the removal.
-- [ ] **B8. Dirty working tree** — commit or discard all remaining modified files
+- [x] **B8. Dirty working tree** — commit or discard all remaining modified files
   (tour/onboarding + chrome-extension diffs were audited as complete and
   committable). Verify `git status --porcelain` only shows ignored/intentional
   files. Do not commit screenshots, `waitlist_signups.dev.jsonl`, or worktree dirs
-  — see H9.
+  — see H9. — done: committed app/tour/extension/x-api diffs + docs/blog/logo in two
+  commits; debris handled in H9. `git status --porcelain` now shows only
+  drizzle.config.ts (untracked, deleted by M6). 42MB landing-page-assets/ media kept
+  local and gitignored rather than committed.
 
 ## HIGH
 
@@ -154,10 +157,13 @@
   `Referrer-Policy: strict-origin-when-cross-origin`,
   `Permissions-Policy: camera=(), microphone=(), geolocation=()`, and a
   Report-Only CSP to start. Verify with `npm run build` + reading the config.
-- [ ] **H9. PII + debris in repo root** — delete `waitlist_signups.dev.jsonl`,
+- [x] **H9. PII + debris in repo root** — delete `waitlist_signups.dev.jsonl`,
   root `*.png` screenshots, `CONSOLE_OUTPUT.md`; add `.gitignore` rules for
   `*.dev.jsonl`, root screenshots pattern, `.claude/worktrees/`. Verify with
-  `git status` + `ls`.
+  `git status` + `ls`. — done (with B8): deleted the jsonl, 19 root pngs,
+  CONSOLE_OUTPUT.md; .gitignore now covers *.dev.jsonl, /*.png (except /icon.png),
+  .claude/worktrees/, landing-page-assets/. Verified: 0 pngs in root,
+  `git status --porcelain` shows none of them.
 - [ ] **H10. `user_analytics.posts` unbounded JSONB** — add a retention cap in the
   merge paths (`src/app/api/analytics/csv/route.ts:296-339` and
   `src/app/api/cron/analytics-sync/route.ts:105`): keep most recent N posts

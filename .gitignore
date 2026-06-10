@@ -55,3 +55,16 @@ chrome-extension/dist/
 
 # debug files
 railway_error.md
+
+# local dev data (PII — never commit)
+*.dev.jsonl
+
+# root-level debug screenshots
+/*.png
+!/icon.png
+
+# agent worktrees
+.claude/worktrees/
+
+# raw marketing media (too large for git)
+landing-page-assets/
