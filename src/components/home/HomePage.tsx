@@ -14,6 +14,7 @@ import { FreePlanBanner } from "./FreePlanBanner";
 // (removed) CapturedPost import — dashboard inspiration now uses inspiration_posts
 import { UserAnalyticsData } from "@/types/analytics";
 import { InspirationPost } from "@/types/inspiration";
+import { apiFetch } from "@/lib/utils/apiFetch";
 
 type Draft = {
   id: string;
@@ -36,29 +37,38 @@ export function HomePage() {
 
   const fetchData = async () => {
     try {
-      const [analyticsRes, inspirationRes, draftsRes, xRes, activityRes] = await Promise.all([
-        fetch("/api/analytics/csv"),
-        fetch("/api/inspiration"),
-        fetch("/api/drafts"),
-        fetch("/api/x/status"),
-        fetch("/api/activity/consistency"),
-      ]);
+      // allSettled so one failing endpoint doesn't blank the whole dashboard
+      // (apiFetch still redirects to /login on 401)
+      const [analyticsRes, inspirationRes, draftsRes, xRes, activityRes] =
+        await Promise.allSettled([
+          apiFetch<{ data: UserAnalyticsData | null }>("/api/analytics/csv"),
+          apiFetch<InspirationPost[]>("/api/inspiration"),
+          apiFetch<Draft[]>("/api/drafts"),
+          apiFetch<{ connected: boolean; username?: string }>("/api/x/status"),
+          apiFetch<{ days?: Array<{ date: string; posts: number; replies: number }> }>(
+            "/api/activity/consistency"
+          ),
+        ]);
 
-      const [analyticsJson, inspirationJson, draftsJson, xJson, activityJson] = await Promise.all([
-        analyticsRes.json(),
-        inspirationRes.json(),
-        draftsRes.json(),
-        xRes.json(),
-        activityRes.json(),
-      ]);
-
-      setAnalyticsData(analyticsJson.data || null);
-      setInspirationPosts(Array.isArray(inspirationJson) ? inspirationJson : []);
-      setDrafts(Array.isArray(draftsJson) ? draftsJson : []);
-      setXStatus(xJson || null);
-      setActivityDays(Array.isArray(activityJson?.days) ? activityJson.days : []);
-    } catch (error) {
-      console.error("Failed to fetch data:", error);
+      setAnalyticsData(
+        analyticsRes.status === "fulfilled" ? analyticsRes.value.data || null : null
+      );
+      setInspirationPosts(
+        inspirationRes.status === "fulfilled" && Array.isArray(inspirationRes.value)
+          ? inspirationRes.value
+          : []
+      );
+      setDrafts(
+        draftsRes.status === "fulfilled" && Array.isArray(draftsRes.value)
+          ? draftsRes.value
+          : []
+      );
+      setXStatus(xRes.status === "fulfilled" ? xRes.value || null : null);
+      setActivityDays(
+        activityRes.status === "fulfilled" && Array.isArray(activityRes.value?.days)
+          ? activityRes.value.days
+          : []
+      );
     } finally {
       setLoading(false);
     }
@@ -69,9 +79,8 @@ export function HomePage() {
   }, []);
 
   const handleUploadComplete = () => {
-    fetch("/api/analytics/csv")
-      .then((res) => res.json())
-      .then((data) => setAnalyticsData(data.data || null))
+    apiFetch<{ data: UserAnalyticsData | null }>("/api/analytics/csv")
+      .then((json) => setAnalyticsData(json.data || null))
       .catch(console.error);
   };
 

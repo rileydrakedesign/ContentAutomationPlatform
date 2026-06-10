@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { formatRelativeTime } from "@/lib/utils/formatting";
 import { useSubscription } from "@/components/auth/SubscriptionProvider";
 import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
+import { apiFetch } from "@/lib/utils/apiFetch";
 
 type ScheduledPost = {
   id: string;
@@ -98,6 +99,7 @@ export function QueuePage() {
   const [items, setItems] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Calendar state
   const now = new Date();
@@ -106,8 +108,7 @@ export function QueuePage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   async function load() {
-    const res = await fetch("/api/publish/list?limit=100");
-    const data = await res.json();
+    const data = await apiFetch<ScheduledPost[]>("/api/publish/list?limit=100");
     setItems(Array.isArray(data) ? data : []);
   }
 
@@ -115,6 +116,8 @@ export function QueuePage() {
     async function boot() {
       try {
         await load();
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : "Failed to load queue");
       } finally {
         setLoading(false);
       }
@@ -124,14 +127,19 @@ export function QueuePage() {
 
   async function handleAction(id: string, action: "cancel" | "retry") {
     setWorkingId(id);
+    setActionError(null);
     try {
       const endpoint = action === "retry" ? "/api/publish/retry" : "/api/publish/cancel";
-      const res = await fetch(endpoint, {
+      await apiFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      if (res.ok) await load();
+      await load();
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : `Failed to ${action} the post`
+      );
     } finally {
       setWorkingId(null);
     }
@@ -192,6 +200,12 @@ export function QueuePage() {
             <UpgradePrompt feature="Post scheduling" variant="overlay" />
           </CardContent>
         </Card>
+      )}
+
+      {actionError && (
+        <div className="rounded-lg border border-[var(--color-danger-500)]/20 bg-[var(--color-danger-500)]/10 px-4 py-3 text-sm text-[var(--color-danger-400)]">
+          {actionError}
+        </div>
       )}
 
       {loading ? (

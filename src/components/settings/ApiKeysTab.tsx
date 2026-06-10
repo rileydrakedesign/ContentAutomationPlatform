@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { formatRelativeTime } from "@/lib/utils/formatting";
 import { ALLOWED_SCOPES } from "@/lib/api/scopes";
 import { Key, Copy, Check, Plus } from "lucide-react";
+import { apiFetch } from "@/lib/utils/apiFetch";
 
 interface ApiKey {
   id: string;
@@ -37,15 +38,14 @@ export function ApiKeysTab() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [formName, setFormName] = useState("");
   const [formScopes, setFormScopes] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchKeys = useCallback(async () => {
     try {
-      const res = await fetch("/api/settings/api-keys");
-      if (res.ok) {
-        setKeys(await res.json());
-      }
+      setKeys(await apiFetch<ApiKey[]>("/api/settings/api-keys"));
     } catch (err) {
       console.error("Failed to fetch API keys:", err);
+      setError(err instanceof Error ? err.message : "Failed to load API keys");
     } finally {
       setLoading(false);
     }
@@ -58,24 +58,22 @@ export function ApiKeysTab() {
   async function createKey() {
     if (!formName.trim() || formScopes.length === 0) return;
     setCreating(true);
+    setError(null);
 
     try {
-      const res = await fetch("/api/settings/api-keys", {
+      const data = await apiFetch<{ key: string }>("/api/settings/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: formName.trim(), scopes: formScopes }),
       });
-
-      if (res.ok) {
-        const data = await res.json();
-        setNewKeyRaw(data.key);
-        setShowCreateForm(false);
-        setFormName("");
-        setFormScopes([]);
-        await fetchKeys();
-      }
+      setNewKeyRaw(data.key);
+      setShowCreateForm(false);
+      setFormName("");
+      setFormScopes([]);
+      await fetchKeys();
     } catch (err) {
       console.error("Failed to create API key:", err);
+      setError(err instanceof Error ? err.message : "Failed to create API key");
     } finally {
       setCreating(false);
     }
@@ -83,14 +81,14 @@ export function ApiKeysTab() {
 
   async function revokeKey(id: string) {
     if (!confirm("Revoke this API key? This cannot be undone.")) return;
+    setError(null);
 
     try {
-      const res = await fetch(`/api/settings/api-keys/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        await fetchKeys();
-      }
+      await apiFetch(`/api/settings/api-keys/${id}`, { method: "DELETE" });
+      await fetchKeys();
     } catch (err) {
       console.error("Failed to revoke key:", err);
+      setError(err instanceof Error ? err.message : "Failed to revoke key");
     }
   }
 
@@ -135,6 +133,12 @@ export function ApiKeysTab() {
           </Button>
         )}
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-[var(--color-danger-500)]/20 bg-[var(--color-danger-500)]/10 px-4 py-3 text-sm text-[var(--color-danger-400)]">
+          {error}
+        </div>
+      )}
 
       {/* One-time key display */}
       {newKeyRaw && (

@@ -259,10 +259,14 @@
   getOpenAI+analyzeInspirationPost; dropped job_id select; removed REEL_SCRIPT/
   VOICE_MEMO from UI types/labels. Fixed phantom `uuid` dep (was transitive via
   bullmq) → crypto.randomUUID(). Build + tsc clean.
-- [ ] **M7. Shared fetch wrapper** — add `src/lib/utils/apiFetch.ts` that checks
+- [x] **M7. Shared fetch wrapper** — add `src/lib/utils/apiFetch.ts` that checks
   `res.ok`, redirects to `/login` on 401, and throws a typed error; adopt it in the
   worst offenders: `HomePage.tsx`, `QueuePage.tsx` (incl. surfacing cancel/retry
   failures to the user), `ApiKeysTab.tsx`. Full adoption can be incremental.
+  — done: apiFetch throws typed ApiError (server `error` message when present),
+  redirects on 401. HomePage uses allSettled so one failed endpoint degrades
+  gracefully; QueuePage shows a danger banner on load/cancel/retry failure;
+  ApiKeysTab shows error banner on load/create/revoke failure. Build + tsc clean.
 - [ ] **M8. AI route timeouts** — set `export const maxDuration = 60` on the AI
   routes (`drafts/generate-from-topic`, `generate-reply`, `voice/chat`,
   `voice/preview`, `insights-chat`, `niche/analyze`) and pass an explicit
