@@ -400,7 +400,10 @@
   api.twitter.com; (4) email bucket now trimmed; (5) pre-existing bug:
   extension/status filtered x_connections on a non-existent `status` column making
   xConnected always false → filter removed. Verified via tsc + build + lint.
-- [ ] **V3.** Run all five gates and print full results in the GATE STATUS block:
+- [x] **V3.** Run all five gates and print full results in the GATE STATUS block:
   `grep -cE '^- \[ \]' SHIP_GATE.md` (must be 0), `npm run build`,
   `npx tsc --noEmit`, `npm run lint`, `git status --porcelain`. If any fail, add
   a new checklist item for the failure and fix it before checking this off.
+  — done: all five gates pass — unchecked count 0; build "✓ Compiled successfully";
+  tsc silent; lint 0 errors (39 warnings, allowed); git status clean. Full outputs
+  printed in the final GATE STATUS block of the transcript.
