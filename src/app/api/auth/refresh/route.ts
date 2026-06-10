@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { corsHeaders, handleCors } from "@/lib/cors";
+import { checkAuthRateLimit } from "@/lib/api/rate-limit";
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -16,6 +17,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Refresh token is required" },
         { status: 400, headers: corsHeaders }
+      );
+    }
+
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (!(await checkAuthRateLimit(`refresh:ip:${ip}`, 10, "1 m"))) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: corsHeaders }
       );
     }
 

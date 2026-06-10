@@ -143,12 +143,15 @@
   Note in HANDOFF: requires Vercel Pro for sub-daily crons — confirm plan (HU1).
   — done: schedule changed after B2's CAS landed; verified by reading vercel.json.
   HANDOFF reminder: sub-daily crons need Vercel Pro — confirm under HU1.
-- [ ] **H4. `/api/auth/login` unthrottled** — add per-IP + per-email rate limiting
+- [x] **H4. `/api/auth/login` unthrottled** — add per-IP + per-email rate limiting
   (reuse `@upstash/ratelimit` from `src/lib/api/rate-limit.ts`, e.g. 5/min/IP,
   10/hr/email) to `src/app/api/auth/login/route.ts` and `auth/refresh`. Return a
   generic error message on failed login (no Supabase error passthrough). Must fail
   OPEN if Redis is unconfigured in dev, fail CLOSED in production (match existing
-  rate-limit.ts behavior).
+  rate-limit.ts behavior). — done: added checkAuthRateLimit() to rate-limit.ts
+  (fail-open dev / fail-closed prod, "auth" prefix); login = 5/min/IP + 10/hr/email
+  → 429; refresh = 10/min/IP → 429; failed login now returns generic
+  "Invalid email or password". Verified via tsc + reading the diff.
 - [ ] **H5. No env validation** — create `src/lib/env.ts` that validates required
   server env vars at boot (imported from `instrumentation.ts` or next.config) and
   throws a single clear error listing ALL missing vars. Cover: Supabase (URL, anon,

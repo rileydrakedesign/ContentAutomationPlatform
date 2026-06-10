@@ -54,3 +54,32 @@ export async function checkRateLimit(
 
   return { allowed: result.success, info };
 }
+
+// Rate limit auth endpoints by an arbitrary identifier (IP, email).
+// Same Redis posture as checkRateLimit: fail open in dev, fail closed in prod.
+export async function checkAuthRateLimit(
+  identifier: string,
+  limit: number,
+  window: "1 m" | "1 h"
+): Promise<boolean> {
+  const r = getRedis();
+
+  if (!r) {
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "Auth rate limiter has no Redis configured (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN). Rejecting request."
+      );
+      return false;
+    }
+    return true;
+  }
+
+  const ratelimit = new Ratelimit({
+    redis: r,
+    limiter: Ratelimit.slidingWindow(limit, window),
+    prefix: "auth",
+  });
+
+  const result = await ratelimit.limit(identifier);
+  return result.success;
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { corsHeaders, handleCors } from "@/lib/cors";
+import { checkAuthRateLimit } from "@/lib/api/rate-limit";
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -19,6 +20,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const [ipAllowed, emailAllowed] = await Promise.all([
+      checkAuthRateLimit(`login:ip:${ip}`, 5, "1 m"),
+      checkAuthRateLimit(`login:email:${String(email).toLowerCase()}`, 10, "1 h"),
+    ]);
+    if (!ipAllowed || !emailAllowed) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Please try again later." },
+        { status: 429, headers: corsHeaders }
+      );
+    }
+
     // Create a fresh Supabase client for auth
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,8 +45,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
+      // Generic message — never pass Supabase auth errors through to the client
       return NextResponse.json(
-        { error: error.message },
+        { error: "Invalid email or password" },
         { status: 401, headers: corsHeaders }
       );
     }
