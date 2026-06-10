@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+
+export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai/client";
 import { corsHeaders, handleCors } from "@/lib/cors";

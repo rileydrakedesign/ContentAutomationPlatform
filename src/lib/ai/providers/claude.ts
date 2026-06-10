@@ -4,7 +4,7 @@ let _claude: Anthropic | null = null;
 
 export function getClaude(): Anthropic {
   if (!_claude) {
-    _claude = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
+    _claude = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY, timeout: 45_000, maxRetries: 2 });
   }
   return _claude;
 }

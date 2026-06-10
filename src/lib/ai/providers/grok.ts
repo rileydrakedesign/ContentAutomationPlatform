@@ -5,7 +5,7 @@ let _grok: OpenAI | null = null;
 
 export function getGrok(): OpenAI {
   if (!_grok) {
-    _grok = new OpenAI({ apiKey: process.env.GROK_API_KEY, baseURL: "https://api.x.ai/v1" });
+    _grok = new OpenAI({ apiKey: process.env.GROK_API_KEY, baseURL: "https://api.x.ai/v1", timeout: 45_000, maxRetries: 2 });
   }
   return _grok;
 }

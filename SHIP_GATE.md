@@ -267,10 +267,13 @@
   redirects on 401. HomePage uses allSettled so one failed endpoint degrades
   gracefully; QueuePage shows a danger banner on load/cancel/retry failure;
   ApiKeysTab shows error banner on load/create/revoke failure. Build + tsc clean.
-- [ ] **M8. AI route timeouts** — set `export const maxDuration = 60` on the AI
+- [x] **M8. AI route timeouts** — set `export const maxDuration = 60` on the AI
   routes (`drafts/generate-from-topic`, `generate-reply`, `voice/chat`,
   `voice/preview`, `insights-chat`, `niche/analyze`) and pass an explicit
   `timeout` (~45s) + bounded `maxRetries` to the OpenAI/Anthropic client configs.
+  — done: maxDuration=60 on all 6 routes; timeout 45s + maxRetries 2 on all 4
+  client singletons (openai/client.ts, ai/providers/{openai,claude,grok}.ts).
+  tsc clean.
 - [ ] **M9. CORS + health hardening** — pin the published extension ID in
   `src/lib/cors.ts:13` (env var `EXTENSION_ID`, fallback to current behavior in
   dev only); make `/api/health` return only `{status:"ok"}` publicly (env
