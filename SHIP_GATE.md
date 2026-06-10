@@ -152,15 +152,21 @@
   (fail-open dev / fail-closed prod, "auth" prefix); login = 5/min/IP + 10/hr/email
   → 429; refresh = 10/min/IP → 429; failed login now returns generic
   "Invalid email or password". Verified via tsc + reading the diff.
-- [ ] **H5. No env validation** — create `src/lib/env.ts` that validates required
+- [x] **H5. No env validation** — create `src/lib/env.ts` that validates required
   server env vars at boot (imported from `instrumentation.ts` or next.config) and
   throws a single clear error listing ALL missing vars. Cover: Supabase (URL, anon,
   service role), Stripe (secret, webhook secret, price ID), QStash (token, publish
   URL, both signing keys), Upstash Redis (URL, token), X OAuth (client id/secret),
-  OpenAI/Anthropic keys, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL`.
-- [ ] **H6. `.env.example` incomplete** — document all ~30 vars read by
+  OpenAI/Anthropic keys, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL`. — done: env.ts
+  validates all 18 listed vars from instrumentation.register() (nodejs runtime);
+  throws one error naming every missing var in production, warns in dev. tsc clean.
+- [x] **H6. `.env.example` incomplete** — document all ~30 vars read by
   `src/`, grouped with comments (the QStash section header currently has zero vars
-  under it). Cross-check by grepping `process.env.` across `src/`.
+  under it). Cross-check by grepping `process.env.` across `src/`. — done: rewrote
+  .env.example with all vars grouped + commented (QStash section now has all 4).
+  Cross-checked via comm against grep of src/ — only undocumented names are
+  NODE_ENV/NEXT_RUNTIME (runtime-provided) and DATABASE_URL/REDIS_URL (dead BullMQ
+  code removed by M6).
 - [ ] **H7. X tokens readable from the browser** — `x_connections` has a client
   SELECT policy exposing plaintext `access_token`/`refresh_token` to any XSS.
   Write a migration replacing the SELECT policy with one excluding token columns
