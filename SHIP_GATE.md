@@ -322,17 +322,53 @@
 
 ## HUMAN-ONLY (mark `[~]` with a precise handoff note — not automatable from this repo)
 
-- [ ] **HU1.** Confirm Vercel plan supports `maxDuration: 300` + sub-daily crons.
-- [ ] **HU2.** Verify all prod env vars set in Vercel (use the completed
+- [~] **HU1.** Confirm Vercel plan supports `maxDuration: 300` + sub-daily crons.
+  — HANDOFF: in the Vercel dashboard, check Settings → Billing for the team that
+  owns this project. The Hobby plan caps cron at once/day and would silently
+  break the `*/5 * * * *` publish-scheduled cron (H3) and the 06:00/07:00 sync
+  crons (M4); function maxDuration 300 also needs Pro. If on Hobby: upgrade to
+  Pro, or revert H3's schedule to daily and rely on QStash alone.
+- [~] **HU2.** Verify all prod env vars set in Vercel (use the completed
   `.env.example` from H6 as the checklist), incl. QStash signing keys and Redis.
-- [ ] **HU3.** Create a separate dev Supabase project; stop developing against prod
-  (`hfoypwvlazficzvxwakb`). Confirm backups/PITR enabled on prod.
-- [ ] **HU4.** Confirm all `supabase/migrations/` files are actually applied to the
-  live DB (compare against `pg_dump` baseline from B5).
-- [ ] **HU5.** Stripe dashboard: webhook endpoint events list matches handled set;
-  live-mode keys + price ID in prod; Stripe Tax activated.
-- [ ] **HU6.** Create Sentry project + set `SENTRY_DSN` in Vercel (pairs with H2).
+  — HANDOFF: in Vercel → Project → Settings → Environment Variables, confirm every
+  var in `.env.example` is set for Production — especially QSTASH_CURRENT_SIGNING_KEY,
+  QSTASH_NEXT_SIGNING_KEY, UPSTASH_REDIS_REST_URL/TOKEN (login rate-limit fails
+  CLOSED in prod without Redis — logins will 429), EXTENSION_ID (M9), and
+  SENTRY_DSN/NEXT_PUBLIC_SENTRY_DSN (HU6). The H5 boot validation will fail the
+  prod deploy loudly if any required var is missing — deploy once and check logs.
+- [~] **HU3.** Create a separate dev Supabase project; stop developing against prod
+  (`hfoypwvlazficzvxwakb`). Confirm backups/PITR enabled on prod. — HANDOFF: create
+  a new Supabase project for dev, run `supabase db push` against it (the migrations
+  dir now reproduces the schema from the B5 baseline), point your local .env.local
+  at it, and update the Supabase MCP config to the dev project ref. Then in the
+  prod project: Dashboard → Database → Backups — confirm daily backups exist and
+  enable PITR (requires Pro plan + small compute add-on).
+- [~] **HU4.** Confirm all `supabase/migrations/` files are actually applied to the
+  live DB (compare against `pg_dump` baseline from B5). — Mostly verified this
+  session via Supabase MCP: effect-checked every local migration (tables, columns,
+  indexes) against live — all present. Two were missing and have been applied:
+  `stripe_events` (with H1) and `idx_captured_posts_boost`. The 20260610 migrations
+  (token lockdown, event guard, integrity) were applied via MCP and are recorded.
+  HANDOFF (residual): the migration *history* table doesn't record the pre-baseline
+  files under their local filenames, so `supabase db push` against prod could try
+  to re-run them — they're effect-applied, so either repair history
+  (`supabase migration repair`) or only push to fresh/dev projects.
+- [~] **HU5.** Stripe dashboard: webhook endpoint events list matches handled set;
+  live-mode keys + price ID in prod; Stripe Tax activated. — HANDOFF: in the Stripe
+  dashboard (live mode): (1) Developers → Webhooks → the app endpoint
+  (/api/stripe/webhook) must subscribe to exactly: checkout.session.completed,
+  customer.subscription.created, customer.subscription.updated,
+  customer.subscription.deleted, invoice.payment_succeeded, invoice.payment_failed;
+  (2) confirm STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET/NEXT_PUBLIC_STRIPE_PRO_PRICE_ID
+  in Vercel are the live-mode values and the price ID exists in live mode;
+  (3) Settings → Tax: activate Stripe Tax if selling where tax applies.
+- [~] **HU6.** Create Sentry project + set `SENTRY_DSN` in Vercel (pairs with H2).
   Configure a QStash failure callback / monitor the DLQ in Upstash console.
+  — HANDOFF: (1) sentry.io → create a Next.js project, copy its DSN, set both
+  SENTRY_DSN and NEXT_PUBLIC_SENTRY_DSN in Vercel (all environments) — the H2
+  wiring activates automatically once set; (2) Upstash console → QStash → set a
+  failure callback URL (or at minimum check the DLQ tab weekly) so exhausted
+  publish deliveries aren't silent — the 5-min cron (H3) is the backstop either way.
 
 ## VERIFY (final items — only when everything above is `[x]`/`[~]`)
 
