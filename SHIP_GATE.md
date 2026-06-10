@@ -283,9 +283,14 @@
   bearer is presented (also dropped dead DATABASE_URL/REDIS_URL entries).
   EXTENSION_ID documented in .env.example (H6). tsc clean. HANDOFF: set
   EXTENSION_ID in Vercel to the published Web Store ID (with HU2).
-- [ ] **M10. Pagination on list routes** — add `.limit()` (+ optional cursor) to
+- [x] **M10. Pagination on list routes** — add `.limit()` (+ optional cursor) to
   `captured`, `drafts`, `inspiration`, `patterns`, `extension/replies` list
   routes, mirroring the v1 routes' pattern. Verify UI callers still render.
+  — done: captured/inspiration/patterns default 200, drafts default 100, all
+  clamped 1–500 via ?limit= (publish/list pattern). extension/replies has no GET
+  list handler (POST-only log endpoint) — nothing to paginate. UI callers fetch
+  without ?limit so they get the generous defaults (previously unbounded); tsc +
+  build clean.
 - [ ] **M11. Lint errors to zero** — fix the 989 lint **errors** in `src/`
   (`prefer-const`, `no-explicit-any`, unused vars; `--fix` where safe). Warnings
   may remain. Verify gate 4.

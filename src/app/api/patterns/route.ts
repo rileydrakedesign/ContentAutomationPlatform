@@ -55,11 +55,14 @@ export async function GET(request: NextRequest) {
     const patternType = searchParams.get("type");
     const enabledOnly = searchParams.get("enabled_only") === "true";
 
+    const limit = Number(searchParams.get("limit") || 200);
+
     let query = supabase
       .from("extracted_patterns")
       .select("*")
       .eq("user_id", user.id)
-      .order("multiplier", { ascending: false });
+      .order("multiplier", { ascending: false })
+      .limit(Math.min(500, Math.max(1, limit)));
 
     if (patternType) {
       query = query.eq("pattern_type", patternType);

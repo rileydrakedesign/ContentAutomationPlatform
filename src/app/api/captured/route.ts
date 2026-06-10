@@ -20,11 +20,14 @@ export async function GET(request: NextRequest) {
     const triagedAs = searchParams.get("triaged_as"); // my_post, inspiration
     const collectionId = searchParams.get("collection_id");
 
+    const limit = Number(searchParams.get("limit") || 200);
+
     let query = supabase
       .from("captured_posts")
       .select("*")
       .eq("user_id", user.id)
-      .order("captured_at", { ascending: false });
+      .order("captured_at", { ascending: false })
+      .limit(Math.min(500, Math.max(1, limit)));
 
     // Apply filters
     if (status) {

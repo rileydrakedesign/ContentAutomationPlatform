@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createAuthClient();
 
@@ -13,12 +13,15 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const limit = Number(request.nextUrl.searchParams.get("limit") || 100);
+
     const { data, error } = await supabase
       .from("drafts")
       .select("*")
       .eq("user_id", user.id)
       .eq("status", "DRAFT")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(Math.min(500, Math.max(1, limit)));
 
     if (error) throw error;
 

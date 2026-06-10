@@ -62,11 +62,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const limit = Number(request.nextUrl.searchParams.get("limit") || 200);
+
     const { data, error } = await supabase
       .from("inspiration_posts")
       .select("*")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(Math.min(500, Math.max(1, limit)));
 
     if (error) throw error;
 
