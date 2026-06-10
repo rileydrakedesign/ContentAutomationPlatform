@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { PostAnalytics, UserAnalyticsData } from "@/types/analytics";
 import { weightedEngagement } from "@/lib/utils/engagement";
+import { capPostsByRecency } from "@/lib/utils/analytics-retention";
 
 interface CsvRow {
   id: string;
@@ -275,11 +276,12 @@ export async function POST(request: NextRequest) {
       end: dates.length > 0 ? dates[dates.length - 1].toISOString() : new Date().toISOString(),
     };
 
+    const cappedPosts = capPostsByRecency(posts);
     const analyticsData: Omit<UserAnalyticsData, "id"> = {
       user_id: user.id,
-      posts,
-      total_posts: posts.filter((p) => !p.is_reply).length,
-      total_replies: posts.filter((p) => p.is_reply).length,
+      posts: cappedPosts,
+      total_posts: cappedPosts.filter((p) => !p.is_reply).length,
+      total_replies: cappedPosts.filter((p) => p.is_reply).length,
       date_range: dateRange,
       uploaded_at: new Date().toISOString(),
       csv_filename: file.name,
@@ -308,7 +310,7 @@ export async function POST(request: NextRequest) {
         postMap.set(post.post_id, post);
       }
 
-      const mergedPosts = Array.from(postMap.values());
+      const mergedPosts = capPostsByRecency(Array.from(postMap.values()));
 
       // Recalculate date range across all posts
       const allDates = mergedPosts

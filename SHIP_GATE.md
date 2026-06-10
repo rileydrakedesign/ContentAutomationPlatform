@@ -194,11 +194,15 @@
   CONSOLE_OUTPUT.md; .gitignore now covers *.dev.jsonl, /*.png (except /icon.png),
   .claude/worktrees/, landing-page-assets/. Verified: 0 pngs in root,
   `git status --porcelain` shows none of them.
-- [ ] **H10. `user_analytics.posts` unbounded JSONB** — add a retention cap in the
+- [x] **H10. `user_analytics.posts` unbounded JSONB** — add a retention cap in the
   merge paths (`src/app/api/analytics/csv/route.ts:296-339` and
   `src/app/api/cron/analytics-sync/route.ts:105`): keep most recent N posts
   (e.g. 2000) sorted by date after merge. Keep `weightedEngagement` consumers
-  working (they read this blob).
+  working (they read this blob). — done: new
+  src/lib/utils/analytics-retention.ts capPostsByRecency() (2000 most recent by
+  date, undated treated oldest); applied to the CSV merge + initial insert and the
+  cron sync merge, with totals computed from the capped list. Blob shape unchanged
+  so weightedEngagement consumers unaffected. tsc clean.
 
 ## MEDIUM
 

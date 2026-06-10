@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { getUserTimeline, mapV2ToPostAnalytics, getValidAccessToken } from "@/lib/x-api";
 import type { PostAnalytics } from "@/types/analytics";
+import { capPostsByRecency } from "@/lib/utils/analytics-retention";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -103,7 +104,7 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        const mergedPosts = Array.from(existingByPostId.values());
+        const mergedPosts = capPostsByRecency(Array.from(existingByPostId.values()));
         const nonReplyPosts = mergedPosts.filter((p) => !p.is_reply);
 
         mergedPosts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
