@@ -86,17 +86,23 @@
   mid-thread failure it now backfills the posted prefix and returns 500 with
   `postedIds`/`failedAtIndex`/`remainingTweets` so callers resume instead of re-posting.
   Verified via tsc + reading the diff.
-- [ ] **B5. Schema not reproducible** — dump the live schema into a baseline
+- [x] **B5. Schema not reproducible** — dump the live schema into a baseline
   migration: use Supabase MCP/`pg_dump --schema-only` to create
   `supabase/migrations/00000000000000_baseline.sql` covering the ~11 ad-hoc tables
   (`x_connections`, `x_oauth_requests`, `api_keys`, `user_voice_settings`,
   `user_voice_examples`, `inspiration_posts`, `extracted_patterns`,
   `captured_posts`, `drafts`, `user_settings`, `generation_feedback`). `[~]` with
-  handoff if no DB access from this session.
-- [ ] **B6. `generation_feedback` RLS unknown** — verify RLS is enabled with
+  handoff if no DB access from this session. — done: generated baseline from live
+  pg catalogs (columns/constraints/indexes/enums/RLS+policies for all 11 tables;
+  no triggers exist on them); idempotent (IF NOT EXISTS / DROP POLICY IF EXISTS).
+  Verified by executing the entire file against the live DB inside BEGIN…ROLLBACK
+  via Supabase MCP — zero errors.
+- [x] **B6. `generation_feedback` RLS unknown** — verify RLS is enabled with
   own-row policies on `generation_feedback` (via Supabase MCP `execute_sql` on
   `pg_policies`); if missing, write + apply an RLS migration matching the pattern
-  in `supabase/migrations/20260325_rls_security_hardening.sql`.
+  in `supabase/migrations/20260325_rls_security_hardening.sql`. — done: verified via
+  pg_class/pg_policies — RLS enabled, policy "Users manage own feedback" FOR ALL
+  USING/WITH CHECK (auth.uid() = user_id). No migration needed.
 - [x] **B7. packageManager conflict** — uncommitted `"packageManager": "pnpm@..."`
   in `package.json` vs committed npm `package-lock.json`. Remove the pnpm field
   (repo is npm). Verify `git diff package.json` is clean of it. — done: removed the pnpm packageManager field; `git diff package.json` shows only the removal.
