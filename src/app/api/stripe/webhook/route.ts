@@ -226,12 +226,22 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    // Return 200 so Stripe doesn't retry indefinitely; the idempotency claim
-    // above means we won't replay this event. Loud log so we notice in Sentry.
     console.error(
       `Webhook processing error for event ${event.id} (${event.type}):`,
       error
     );
-    return NextResponse.json({ received: true, error: "processing_failed" });
+    // Release the idempotency claim and return 500 so Stripe retries —
+    // otherwise the claimed-but-unprocessed event would be lost forever.
+    const { error: releaseError } = await admin
+      .from("stripe_events")
+      .delete()
+      .eq("id", event.id);
+    if (releaseError) {
+      console.error(
+        `Failed to release stripe_events claim for ${event.id}:`,
+        releaseError
+      );
+    }
+    return NextResponse.json({ error: "processing_failed" }, { status: 500 });
   }
 }

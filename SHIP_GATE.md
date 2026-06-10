@@ -117,11 +117,15 @@
 
 ## HIGH
 
-- [ ] **H1. Stripe webhook loses claimed events** —
+- [x] **H1. Stripe webhook loses claimed events** —
   `src/app/api/stripe/webhook/route.ts:228-236`: on processing failure the event is
   already claimed in `stripe_events` and a 200 is returned, so Stripe never
   retries. Fix: delete the `stripe_events` claim row in the catch block and return
-  500 so Stripe retries (or claim only after successful processing).
+  500 so Stripe retries (or claim only after successful processing). — done: catch
+  block now deletes the claim row and returns 500. ALSO found+fixed: the
+  `stripe_events` table did not exist on the live DB (20260430 migration was never
+  applied — every webhook would 500 at the claim insert); applied it via Supabase
+  MCP and verified `to_regclass('public.stripe_events')` is non-null. tsc clean.
 - [ ] **H2. No error tracking** — add Sentry (`@sentry/nextjs`) wired into
   `instrumentation`, `src/app/error.tsx`, `global-error.tsx`, the Stripe webhook
   catch, `executeScheduledPost` failures, and cron route catches. DSN via env
