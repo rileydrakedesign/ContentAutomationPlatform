@@ -127,8 +127,8 @@ Return a JSON array with ${count} options. Each option should have:
 Return ONLY the JSON array, no other text.`;
   } else {
     const formatInstructions = draftType === "X_THREAD"
-      ? "Generate a thread of 3-5 connected tweets. Each tweet should be under 280 characters."
-      : "Generate a single post for X. Use formatting (line breaks, bullets) for readability when appropriate.";
+      ? "Generate a thread of 3-5 connected tweets. Each tweet MUST be under 280 characters."
+      : "Generate a single post for X. The ENTIRE post MUST be 280 characters or fewer, counting line breaks. Use formatting (line breaks, bullets) for readability when appropriate, but never exceed 280 characters.";
 
     prompt = `Generate ${count} ${draftType === "X_THREAD" ? "thread" : "tweet"} options about: "${topic}"
 
@@ -173,18 +173,28 @@ Return ONLY the JSON array, no other text.`;
     return apiError("Failed to parse generated content", "generation_failed", 500);
   }
 
-  const options = generatedOptions.map((option: { content: unknown; hook_type?: string; patterns_applied?: string[] }) => ({
+  const options = generatedOptions.map((option: { content: unknown; hook_type?: string; patterns_applied?: string[] }) => {
+    const isThread = !isReply && draftType === "X_THREAD";
+    const text = Array.isArray(option.content) ? option.content[0] : option.content;
+    const content = isThread
+      ? { tweets: Array.isArray(option.content) ? option.content : [option.content] }
+      : { text };
+    return {
     // Replies are structurally a single post; carry reply intent in metadata.
     type: isReply ? "X_POST" : draftType,
-    content: !isReply && draftType === "X_THREAD"
-      ? { tweets: Array.isArray(option.content) ? option.content : [option.content] }
-      : { text: Array.isArray(option.content) ? option.content[0] : option.content },
+    content,
     topic: topic || null,
     applied_patterns: patterns.map(p => p.id),
     metadata: {
       hook_type: option.hook_type,
       patterns_applied: option.patterns_applied,
       voice_type: voiceType,
+      ...(isThread
+        ? {}
+        : {
+            char_count: typeof text === "string" ? text.length : null,
+            over_limit: typeof text === "string" ? text.length > 280 : null,
+          }),
       ...(isReply
         ? {
             is_reply: true,
@@ -193,7 +203,8 @@ Return ONLY the JSON array, no other text.`;
           }
         : { generation_type: inspirationPost ? "inspiration_based" : "topic_based" }),
     },
-  }));
+    };
+  });
 
   return apiSuccess({ options, patterns_used: patterns, topic: topic || null, voice_type: voiceType });
 });

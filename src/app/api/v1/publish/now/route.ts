@@ -25,8 +25,19 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
     return apiError("Missing payload", "validation_error", 400);
   }
 
-  // Get valid X access token for the user
-  const { accessToken, connection } = await getValidAccessToken(supabase, auth.userId);
+  // Get valid X access token for the user. A stale/expired connection throws
+  // here — surface it as a clear x_not_connected rather than a generic 500.
+  let accessToken: string;
+  let connection: { x_user_id: string; x_username: string };
+  try {
+    ({ accessToken, connection } = await getValidAccessToken(supabase, auth.userId));
+  } catch (e) {
+    return apiError(
+      `X account not connected or token expired — reconnect X. (${e instanceof Error ? e.message : "unknown"})`,
+      "x_not_connected",
+      400
+    );
+  }
 
   if (contentType === "X_POST" || contentType === "X_REPLY") {
     const text = String(payload.text || "").trim();
@@ -41,11 +52,20 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
       return apiError("X_REPLY requires payload.inReplyToId (the tweet being replied to)", "validation_error", 400);
     }
 
-    const posted = await postTweet(
-      accessToken,
-      text,
-      inReplyToId ? { inReplyToStatusId: inReplyToId } : undefined
-    );
+    let posted: { id_str: string };
+    try {
+      posted = await postTweet(
+        accessToken,
+        text,
+        inReplyToId ? { inReplyToStatusId: inReplyToId } : undefined
+      );
+    } catch (e) {
+      return apiError(
+        `X rejected the post: ${e instanceof Error ? e.message : "unknown error"}`,
+        "x_api_error",
+        502
+      );
+    }
 
     // Backfill captured_posts
     try {
@@ -90,14 +110,22 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
   }
 
   const postedIds: string[] = [];
-  const first = await postTweet(accessToken, cleaned[0]);
-  postedIds.push(first.id_str);
+  try {
+    const first = await postTweet(accessToken, cleaned[0]);
+    postedIds.push(first.id_str);
 
-  let replyTo = first.id_str;
-  for (let i = 1; i < cleaned.length; i++) {
-    const next = await postTweet(accessToken, cleaned[i], { inReplyToStatusId: replyTo });
-    postedIds.push(next.id_str);
-    replyTo = next.id_str;
+    let replyTo = first.id_str;
+    for (let i = 1; i < cleaned.length; i++) {
+      const next = await postTweet(accessToken, cleaned[i], { inReplyToStatusId: replyTo });
+      postedIds.push(next.id_str);
+      replyTo = next.id_str;
+    }
+  } catch (e) {
+    return apiError(
+      `X rejected the thread after ${postedIds.length} of ${cleaned.length} tweets: ${e instanceof Error ? e.message : "unknown error"}`,
+      "x_api_error",
+      502
+    );
   }
 
   // Backfill
