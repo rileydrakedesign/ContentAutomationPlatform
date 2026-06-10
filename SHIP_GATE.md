@@ -274,10 +274,15 @@
   — done: maxDuration=60 on all 6 routes; timeout 45s + maxRetries 2 on all 4
   client singletons (openai/client.ts, ai/providers/{openai,claude,grok}.ts).
   tsc clean.
-- [ ] **M9. CORS + health hardening** — pin the published extension ID in
+- [x] **M9. CORS + health hardening** — pin the published extension ID in
   `src/lib/cors.ts:13` (env var `EXTENSION_ID`, fallback to current behavior in
   dev only); make `/api/health` return only `{status:"ok"}` publicly (env
-  enumeration behind `CRON_SECRET`).
+  enumeration behind `CRON_SECRET`). — done: isAllowedExtension() pins to
+  EXTENSION_ID when set, otherwise allows extensions only when NODE_ENV !==
+  production; /api/health returns bare {status:"ok"} unless the CRON_SECRET
+  bearer is presented (also dropped dead DATABASE_URL/REDIS_URL entries).
+  EXTENSION_ID documented in .env.example (H6). tsc clean. HANDOFF: set
+  EXTENSION_ID in Vercel to the published Web Store ID (with HU2).
 - [ ] **M10. Pagination on list routes** — add `.limit()` (+ optional cursor) to
   `captured`, `drafts`, `inspiration`, `patterns`, `extension/replies` list
   routes, mirroring the v1 routes' pattern. Verify UI callers still render.

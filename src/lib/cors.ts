@@ -5,12 +5,21 @@ const allowedOrigins = [
   "http://localhost:3000",
 ];
 
+function isAllowedExtension(origin: string): boolean {
+  if (!origin.startsWith("chrome-extension://")) return false;
+  const pinnedId = process.env.EXTENSION_ID;
+  if (pinnedId) return origin === `chrome-extension://${pinnedId}`;
+  // No pinned ID configured: allow any extension in dev only (unpacked
+  // extensions get random IDs); never in production.
+  return process.env.NODE_ENV !== "production";
+}
+
 function getAllowedOrigin(request: NextRequest): string | null {
   const origin = request.headers.get("origin");
   if (!origin) return null;
 
   if (allowedOrigins.includes(origin)) return origin;
-  if (origin.startsWith("chrome-extension://")) return origin;
+  if (isAllowedExtension(origin)) return origin;
 
   return null;
 }

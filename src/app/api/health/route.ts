@@ -1,13 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-// GET /api/health - Check which env vars are configured (no values exposed)
-export async function GET() {
+// GET /api/health - public liveness check. The env-var configuration report
+// (booleans only, no values) requires the CRON_SECRET bearer token.
+export async function GET(request: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+  const authorized =
+    !!cronSecret &&
+    request.headers.get("authorization") === `Bearer ${cronSecret}`;
+
+  if (!authorized) {
+    return NextResponse.json({ status: "ok" });
+  }
+
   const vars = {
     NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    DATABASE_URL: !!process.env.DATABASE_URL,
-    REDIS_URL: !!process.env.REDIS_URL,
     OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
     CLAUDE_API_KEY: !!process.env.CLAUDE_API_KEY,
     GROK_API_KEY: !!process.env.GROK_API_KEY,
