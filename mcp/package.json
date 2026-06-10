@@ -4,6 +4,7 @@
   "description": "MCP server for Agents For X — generate, draft, schedule, and publish X posts and replies in your voice, plus analytics.",
   "license": "UNLICENSED",
   "type": "module",
+  "engines": { "node": ">=20" },
   "bin": {
     "agentsforx-mcp": "dist/stdio.js"
   },

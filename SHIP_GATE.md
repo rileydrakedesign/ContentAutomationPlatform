@@ -304,10 +304,14 @@
   linted (landing/.next build artifacts, .claude/worktrees, chrome-extension
   build scripts) — added to eslint globalIgnores alongside mcp/ and scripts/.
   Build + tsc clean.
-- [ ] **M12. Hygiene** — add `"engines": {"node": ">=20"}` to all 3 package.jsons;
+- [x] **M12. Hygiene** — add `"engines": {"node": ">=20"}` to all 3 package.jsons;
   replace boilerplate README with real setup/deploy docs (env vars, Vercel, crons,
   QStash, landing/ + mcp/ subprojects); migrate `middleware.ts` to the `proxy`
-  convention Next 16 expects (or note the deprecation timeline).
+  convention Next 16 expects (or note the deprecation timeline). — done: engines
+  added to root/landing/mcp package.json; README rewritten (layout, setup, env
+  validation, migrations, QStash+cron publishing, Vercel deploy, subprojects);
+  src/middleware.ts → src/proxy.ts with exported `proxy` — build no longer prints
+  the deprecation warning and shows "ƒ Proxy". Build + tsc clean.
 - [ ] **M13. Subscriptions integrity** — migration: `UNIQUE` on
   `subscriptions.stripe_customer_id`; partial index on
   `scheduled_posts (scheduled_for) WHERE status='scheduled'`.

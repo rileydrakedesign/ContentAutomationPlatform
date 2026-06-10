@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agents For X
 
-## Getting Started
+X (Twitter) content platform: generate posts and replies in your own voice,
+schedule and publish them, and track what performs. Next.js 16 app backed by
+Supabase, deployed on Vercel.
 
-First, run the development server:
+## Repository layout
+
+| Path | What it is |
+| --- | --- |
+| `src/` | The main Next.js app (app.agentsforx.com) — UI, API routes, crons |
+| `landing/` | Separate Next.js app for the marketing site + blog |
+| `mcp/` | MCP (Model Context Protocol) stdio server wrapping the v1 API |
+| `chrome-extension/` | Manifest V3 extension for capturing posts / replying on x.com |
+| `supabase/migrations/` | Database schema (start from `00000000000000_baseline.sql`) |
+
+## Requirements
+
+- Node.js >= 20 (see `engines` in package.json)
+- npm (the repo commits `package-lock.json`; don't use pnpm/yarn)
+- A Supabase project, Stripe account, Upstash (QStash + Redis), and an X
+  developer app for full functionality
+
+## Setup
 
 ```bash
+npm install
+cp .env.example .env.local   # then fill in every var — they're documented inline
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`src/lib/env.ts` validates required env vars at boot: production refuses to
+start when any are missing; dev logs a warning so you can work with a subset.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Apply database migrations to your Supabase project in filename order from
+`supabase/migrations/` (the baseline file reproduces the original schema;
+later files are incremental). With the Supabase CLI: `supabase db push`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scheduled publishing (QStash + cron)
 
-## Learn More
+Publishing is driven by two paths that share `src/lib/publish/execute.ts`:
 
-To learn more about Next.js, take a look at the following resources:
+1. **QStash** delivers each scheduled post to `/api/qstash/publish` at its
+   scheduled time (signature-verified; needs `QSTASH_*` env vars and
+   `QSTASH_PUBLISH_URL` pointing at the deployed route).
+2. **Vercel cron** `/api/cron/publish-scheduled` runs every 5 minutes as a
+   safety net, recovers posts stuck in `publishing`, and publishes anything
+   QStash missed.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Crons are defined in `vercel.json` (voice-refresh daily 04:00,
+publish-scheduled every 5 min, analytics-sync daily 06:00, metrics-refresh
+daily 07:00). All require the `CRON_SECRET` bearer header; sub-daily schedules
+require a Vercel Pro plan.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy (Vercel)
 
-## Deploy on Vercel
+1. Import the repo into Vercel (root project = the main app; `landing/` can be
+   a second Vercel project with its root directory set to `landing`).
+2. Set every variable from `.env.example` in Project Settings → Environment
+   Variables (incl. both QStash signing keys, Upstash Redis, `SENTRY_DSN`,
+   `EXTENSION_ID`).
+3. Point the Stripe webhook at `/api/stripe/webhook` and the X app's OAuth
+   redirect at `/api/x/callback`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Subprojects
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **landing/**: `cd landing && npm install && npm run dev` — independent
+  Next.js app with its own lint/build.
+- **mcp/**: `cd mcp && npm install && npm run build` — stdio MCP server; auth
+  via an API key created in the app's Settings → API Keys.
+- **chrome-extension/**: load `chrome-extension/` unpacked, or run its build
+  script for a packed build. Production CORS pins the published extension ID
+  via the `EXTENSION_ID` env var.
+
+## Scripts
+
+- `npm run dev` — dev server (Turbopack)
+- `npm run build` — production build
+- `npm run lint` — ESLint (zero errors policy under `src/`)
+- `npx tsc --noEmit` — typecheck
