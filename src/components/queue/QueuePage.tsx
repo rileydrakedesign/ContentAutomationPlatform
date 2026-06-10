@@ -224,7 +224,7 @@ export function QueuePage() {
                 <CardContent>
                   <p className="text-sm text-[var(--color-text-secondary)]">No scheduled posts yet.</p>
                   <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                    Schedule from any draft's Publish panel.
+                    Schedule from any draft&apos;s Publish panel.
                   </p>
                 </CardContent>
               </Card>

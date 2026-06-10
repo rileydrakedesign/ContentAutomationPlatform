@@ -112,7 +112,7 @@ async function createGrokCompletion(options: {
   const model = GROK_MODELS[modelTier];
 
   // For JSON responses, add explicit instruction to the system message
-  let processedMessages = [...messages];
+  const processedMessages = [...messages];
   if (jsonResponse) {
     const systemIndex = processedMessages.findIndex((m) => m.role === "system");
     if (systemIndex !== -1) {

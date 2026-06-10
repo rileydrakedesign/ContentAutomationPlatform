@@ -180,7 +180,7 @@ export function VoiceSection() {
       const res = await fetch("/api/analytics/csv");
       if (!res.ok) return;
       const json = await res.json();
-      const posts = (json.data?.posts || []) as Array<any>;
+      const posts = (json.data?.posts || []) as Array<{ id: string; text: string; is_reply?: boolean; impressions?: number; engagement_score?: number }>;
       setAnalyticsPosts(
         posts.map((p) => ({
           id: p.id,

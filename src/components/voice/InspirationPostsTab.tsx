@@ -133,8 +133,9 @@ export function InspirationPostsTab() {
   }
 
   const visibleMine = myPosts.filter((p) => (myView === "replies" ? p.is_reply : !p.is_reply));
-  const visibleSaved = savedPosts.filter((p: any) => {
-    const isReply = (p?.is_reply === true) || (p?.metrics?.is_reply === true);
+  const visibleSaved = savedPosts.filter((p) => {
+    const meta = p as { is_reply?: boolean; metrics?: { is_reply?: boolean } };
+    const isReply = (meta?.is_reply === true) || (meta?.metrics?.is_reply === true);
     return savedView === "replies" ? isReply : !isReply;
   });
 

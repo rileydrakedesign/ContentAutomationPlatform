@@ -87,7 +87,7 @@ export function SetupChecklist({
                 </h2>
               </div>
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                You're good to go. Create drafts, ship, and iterate.
+                You&apos;re good to go. Create drafts, ship, and iterate.
               </p>
             </div>
             <Link href="/create">

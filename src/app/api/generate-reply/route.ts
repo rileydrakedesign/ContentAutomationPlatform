@@ -234,11 +234,11 @@ export async function POST(request: NextRequest) {
         jsonResponse: true,
       });
       console.log("[generate-reply] AI call succeeded with provider:", result.provider, "model:", result.model);
-    } catch (aiError: any) {
-      console.error("[generate-reply] AI API error:", aiError?.message);
+    } catch (aiError) {
+      console.error("[generate-reply] AI API error:", aiError instanceof Error ? aiError.message : aiError);
       console.error("[generate-reply] AI error details:", JSON.stringify(aiError, null, 2));
       return NextResponse.json(
-        { error: `AI error: ${aiError?.message || 'Unknown'}` },
+        { error: `AI error: ${aiError instanceof Error ? aiError.message : 'Unknown'}` },
         { status: 500, headers: corsHeaders }
       );
     }
@@ -292,7 +292,7 @@ export async function POST(request: NextRequest) {
     }
 
     const replies = repliesArray.slice(0, 3).map((reply: string, index: number) => ({
-      text: cleanReplyText(typeof reply === 'string' ? reply : (reply as any).text || ""),
+      text: cleanReplyText(typeof reply === 'string' ? reply : (reply as { text?: string }).text || ""),
       approach: labels[index] || "Reply",
     })).filter(r => r.text.length > 0);
 

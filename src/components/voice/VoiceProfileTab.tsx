@@ -67,7 +67,7 @@ export function VoiceProfileTab({
           {autoExamples.length === 0 ? (
             <div className="text-center py-8 text-[var(--color-text-muted)]">
               <p>No auto-selected examples yet.</p>
-              <p className="text-sm mt-1">Click "Refresh Examples" to populate from your top posts.</p>
+              <p className="text-sm mt-1">Click &quot;Refresh Examples&quot; to populate from your top posts.</p>
             </div>
           ) : (
             <div className="space-y-3">

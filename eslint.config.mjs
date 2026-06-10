@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Separate subprojects with their own tooling (landing/ is its own Next
+    // app, mcp/ has its own tsconfig, chrome-extension/ is plain-JS build
+    // scripts), agent worktrees, and one-off local scripts.
+    "landing/**",
+    "mcp/**",
+    "chrome-extension/**",
+    ".claude/**",
+    "scripts/**",
   ]),
 ]);
 

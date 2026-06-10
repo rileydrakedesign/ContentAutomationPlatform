@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
     // If any tables are missing (e.g. migrations not applied yet), respond gracefully.
     const missingTables: string[] = [];
     const errs = [
-      { name: "user_analytics", err: (analyticsRes as any)?.error },
-      { name: "extracted_patterns", err: (patternsRes as any)?.error },
-      { name: "inspiration_posts", err: (inspirationsRes as any)?.error },
+      { name: "user_analytics", err: (analyticsRes as { error?: { message?: string; code?: string } })?.error },
+      { name: "extracted_patterns", err: (patternsRes as { error?: { message?: string; code?: string } })?.error },
+      { name: "inspiration_posts", err: (inspirationsRes as { error?: { message?: string; code?: string } })?.error },
     ];
     for (const e of errs) {
       const msg = String(e.err?.message || "");
@@ -91,10 +91,10 @@ export async function POST(request: NextRequest) {
     const sourcesMd: string[] = [];
 
     // Analytics snapshot from CSV (sole source for "my posts")
-    const csvPosts = (analyticsRes as any)?.data?.posts;
+    const csvPosts = (analyticsRes as { data?: { posts?: unknown } })?.data?.posts;
     const arr = Array.isArray(csvPosts) ? csvPosts : [];
-    const ownPosts = arr.filter((p: any) => p && p.is_reply === false);
-    const replies = arr.filter((p: any) => p && p.is_reply === true);
+    const ownPosts = arr.filter((p) => p && p.is_reply === false);
+    const replies = arr.filter((p) => p && p.is_reply === true);
 
     sourcesMd.push(
       `# USER_ANALYTICS_SNAPSHOT\n` +
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
       jsonResponse: true,
     });
 
-    let parsed: any;
+    let parsed: { answer?: string; sources_used?: string[] };
     try {
       parsed = JSON.parse(result.content);
     } catch {

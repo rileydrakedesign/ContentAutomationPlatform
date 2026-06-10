@@ -68,8 +68,8 @@ export async function PUT(request: NextRequest) {
 
     const pillar_targets: PillarTarget[] = Array.isArray(body.pillar_targets)
       ? body.pillar_targets
-          .filter((t: any) => t && typeof t.pillar === "string" && t.pillar.trim())
-          .map((t: any) => ({
+          .filter((t: { pillar?: unknown; posts_per_week?: unknown }) => t && typeof t.pillar === "string" && t.pillar.trim())
+          .map((t: { pillar?: unknown; posts_per_week?: unknown }) => ({
             pillar: String(t.pillar).trim(),
             posts_per_week: Math.max(0, Math.floor(Number(t.posts_per_week) || 0)),
           }))

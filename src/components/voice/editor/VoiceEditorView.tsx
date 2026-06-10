@@ -341,7 +341,7 @@ export function VoiceEditorView({
                 Configure your {voiceType} voice
               </h4>
               <p className="text-sm text-[var(--color-text-muted)] max-w-md mb-6">
-                Describe how you want your content to sound. I'll guide you
+                Describe how you want your content to sound. I&apos;ll guide you
                 through setting up your voice step by step.
               </p>
               <div className="flex flex-wrap gap-2 justify-center">

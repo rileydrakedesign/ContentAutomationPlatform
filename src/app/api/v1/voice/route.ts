@@ -14,7 +14,7 @@ export const GET = withApiAuth(["voice:read"], async ({ auth, request }) => {
     return apiError("type must be 'post' or 'reply'", "validation_error", 400);
   }
 
-  let { data: settings, error } = await supabase
+  const { data: settings, error } = await supabase
     .from("user_voice_settings")
     .select("*")
     .eq("user_id", auth.userId)

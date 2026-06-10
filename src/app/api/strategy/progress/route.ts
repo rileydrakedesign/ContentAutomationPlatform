@@ -123,7 +123,7 @@ export async function GET() {
         postCount++;
       }
       // Extract text from payload for pillar matching
-      const payload = sp.payload as any;
+      const payload = sp.payload as { text?: string; tweets?: Array<{ text?: string }> } | null;
       if (payload?.text) postTexts.push(payload.text);
       if (payload?.tweets && Array.isArray(payload.tweets)) {
         for (const t of payload.tweets) {

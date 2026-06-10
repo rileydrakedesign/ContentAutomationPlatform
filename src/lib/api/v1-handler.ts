@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireApiAuth, ApiKeyInfo } from "./auth";
 import { checkRateLimit } from "./rate-limit";
 import { apiSuccess, apiError, withRateLimitHeaders, apiOptions } from "./response";
@@ -41,7 +41,7 @@ export function withApiAuth(requiredScopes: string[], handler: RouteHandler) {
       const response = await handler({ auth: result.auth, request, params });
       // Add rate limit headers to success responses
       if (response instanceof Response) {
-        return withRateLimitHeaders(response as any, rl.info);
+        return withRateLimitHeaders(response as NextResponse, rl.info);
       }
       return response;
     } catch (err) {

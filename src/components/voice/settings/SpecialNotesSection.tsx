@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { UserVoiceSettings } from "@/types/voice";
 
 interface SpecialNotesSectionProps {
@@ -11,11 +11,15 @@ interface SpecialNotesSectionProps {
 export function SpecialNotesSection({ settings, onSettingsUpdate }: SpecialNotesSectionProps) {
   const [notes, setNotes] = useState(settings.special_notes || "");
   const [isDirty, setIsDirty] = useState(false);
+  const [syncedNotes, setSyncedNotes] = useState(settings.special_notes || "");
 
-  useEffect(() => {
+  // Reset local state when the saved value changes (adjust-during-render
+  // pattern — avoids a setState-in-effect render cascade)
+  if ((settings.special_notes || "") !== syncedNotes) {
+    setSyncedNotes(settings.special_notes || "");
     setNotes(settings.special_notes || "");
     setIsDirty(false);
-  }, [settings.special_notes]);
+  }
 
   const handleChange = (value: string) => {
     setNotes(value);

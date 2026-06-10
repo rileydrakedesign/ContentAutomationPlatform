@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { weightedEngagement } from "@/lib/utils/engagement";
+import type { PostAnalytics } from "@/types/analytics";
 
 // Estimate tokens (approx 4 chars per token)
 function estimateTokens(text: string): number {
@@ -36,7 +37,7 @@ export async function POST() {
 
     if (postsError && postsError.code !== "PGRST116") throw postsError;
 
-    const posts = (row?.posts && Array.isArray(row.posts)) ? (row.posts as any[]) : [];
+    const posts = (row?.posts && Array.isArray(row.posts)) ? (row.posts as PostAnalytics[]) : [];
     const onlyPosts = posts.filter((p) => p && p.is_reply === false);
 
     if (onlyPosts.length === 0) {
@@ -50,7 +51,7 @@ export async function POST() {
     const scoredPosts = [...onlyPosts]
       .map((post) => ({
         ...post,
-        engagement_score: Number((post as any).impressions || 0),
+        engagement_score: Number(post.impressions || 0),
       }))
       .sort((a, b) => b.engagement_score - a.engagement_score);
 
@@ -81,7 +82,7 @@ export async function POST() {
 
     // Select top 10 posts not already pinned or excluded
     const autoSelected = scoredPosts
-      .filter((p: any) => {
+      .filter((p) => {
         const text = String(p.text || "");
         return text && !pinnedTexts.has(text) && !excludedTexts.has(text);
       })
@@ -98,7 +99,7 @@ export async function POST() {
 
     // Insert new auto-selected examples
     if (autoSelected.length > 0) {
-      const examples = autoSelected.map((post: any, index) => ({
+      const examples = autoSelected.map((post, index) => ({
         user_id: user.id,
         captured_post_id: null,
         content_text: String(post.text || ""),

@@ -16,11 +16,12 @@ export async function GET() {
     }
 
     // Get or create settings
-    let { data: settings, error } = await supabase
+    const { data: initialSettings, error } = await supabase
       .from("user_settings")
       .select("*")
       .eq("user_id", user.id)
       .single();
+    let settings = initialSettings;
 
     if (error && error.code === "PGRST116") {
       // Create default settings if none exist

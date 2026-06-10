@@ -64,7 +64,7 @@ export function AssistantTab() {
       });
 
       const data = (await res.json()) as ChatResponse;
-      const answer = res.ok ? data.answer : (data as any).error || "Failed";
+      const answer = res.ok ? data.answer : (data as { error?: string }).error || "Failed";
 
       setHistory((h) => [...h, { role: "assistant", content: answer }]);
       setSources(Array.isArray(data.sources_used) ? data.sources_used : []);
@@ -114,7 +114,7 @@ export function AssistantTab() {
                     setHistory((h) => [...h, { role: "assistant", content: `Not enough data yet. Posts analyzed: ${data?.totalPostsAnalyzed || 0}.` }]);
                   } else {
                     const top = (data.bestTimes || []).slice(0, 3);
-                    const lines = top.map((t: any, i: number) => `${i + 1}) ${t.dayName} ${t.timeDisplay} (${t.confidence}) — avg ${t.avgEngagement}`);
+                    const lines = top.map((t: { dayName: string; timeDisplay: string; confidence: string; avgEngagement: number }, i: number) => `${i + 1}) ${t.dayName} ${t.timeDisplay} (${t.confidence}) — avg ${t.avgEngagement}`);
                     setHistory((h) => [...h, { role: "assistant", content: `Best times (top 3):\n${lines.join("\n")}` }]);
                   }
                 } catch {
@@ -136,12 +136,12 @@ export function AssistantTab() {
                   const res = await fetch("/api/patterns");
                   const data = await res.json();
                   const patterns = Array.isArray(data.patterns) ? data.patterns : [];
-                  const enabled = patterns.filter((p: any) => p.is_enabled);
-                  const top = enabled.sort((a: any, b: any) => (b.multiplier || 1) - (a.multiplier || 1)).slice(0, 5);
+                  const enabled = patterns.filter((p: { is_enabled?: boolean }) => p.is_enabled);
+                  const top = enabled.sort((a: { multiplier?: number }, b: { multiplier?: number }) => (b.multiplier || 1) - (a.multiplier || 1)).slice(0, 5);
                   if (top.length === 0) {
                     setHistory((h) => [...h, { role: "assistant", content: "No enabled patterns yet. Extract patterns first." }]);
                   } else {
-                    const lines = top.map((p: any) => `- [${p.pattern_type}] ${p.pattern_name} (x${(p.multiplier || 1).toFixed(2)})`);
+                    const lines = top.map((p: { pattern_type?: string; pattern_name?: string; multiplier?: number }) => `- [${p.pattern_type}] ${p.pattern_name} (x${(p.multiplier || 1).toFixed(2)})`);
                     setHistory((h) => [...h, { role: "assistant", content: `Top enabled patterns:\n${lines.join("\n")}` }]);
                   }
                 } catch {
@@ -167,7 +167,7 @@ export function AssistantTab() {
                   if (top.length === 0) {
                     setHistory((h) => [...h, { role: "assistant", content: "No suggestions yet." }]);
                   } else {
-                    const lines = top.map((s: any) => `- ${s.title} (${s.impact})`);
+                    const lines = top.map((s: { title?: string; impact?: string }) => `- ${s.title} (${s.impact})`);
                     setHistory((h) => [...h, { role: "assistant", content: `Next actions:\n${lines.join("\n")}` }]);
                   }
                 } catch {

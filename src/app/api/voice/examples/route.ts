@@ -52,7 +52,8 @@ export async function GET(request: NextRequest) {
       .order("pinned_rank", { ascending: true, nullsFirst: false })
       .order("engagement_score", { ascending: false });
 
-    let { data, error } = await query;
+    const { data: initialData, error } = await query;
+    let data = initialData;
 
     if (error) throw error;
 
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
           .filter((p) => (wantReplies ? p.is_reply === true : p.is_reply === false))
           .map((p) => ({
             text: String(p.text || "").trim(),
-            impressions: Number((p as any).impressions || 0),
+            impressions: Number((p as { impressions?: number }).impressions || 0),
           }))
           .filter((p) => p.text.length >= 10)
           .sort((a, b) => b.impressions - a.impressions)

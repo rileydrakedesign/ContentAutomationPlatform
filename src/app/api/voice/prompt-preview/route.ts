@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       assembled,
       settings,
       examples: examples || [],
-      inspirations: (inspirations as any) || [],
+      inspirations: (inspirations as PromptPreviewResponse["inspirations"]) || [],
     };
 
     return NextResponse.json(response);

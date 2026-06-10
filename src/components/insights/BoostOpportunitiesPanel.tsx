@@ -78,7 +78,7 @@ export function BoostOpportunitiesPanel() {
           <Filter className="w-4 h-4" />
           <select
             value={days}
-            onChange={(e) => setDays(Number(e.target.value) as any)}
+            onChange={(e) => setDays(Number(e.target.value) as 7 | 14 | 30)}
             className="bg-[var(--color-bg-base)] border border-white/10 rounded-md px-2 py-1"
           >
             <option value={7}>Last 7d</option>
@@ -87,7 +87,7 @@ export function BoostOpportunitiesPanel() {
           </select>
           <select
             value={minImpressions}
-            onChange={(e) => setMinImpressions(Number(e.target.value) as any)}
+            onChange={(e) => setMinImpressions(Number(e.target.value) as 100 | 200 | 500)}
             className="bg-[var(--color-bg-base)] border border-white/10 rounded-md px-2 py-1"
           >
             <option value={100}>≥ 100 impressions</option>

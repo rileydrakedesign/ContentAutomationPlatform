@@ -15,7 +15,7 @@ export function PatternsSection() {
         const res = await fetch("/api/analytics/csv");
         const json = await res.json();
         const rows = (json?.data?.posts && Array.isArray(json.data.posts)) ? json.data.posts : [];
-        setPosts(rows.filter((p: any) => !p.is_reply));
+        setPosts(rows.filter((p: PostAnalytics) => !p.is_reply));
       } catch (error) {
         console.error("Failed to fetch posts:", error);
       } finally {
@@ -35,7 +35,7 @@ export function PatternsSection() {
     );
 
     // Average engagement per post (weighted), plus rate vs impressions when present
-    const engagementVals = posts.map((p: any) => weightedEngagement(p as any));
+    const engagementVals = posts.map((p) => weightedEngagement(p));
     const avgEngagement =
       engagementVals.length > 0
         ? Math.round(engagementVals.reduce((a, b) => a + b, 0) / engagementVals.length)
@@ -48,12 +48,12 @@ export function PatternsSection() {
 
     // Best performing day
     const dayMap = new Map<number, { count: number; engagement: number }>();
-    posts.forEach((post: any) => {
+    posts.forEach((post) => {
       const d = post.date ? new Date(String(post.date)) : null;
       if (d && !isNaN(d.getTime())) {
         const day = d.getDay();
         const current = dayMap.get(day) || { count: 0, engagement: 0 };
-        const engagement = weightedEngagement(post as any);
+        const engagement = weightedEngagement(post);
         dayMap.set(day, {
           count: current.count + 1,
           engagement: current.engagement + engagement,
@@ -83,10 +83,10 @@ export function PatternsSection() {
     let bestFormat = "Single posts";
     if (threadLikePosts.length >= 3 && regularPosts.length >= 3) {
       const threadAvg =
-        threadLikePosts.reduce((sum, p: any) => sum + (p.impressions || 0), 0) /
+        threadLikePosts.reduce((sum, p) => sum + (p.impressions || 0), 0) /
         threadLikePosts.length;
       const regularAvg =
-        regularPosts.reduce((sum, p: any) => sum + (p.impressions || 0), 0) /
+        regularPosts.reduce((sum, p) => sum + (p.impressions || 0), 0) /
         regularPosts.length;
       bestFormat = threadAvg > regularAvg * 1.2 ? "Threads" : "Single posts";
     }

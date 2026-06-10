@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { weightedEngagement } from "@/lib/utils/engagement";
+import type { PostAnalytics } from "@/types/analytics";
 
 // Vercel Cron configuration
 export const runtime = "nodejs";
@@ -18,7 +19,7 @@ function calculateEngagementScore(metrics: Record<string, number>): number {
 }
 
 // Refresh voice examples for a single user
-async function refreshUserExamples(supabase: any, userId: string): Promise<number> {
+async function refreshUserExamples(supabase: SupabaseClient, userId: string): Promise<number> {
   // Use CSV analytics as the sole source of truth for "my posts"
   const { data: row, error: postsError } = await supabase
     .from("user_analytics")
@@ -32,16 +33,16 @@ async function refreshUserExamples(supabase: any, userId: string): Promise<numbe
     return 0;
   }
 
-  const onlyPosts = (row.posts as any[]).filter((p) => p && p.is_reply === false);
+  const onlyPosts = (row.posts as PostAnalytics[]).filter((p) => p && p.is_reply === false);
   if (onlyPosts.length === 0) return 0;
 
   // Sort by impressions
   const scoredPosts = [...onlyPosts]
-    .map((post: any) => ({
+    .map((post) => ({
       ...post,
       engagement_score: Number(post.impressions || 0),
     }))
-    .sort((a: any, b: any) => b.engagement_score - a.engagement_score);
+    .sort((a, b) => b.engagement_score - a.engagement_score);
 
   // Get existing pinned examples (preserve them)
   const { data: pinnedExamples } = await supabase
@@ -53,7 +54,7 @@ async function refreshUserExamples(supabase: any, userId: string): Promise<numbe
     .eq("is_excluded", false);
 
   const pinnedTexts = new Set(
-    pinnedExamples?.map((e: any) => String(e.content_text || "")).filter(Boolean) || []
+    pinnedExamples?.map((e) => String(e.content_text || "")).filter(Boolean) || []
   );
 
   // Get excluded post IDs
@@ -65,12 +66,12 @@ async function refreshUserExamples(supabase: any, userId: string): Promise<numbe
     .eq("is_excluded", true);
 
   const excludedTexts = new Set(
-    excludedExamples?.map((e: any) => String(e.content_text || "")).filter(Boolean) || []
+    excludedExamples?.map((e) => String(e.content_text || "")).filter(Boolean) || []
   );
 
   // Select top 10 posts not already pinned or excluded
   const autoSelected = scoredPosts
-    .filter((p: any) => {
+    .filter((p) => {
       const text = String(p.text || "");
       return text && !pinnedTexts.has(text) && !excludedTexts.has(text);
     })
@@ -85,7 +86,7 @@ async function refreshUserExamples(supabase: any, userId: string): Promise<numbe
 
   // Insert new auto-selected examples
   if (autoSelected.length > 0) {
-    const examples = autoSelected.map((post: any, index: number) => ({
+    const examples = autoSelected.map((post, index) => ({
       user_id: userId,
       captured_post_id: null,
       content_text: String(post.text || ""),

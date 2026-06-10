@@ -80,7 +80,7 @@ export function ConsistencyTracker({ posts = [], activityDays, dateRange, classN
     today.setHours(0, 0, 0, 0);
 
     // Start from most recent week
-    let currentWeekStart = getWeekStart(today);
+    const currentWeekStart = getWeekStart(today);
 
     for (let w = 0; w < weeksToShow; w++) {
       const days: { date: Date; posts: number; replies: number }[] = [];

@@ -4,9 +4,14 @@
  * Accepts both PostMetrics (captured_posts) and PostAnalytics (CSV) field names.
  * Weights: replies 5× · retweets/reposts 4× · likes/bookmarks 3× · impressions 0.001×
  */
-export function weightedEngagement(
-  m: Record<string, number | undefined | null>
-): number {
+type EngagementFields = Partial<
+  Record<
+    "likes" | "retweets" | "reposts" | "replies" | "bookmarks" | "views" | "impressions",
+    number | null | undefined
+  >
+>;
+
+export function weightedEngagement(m: EngagementFields): number {
   const likes = m.likes ?? 0;
   const retweets = (m.retweets ?? m.reposts) ?? 0;
   const replies = m.replies ?? 0;

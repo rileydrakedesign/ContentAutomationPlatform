@@ -103,7 +103,7 @@ export function SettingsPreview({ settings, voiceType }: SettingsPreviewProps) {
 
         {preview ? (
           <div className="p-3 bg-[var(--color-bg-elevated)]/50 border border-[var(--color-border-default)]/50 rounded-lg">
-            <p className="text-sm text-[var(--color-text-secondary)] italic">"{preview}"</p>
+            <p className="text-sm text-[var(--color-text-secondary)] italic">&quot;{preview}&quot;</p>
           </div>
         ) : (
           <div className="p-3 bg-[var(--color-bg-elevated)]/30 border border-dashed border-[var(--color-border-default)] rounded-lg text-center">

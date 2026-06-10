@@ -291,9 +291,19 @@
   list handler (POST-only log endpoint) — nothing to paginate. UI callers fetch
   without ?limit so they get the generous defaults (previously unbounded); tsc +
   build clean.
-- [ ] **M11. Lint errors to zero** — fix the 989 lint **errors** in `src/`
+- [x] **M11. Lint errors to zero** — fix the 989 lint **errors** in `src/`
   (`prefer-const`, `no-explicit-any`, unused vars; `--fix` where safe). Warnings
-  may remain. Verify gate 4.
+  may remain. Verify gate 4. — done: `npm run lint` now reports **0 errors**
+  (39 warnings remain, allowed). Fixed all 87 real src/ errors with proper types
+  (no eslint-disable anywhere): no-explicit-any → concrete interfaces/structural
+  types (incl. widening weightedEngagement's param to named optional fields),
+  prefer-const → const or const+let splits for destructures, unescaped entities
+  → &apos;/&quot;, and the 2 react-hooks setState-in-effect errors → derived
+  render state (OnboardingGate) / adjust-during-render (SpecialNotesSection).
+  The other ~1,050 "errors" were generated/vendored output never meant to be
+  linted (landing/.next build artifacts, .claude/worktrees, chrome-extension
+  build scripts) — added to eslint globalIgnores alongside mcp/ and scripts/.
+  Build + tsc clean.
 - [ ] **M12. Hygiene** — add `"engines": {"node": ">=20"}` to all 3 package.jsons;
   replace boilerplate README with real setup/deploy docs (env vars, Vercel, crons,
   QStash, landing/ + mcp/ subprojects); migrate `middleware.ts` to the `proxy`

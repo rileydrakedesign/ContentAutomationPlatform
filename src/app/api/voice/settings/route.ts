@@ -25,12 +25,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Try to get settings with voice_type (new schema)
-    let { data: settings, error } = await supabase
+    const { data: initialSettings, error } = await supabase
       .from("user_voice_settings")
       .select("*")
       .eq("user_id", user.id)
       .eq("voice_type", voiceType)
       .single();
+    let settings = initialSettings;
 
     // If voice_type column doesn't exist, fall back to old schema
     if (error && error.message?.includes("voice_type")) {
@@ -200,7 +201,7 @@ export async function PATCH(request: NextRequest) {
 
     // Load existing settings first so partial updates don't reset other fields.
     // (Important: never spread DEFAULT_VOICE_SETTINGS into an update unless we're creating a new row.)
-    let existing: any = null;
+    let existing: Record<string, unknown> | null = null;
 
     // Try new schema (user_id + voice_type)
     {
@@ -262,10 +263,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json(data);
     }
 
-    // If we couldn't use new schema (voice_type missing), fall through to legacy handling.
-    let data: any = null;
-    let error: any = { message: "voice_type missing" };
-
     // Legacy schema fallback (no voice_type column)
     // Preserve existing values on partial update.
     {
@@ -286,7 +283,7 @@ export async function PATCH(request: NextRequest) {
         : (base.guardrails || undefined);
 
       const legacyUpdateData: Record<string, unknown> = { ...updateData };
-      delete (legacyUpdateData as any).special_notes;
+      delete legacyUpdateData.special_notes;
 
       const payload = {
         ...base,

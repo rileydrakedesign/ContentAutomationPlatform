@@ -133,7 +133,7 @@ export function CsvUploadDrawer({
                     <span className="w-5 h-5 rounded-full bg-[var(--color-primary-500)]/20 text-[var(--color-primary-400)] text-xs font-medium flex items-center justify-center shrink-0">
                       2
                     </span>
-                    <span>Click on "Posts" in the left sidebar</span>
+                    <span>Click on &quot;Posts&quot; in the left sidebar</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="w-5 h-5 rounded-full bg-[var(--color-primary-500)]/20 text-[var(--color-primary-400)] text-xs font-medium flex items-center justify-center shrink-0">
@@ -145,13 +145,13 @@ export function CsvUploadDrawer({
                     <span className="w-5 h-5 rounded-full bg-[var(--color-primary-500)]/20 text-[var(--color-primary-400)] text-xs font-medium flex items-center justify-center shrink-0">
                       4
                     </span>
-                    <span>Click "Export data" button in the top right</span>
+                    <span>Click &quot;Export data&quot; button in the top right</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="w-5 h-5 rounded-full bg-[var(--color-primary-500)]/20 text-[var(--color-primary-400)] text-xs font-medium flex items-center justify-center shrink-0">
                       5
                     </span>
-                    <span>Select "By post" and download the CSV</span>
+                    <span>Select &quot;By post&quot; and download the CSV</span>
                   </li>
                 </ol>
               </div>

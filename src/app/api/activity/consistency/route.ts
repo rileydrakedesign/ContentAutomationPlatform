@@ -78,7 +78,7 @@ export async function GET() {
     // If table isn't present yet, keep dashboard functional.
     if (!extErr) {
       for (const row of extReplies || []) {
-        const dt = safeDate((row as any).sent_at);
+        const dt = safeDate((row as { sent_at?: string }).sent_at);
         if (!dt || dt < since) continue;
         const key = dateKey(dt);
         if (!map[key]) map[key] = { posts: 0, replies: 0 };

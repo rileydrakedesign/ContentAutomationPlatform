@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ProductTour } from "./ProductTour";
 
@@ -12,31 +12,16 @@ import { ProductTour } from "./ProductTour";
  */
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [checked, setChecked] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    if (loading || !user) {
-      setChecked(true);
-      return;
-    }
-
-    const completed = user.user_metadata?.onboarding_completed === true;
-    setShowOnboarding(!completed);
-    setChecked(true);
-  }, [user, loading]);
-
-  const handleComplete = () => {
-    setShowOnboarding(false);
-  };
-
-  // Don't render anything until we've checked onboarding status
-  if (!checked) return null;
+  // Derived during render — no effect needed
+  const completed = user?.user_metadata?.onboarding_completed === true;
+  const showOnboarding = !loading && !!user && !completed && !dismissed;
 
   return (
     <>
       {children}
-      {showOnboarding && user && <ProductTour onComplete={handleComplete} />}
+      {showOnboarding && <ProductTour onComplete={() => setDismissed(true)} />}
     </>
   );
 }

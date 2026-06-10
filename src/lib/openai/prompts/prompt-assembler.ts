@@ -19,6 +19,7 @@ import {
   VoiceType
 } from '@/types/voice';
 import { NicheProfile } from '@/types/niche';
+import type { SupabaseClient } from '@supabase/supabase-js';
 type InspirationForPrompt = {
   id: string;
   raw_content: string;
@@ -230,10 +231,10 @@ function buildInspirationSection(
   const sorted = [...inspirations]
     .filter((i) => {
       // We don't have is_excluded in inspiration_posts; treat manual include flags as the filter.
-      if (mode === 'reply') return (i as any).include_in_reply_voice === true;
-      return (i as any).include_in_post_voice === true;
+      if (mode === 'reply') return i.include_in_reply_voice === true;
+      return i.include_in_post_voice === true;
     })
-    .sort((a: any, b: any) => {
+    .sort((a, b) => {
       // Pinned first if available, then most recent
       if (a.is_pinned && !b.is_pinned) return -1;
       if (!a.is_pinned && b.is_pinned) return 1;
@@ -247,10 +248,10 @@ function buildInspirationSection(
   tokensUsed += headerTokens;
 
   for (const insp of sorted) {
-    const raw = String((insp as any).raw_content || "");
+    const raw = String(insp.raw_content || "");
     if (!raw.trim()) continue;
 
-    const author = (insp as any).author_handle ? String((insp as any).author_handle) : "";
+    const author = insp.author_handle ? String(insp.author_handle) : "";
     const inspText = `\`\`\`text\n${raw}${author ? `\n\nsource: ${author.startsWith("@") ? author : `@${author}`}` : ""}\n\`\`\``;
     const inspTokens = estimateTokens(inspText + '\n\n');
 
@@ -450,7 +451,7 @@ export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
  * Get just the assembled system prompt (for API calls)
  */
 export async function getAssembledPromptForUser(
-  supabase: any,
+  supabase: SupabaseClient,
   userId: string,
   voiceType: VoiceType = 'reply'
 ): Promise<string> {

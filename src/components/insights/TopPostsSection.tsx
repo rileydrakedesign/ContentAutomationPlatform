@@ -61,7 +61,7 @@ export function TopPostsSection() {
     .sort((a, b) => {
       const imp = (b.impressions || 0) - (a.impressions || 0);
       if (imp !== 0) return imp;
-      return weightedEngagement(b as any) - weightedEngagement(a as any);
+      return weightedEngagement(b) - weightedEngagement(a);
     })
     .slice(0, 5);
 
