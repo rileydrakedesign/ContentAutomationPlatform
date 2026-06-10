@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { weightedEngagement } from "@/lib/utils/engagement";
 
@@ -181,6 +182,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[voice-refresh] Cron job failed:", error);
+    Sentry.captureException(error, { tags: { cron: "voice-refresh" } });
     return NextResponse.json(
       { error: "Cron job failed" },
       { status: 500 }

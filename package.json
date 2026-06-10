@@ -12,6 +12,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "@scalar/api-reference-react": "^0.9.13",
+    "@sentry/nextjs": "^10.57.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
     "@upstash/qstash": "^2.10.1",

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { getValidAccessToken, postTweet } from "@/lib/x-api";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -132,6 +133,9 @@ export async function executeScheduledPost(
     return { success: true, postedIds };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
+    Sentry.captureException(err, {
+      tags: { scheduled_post_id: id, content_type },
+    });
 
     await supabase
       .from("scheduled_posts")

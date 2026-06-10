@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { getTweetsBatch, getValidAccessToken } from "@/lib/x-api";
 
@@ -101,6 +102,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ updated: totalUpdated });
   } catch (error) {
     console.error("[metrics-refresh] Cron failed:", error);
+    Sentry.captureException(error, { tags: { cron: "metrics-refresh" } });
     return NextResponse.json({ error: "Cron failed" }, { status: 500 });
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
 import { upsertSubscription } from "@/lib/stripe/subscription";
@@ -230,6 +231,9 @@ export async function POST(request: NextRequest) {
       `Webhook processing error for event ${event.id} (${event.type}):`,
       error
     );
+    Sentry.captureException(error, {
+      tags: { stripe_event_id: event.id, stripe_event_type: event.type },
+    });
     // Release the idempotency claim and return 500 so Stripe retries —
     // otherwise the claimed-but-unprocessed event would be lost forever.
     const { error: releaseError } = await admin

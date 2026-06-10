@@ -126,11 +126,17 @@
   `stripe_events` table did not exist on the live DB (20260430 migration was never
   applied — every webhook would 500 at the claim insert); applied it via Supabase
   MCP and verified `to_regclass('public.stripe_events')` is non-null. tsc clean.
-- [ ] **H2. No error tracking** — add Sentry (`@sentry/nextjs`) wired into
+- [x] **H2. No error tracking** — add Sentry (`@sentry/nextjs`) wired into
   `instrumentation`, `src/app/error.tsx`, `global-error.tsx`, the Stripe webhook
   catch, `executeScheduledPost` failures, and cron route catches. DSN via env
   (`SENTRY_DSN`), no-op when unset. `[~]` note for creating the Sentry project +
-  setting the DSN in Vercel.
+  setting the DSN in Vercel. — done: installed @sentry/nextjs; added
+  src/instrumentation.ts (register + onRequestError) and
+  src/instrumentation-client.ts (NEXT_PUBLIC_SENTRY_DSN + onRouterTransitionStart);
+  captureException in error.tsx, global-error.tsx, webhook catch (tagged with event
+  id/type), executeScheduledPost catch, and all 4 cron catches. `enabled` is gated
+  on the DSN env so it's a no-op when unset. Verified: build + tsc clean. Project
+  creation + DSN env remains HU6's handoff.
 - [ ] **H3. Publish safety-net cron is daily** — change `vercel.json`
   `publish-scheduled` schedule to `*/5 * * * *`. ONLY do this after B2 is checked
   (CAS prevents the double-publish the frequent cron would otherwise amplify).

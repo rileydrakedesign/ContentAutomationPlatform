@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { getUserTimeline, mapV2ToPostAnalytics, getValidAccessToken } from "@/lib/x-api";
 import type { PostAnalytics } from "@/types/analytics";
@@ -153,6 +154,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[analytics-sync] Cron failed:", error);
+    Sentry.captureException(error, { tags: { cron: "analytics-sync" } });
     return NextResponse.json({ error: "Cron failed" }, { status: 500 });
   }
 }

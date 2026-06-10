@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { executeScheduledPost } from "@/lib/publish/execute";
 
@@ -70,6 +71,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ published, failed, recovered, total: duePosts.length });
   } catch (error) {
     console.error("Cron publish-scheduled error:", error);
+    Sentry.captureException(error, { tags: { cron: "publish-scheduled" } });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
