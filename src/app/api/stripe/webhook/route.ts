@@ -35,6 +35,32 @@ async function resolveUserId(
   return data?.user_id ?? null;
 }
 
+/** Resolve the plan for a subscription's price. An unknown price ID must never
+ *  silently grant pro: log loudly and keep the user's stored plan (free if none). */
+async function resolvePlanId(
+  subscription: Stripe.Subscription,
+  userId: string
+): Promise<PlanId> {
+  const priceId = subscription.items.data[0]?.price?.id;
+  const plan = priceId ? getPlanByPriceId(priceId) : undefined;
+  if (plan) return plan.id;
+
+  const metaPlan = subscription.metadata?.plan_id;
+  if (metaPlan === "free" || metaPlan === "pro") return metaPlan;
+
+  const message = `Stripe webhook: cannot map price ${priceId} (subscription ${subscription.id}) to a plan — keeping stored plan`;
+  console.error(message);
+  Sentry.captureMessage(message, "error");
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("subscriptions")
+    .select("plan_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return (data?.plan_id as PlanId) ?? "free";
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.text();
   const signature = request.headers.get("stripe-signature");
@@ -120,9 +146,7 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        const priceId = subscription.items.data[0]?.price?.id;
-        const plan = priceId ? getPlanByPriceId(priceId) : null;
-        const planId = (plan?.id || subscription.metadata?.plan_id || "pro") as PlanId;
+        const planId = await resolvePlanId(subscription, userId);
 
         await upsertSubscription(
           userId,
@@ -148,16 +172,20 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        // Honor any remaining paid period: keep the previous plan_id while
-        // current_period_end is still in the future. isSubscriptionActive()
-        // will grace status="canceled" with future period_end.
-        const periodEnd = getPeriodEnd(subscription);
-        const isInGracePeriod = new Date(periodEnd) > new Date();
+        // Honor any remaining paid period for voluntary cancellations: keep the
+        // previous plan_id while current_period_end is still in the future.
+        // Involuntary cancellations (dunning exhausted / disputed payment) were
+        // never paid for — revoke at event time instead.
+        const cancelReason = subscription.cancellation_details?.reason;
+        const involuntary =
+          cancelReason === "payment_failed" || cancelReason === "payment_disputed";
+        const periodEnd = involuntary
+          ? new Date(event.created * 1000).toISOString()
+          : getPeriodEnd(subscription);
+        const isInGracePeriod = !involuntary && new Date(periodEnd) > new Date();
 
-        const priceId = subscription.items.data[0]?.price?.id;
-        const plan = priceId ? getPlanByPriceId(priceId) : null;
         const planId: PlanId = isInGracePeriod
-          ? ((plan?.id || subscription.metadata?.plan_id || "pro") as PlanId)
+          ? await resolvePlanId(subscription, userId)
           : "free";
 
         await upsertSubscription(
@@ -186,11 +214,8 @@ export async function POST(request: NextRequest) {
           const userId = await resolveUserId(subscription);
 
           if (userId) {
-            const priceId = subscription.items.data[0]?.price?.id;
-            const plan = priceId ? getPlanByPriceId(priceId) : null;
-
             await upsertSubscription(userId, {
-              plan_id: (plan?.id || "pro") as PlanId,
+              plan_id: await resolvePlanId(subscription, userId),
               stripe_customer_id: subscription.customer as string,
               stripe_subscription_id: subscription.id,
               status: subscription.status as string,
@@ -213,11 +238,8 @@ export async function POST(request: NextRequest) {
           const userId = await resolveUserId(subscription);
 
           if (userId) {
-            const priceId = subscription.items.data[0]?.price?.id;
-            const plan = priceId ? getPlanByPriceId(priceId) : null;
-
             await upsertSubscription(userId, {
-              plan_id: (plan?.id || "pro") as PlanId,
+              plan_id: await resolvePlanId(subscription, userId),
               stripe_customer_id: subscription.customer as string,
               stripe_subscription_id: subscription.id,
               status: "past_due",

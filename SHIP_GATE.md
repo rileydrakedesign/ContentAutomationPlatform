@@ -214,12 +214,19 @@
   event time`), logging + skipping stale events; created/updated/deleted handlers
   pass event.created (checkout/invoice handlers re-fetch from the API so stay
   unguarded). tsc clean.
-- [ ] **M2. Unknown price ID defaults to `"pro"`** — webhook plan resolution
+- [x] **M2. Unknown price ID defaults to `"pro"`** — webhook plan resolution
   (`route.ts:124,155,184,211`): log loudly + keep existing stored plan (or map to
-  free) instead of silently granting pro on lookup failure.
-- [ ] **M3. Dunning grace too generous** — `src/types/subscription.ts:76-88` /
+  free) instead of silently granting pro on lookup failure. — done: new
+  resolvePlanId() helper (price → validated metadata plan → loud console.error +
+  Sentry.captureMessage + stored plan, free if none); replaced all 4 fallback
+  sites; grep confirms no `|| "pro"` defaults remain. tsc clean.
+- [x] **M3. Dunning grace too generous** — `src/types/subscription.ts:76-88` /
   webhook `subscription.deleted` handler: on involuntary cancellation (dunning),
   revoke at event time instead of honoring the unpaid `current_period_end`.
+  — done: subscription.deleted now checks cancellation_details.reason; for
+  payment_failed/payment_disputed it sets plan_id=free and current_period_end to
+  the event time (so isSubscriptionActive's canceled-grace can't apply); voluntary
+  cancellations keep period-end grace. tsc clean.
 - [ ] **M4. Cron analytics-sync ungated** — `src/app/api/cron/analytics-sync/route.ts:29-44`
   syncs every `x_connections` row regardless of plan. Filter to users whose
   effective plan includes `xApiSync` (reuse the gate logic server-side). Also
