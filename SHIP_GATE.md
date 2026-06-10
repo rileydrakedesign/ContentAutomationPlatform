@@ -312,9 +312,13 @@
   validation, migrations, QStash+cron publishing, Vercel deploy, subprojects);
   src/middleware.ts → src/proxy.ts with exported `proxy` — build no longer prints
   the deprecation warning and shows "ƒ Proxy". Build + tsc clean.
-- [ ] **M13. Subscriptions integrity** — migration: `UNIQUE` on
+- [x] **M13. Subscriptions integrity** — migration: `UNIQUE` on
   `subscriptions.stripe_customer_id`; partial index on
-  `scheduled_posts (scheduled_for) WHERE status='scheduled'`.
+  `scheduled_posts (scheduled_for) WHERE status='scheduled'`. — done: checked for
+  existing duplicates (none), then created partial unique index
+  subscriptions_stripe_customer_id_key (WHERE not null, so multiple free rows
+  without a customer stay legal) + idx_scheduled_posts_due; migration file
+  committed and applied to live; verified both exist via pg_indexes.
 
 ## HUMAN-ONLY (mark `[~]` with a precise handoff note — not automatable from this repo)
 
