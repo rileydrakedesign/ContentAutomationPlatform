@@ -17,8 +17,8 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
 
   const { contentType, payload, draftId } = body;
 
-  if (!contentType || !["X_POST", "X_THREAD"].includes(contentType)) {
-    return apiError("contentType must be X_POST or X_THREAD", "validation_error", 400);
+  if (!contentType || !["X_POST", "X_THREAD", "X_REPLY"].includes(contentType)) {
+    return apiError("contentType must be X_POST, X_THREAD, or X_REPLY", "validation_error", 400);
   }
 
   if (!payload || typeof payload !== "object") {
@@ -28,13 +28,24 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
   // Get valid X access token for the user
   const { accessToken, connection } = await getValidAccessToken(supabase, auth.userId);
 
-  if (contentType === "X_POST") {
+  if (contentType === "X_POST" || contentType === "X_REPLY") {
     const text = String(payload.text || "").trim();
     if (!text) {
       return apiError("Missing text in payload", "validation_error", 400);
     }
 
-    const posted = await postTweet(accessToken, text);
+    const inReplyToId = contentType === "X_REPLY"
+      ? String(payload.inReplyToId || payload.inReplyToStatusId || "").trim()
+      : "";
+    if (contentType === "X_REPLY" && !inReplyToId) {
+      return apiError("X_REPLY requires payload.inReplyToId (the tweet being replied to)", "validation_error", 400);
+    }
+
+    const posted = await postTweet(
+      accessToken,
+      text,
+      inReplyToId ? { inReplyToStatusId: inReplyToId } : undefined
+    );
 
     // Backfill captured_posts
     try {

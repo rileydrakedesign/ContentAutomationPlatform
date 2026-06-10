@@ -6,15 +6,18 @@ import { requireAiGeneration } from "@/lib/stripe/gate";
 export const OPTIONS = apiOptions;
 
 type DraftType = "X_POST" | "X_THREAD";
+type VoiceType = "post" | "reply";
 
-// POST /api/v1/drafts/generate — Generate draft options from a topic
+// POST /api/v1/drafts/generate — Generate draft options from a topic or reply target
 export const POST = withApiAuth(["drafts:generate"], async ({ auth, request }) => {
   let body: {
     topic?: string;
     draftType?: DraftType;
+    voiceType?: VoiceType;
     patternIds?: string[];
     generateCount?: number;
     inspirationPost?: { text: string; author: string };
+    replyTo?: { tweetId?: string; text: string; author?: string };
   };
   try {
     body = await request.json();
@@ -22,9 +25,17 @@ export const POST = withApiAuth(["drafts:generate"], async ({ auth, request }) =
     return apiError("Invalid JSON body", "invalid_body", 400);
   }
 
-  const { topic, draftType = "X_POST", patternIds = [], generateCount = 3, inspirationPost } = body;
+  const { draftType = "X_POST", patternIds = [], generateCount = 3, inspirationPost, replyTo } = body;
+  const voiceType: VoiceType = body.voiceType === "reply" ? "reply" : "post";
+  const isReply = voiceType === "reply";
+  const topic = body.topic;
 
-  if (!topic || topic.trim().length < 3) {
+  // For replies, the target tweet is the subject; topic is optional context/angle.
+  if (isReply) {
+    if (!replyTo?.text || replyTo.text.trim().length < 1) {
+      return apiError("replyTo.text is required when voiceType is 'reply'", "validation_error", 400);
+    }
+  } else if (!topic || topic.trim().length < 3) {
     return apiError("Topic must be at least 3 characters", "validation_error", 400);
   }
 
@@ -60,12 +71,12 @@ export const POST = withApiAuth(["drafts:generate"], async ({ auth, request }) =
     patterns = data || [];
   }
 
-  // Fetch voice settings + AI model
+  // Fetch voice settings + AI model (post or reply voice)
   const { data: voiceSettings } = await supabase
     .from("user_voice_settings")
     .select("optimization_authenticity, tone_formal_casual, energy_calm_punchy, stance_neutral_opinionated, guardrails, ai_model")
     .eq("user_id", auth.userId)
-    .eq("voice_type", "post")
+    .eq("voice_type", voiceType)
     .single();
 
   const aiProvider: AIProvider = (voiceSettings?.ai_model as AIProvider) || "openai";
@@ -76,7 +87,7 @@ export const POST = withApiAuth(["drafts:generate"], async ({ auth, request }) =
     .select("content_text")
     .eq("user_id", auth.userId)
     .eq("is_excluded", false)
-    .eq("content_type", "post")
+    .eq("content_type", voiceType)
     .order("engagement_score", { ascending: false })
     .limit(5);
 
@@ -88,15 +99,38 @@ export const POST = withApiAuth(["drafts:generate"], async ({ auth, request }) =
     ? `Here are examples of the user's writing style:\n${voiceExamples.map((e, i) => `Example ${i + 1}: ${e.content_text}`).join("\n\n")}`
     : "";
 
-  const formatInstructions = draftType === "X_THREAD"
-    ? "Generate a thread of 3-5 connected tweets. Each tweet should be under 280 characters."
-    : "Generate a single post for X. Use formatting (line breaks, bullets) for readability when appropriate.";
-
   const inspirationInstructions = inspirationPost
     ? `Use this post as style inspiration (adapt, don't copy):\n@${inspirationPost.author}: "${inspirationPost.text}"`
     : "";
 
-  const prompt = `Generate ${count} ${draftType === "X_THREAD" ? "thread" : "tweet"} options about: "${topic}"
+  let prompt: string;
+  if (isReply) {
+    const targetAuthor = replyTo!.author ? `@${replyTo!.author}` : "someone";
+    const angle = topic && topic.trim().length > 0
+      ? `\nAngle / point you want to make: "${topic}"`
+      : "";
+    prompt = `Write ${count} reply options to this post by ${targetAuthor}:
+"""
+${replyTo!.text}
+"""${angle}
+
+Each reply must be a single tweet under 280 characters. Be conversational and add value — agree, build on it, or respectfully push back. Do not restate their post. No hashtags.
+${inspirationInstructions}
+${patternInstructions}
+${examplePosts}
+
+Return a JSON array with ${count} options. Each option should have:
+- "content": The reply text
+- "hook_type": The angle you took (e.g. agree-and-extend, contrarian, question, anecdote)
+- "patterns_applied": Array of pattern names you applied
+
+Return ONLY the JSON array, no other text.`;
+  } else {
+    const formatInstructions = draftType === "X_THREAD"
+      ? "Generate a thread of 3-5 connected tweets. Each tweet should be under 280 characters."
+      : "Generate a single post for X. Use formatting (line breaks, bullets) for readability when appropriate.";
+
+    prompt = `Generate ${count} ${draftType === "X_THREAD" ? "thread" : "tweet"} options about: "${topic}"
 
 ${formatInstructions}
 ${inspirationInstructions}
@@ -109,10 +143,11 @@ Return a JSON array with ${count} options. Each option should have:
 - "patterns_applied": Array of pattern names you applied
 
 Return ONLY the JSON array, no other text.`;
+  }
 
-  // Assemble the full voice system prompt
+  // Assemble the full voice system prompt (post or reply voice)
   const { getAssembledPromptForUser } = await import("@/lib/openai/prompts/prompt-assembler");
-  const systemPrompt = await getAssembledPromptForUser(supabase, auth.userId, "post");
+  const systemPrompt = await getAssembledPromptForUser(supabase, auth.userId, voiceType);
 
   const result = await createChatCompletion({
     provider: aiProvider,
@@ -139,18 +174,26 @@ Return ONLY the JSON array, no other text.`;
   }
 
   const options = generatedOptions.map((option: { content: unknown; hook_type?: string; patterns_applied?: string[] }) => ({
-    type: draftType,
-    content: draftType === "X_THREAD"
+    // Replies are structurally a single post; carry reply intent in metadata.
+    type: isReply ? "X_POST" : draftType,
+    content: !isReply && draftType === "X_THREAD"
       ? { tweets: Array.isArray(option.content) ? option.content : [option.content] }
-      : { text: option.content },
-    topic,
+      : { text: Array.isArray(option.content) ? option.content[0] : option.content },
+    topic: topic || null,
     applied_patterns: patterns.map(p => p.id),
     metadata: {
       hook_type: option.hook_type,
       patterns_applied: option.patterns_applied,
-      generation_type: inspirationPost ? "inspiration_based" : "topic_based",
+      voice_type: voiceType,
+      ...(isReply
+        ? {
+            is_reply: true,
+            reply_to: { tweetId: replyTo!.tweetId || null, author: replyTo!.author || null },
+            generation_type: "reply",
+          }
+        : { generation_type: inspirationPost ? "inspiration_based" : "topic_based" }),
     },
   }));
 
-  return apiSuccess({ options, patterns_used: patterns, topic });
+  return apiSuccess({ options, patterns_used: patterns, topic: topic || null, voice_type: voiceType });
 });
