@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { OnboardingModal } from "./OnboardingModal";
+import { ProductTour } from "./ProductTour";
 
 /**
  * Wraps app content and shows the onboarding modal for new users
@@ -36,7 +36,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
-      {showOnboarding && user && <OnboardingModal onComplete={handleComplete} />}
+      {showOnboarding && user && <ProductTour onComplete={handleComplete} />}
     </>
   );
 }

@@ -195,6 +195,7 @@ export function SettingsPage() {
         <TabsContent value="x-account" className="mt-4">
           <div className="max-w-xl space-y-4">
             {/* X Connection */}
+            <div data-tour="settings-x-account">
             <Card className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">X Account</h2>
@@ -281,6 +282,7 @@ export function SettingsPage() {
                 </div>
               )}
             </Card>
+            </div>
 
             {/* How It Works */}
             <Card className="p-4">

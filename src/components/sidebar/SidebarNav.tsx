@@ -39,6 +39,7 @@ export function SidebarNav() {
             <li key={link.href}>
               <Link
                 href={link.href}
+                data-tour={link.href === "/voice" ? "nav-voice" : undefined}
                 className={`
                   flex items-center gap-3 px-3 py-2.5 rounded-xl
                   transition-all duration-200

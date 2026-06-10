@@ -110,7 +110,7 @@ export function HomePage() {
   return (
     <div className="animate-fade-in">
       {/* Header with Quick Actions */}
-      <div className="flex items-center justify-between mb-6">
+      <div data-tour="dashboard-header" className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
             Dashboard
@@ -129,11 +129,13 @@ export function HomePage() {
       <div className="grid grid-cols-[1fr_360px] gap-5">
         {/* Left */}
         <div className="flex flex-col gap-4">
-          <SetupChecklist
-            xStatus={xStatus}
-            csvStatus={{ uploaded_at: analyticsData?.uploaded_at, total_posts: analyticsData?.total_posts }}
-            onUploadCsv={() => setShowUploadDrawer(true)}
-          />
+          <div data-tour="setup-checklist">
+            <SetupChecklist
+              xStatus={xStatus}
+              csvStatus={{ uploaded_at: analyticsData?.uploaded_at, total_posts: analyticsData?.total_posts }}
+              onUploadCsv={() => setShowUploadDrawer(true)}
+            />
+          </div>
 
           <StrategyProgress />
 

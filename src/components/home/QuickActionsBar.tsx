@@ -10,7 +10,7 @@ interface QuickActionsBarProps {
 
 export function QuickActionsBar({ onUploadClick }: QuickActionsBarProps) {
   return (
-    <div className="flex items-center gap-3">
+    <div data-tour="quick-actions" className="flex items-center gap-3">
       <Link href="/create">
         <Button
           variant="primary"

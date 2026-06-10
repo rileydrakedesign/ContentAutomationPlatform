@@ -14,7 +14,7 @@ export function VoicePage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-start justify-between">
+          <div data-tour="voice-header" className="flex items-start justify-between">
             <div>
               <h1 className="text-heading text-2xl font-semibold text-[var(--color-text-primary)]">
                 Voice & Patterns

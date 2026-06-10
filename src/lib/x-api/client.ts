@@ -97,18 +97,23 @@ export async function exchangeCodeForTokens(
 export async function refreshAccessToken(
   refreshToken: string
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
-  const clientId = process.env.X_CLIENT_ID!;
-  const clientSecret = process.env.X_CLIENT_SECRET!;
+  const clientId = process.env.X_CLIENT_ID;
+  const clientSecret = process.env.X_CLIENT_SECRET;
 
+  // Confidential client: both are required. Fail loudly rather than silently
+  // sending no auth header (which surfaces as a confusing X "unauthorized_client
+  // / Missing valid authorization header" on refresh).
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      "X OAuth not configured: X_CLIENT_ID and X_CLIENT_SECRET must both be set in this environment"
+    );
+  }
+
+  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
   const headers: Record<string, string> = {
     "Content-Type": "application/x-www-form-urlencoded",
+    Authorization: `Basic ${basicAuth}`,
   };
-
-  // Confidential clients must use Basic auth header
-  if (clientSecret) {
-    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-    headers.Authorization = `Basic ${basicAuth}`;
-  }
 
   const response = await fetch(`${X_API_BASE}/2/oauth2/token`, {
     method: "POST",
