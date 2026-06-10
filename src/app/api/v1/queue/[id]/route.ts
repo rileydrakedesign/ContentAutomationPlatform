@@ -41,14 +41,25 @@ export const DELETE = withApiAuth(["publish:write"], async ({ auth, params }) =>
     }
   }
 
-  const { error: updateError } = await supabase
+  // CAS on status: if publishing claimed the row between our read and now,
+  // 0 rows match and we must not pretend it was cancelled.
+  const { data: cancelled, error: updateError } = await supabase
     .from("scheduled_posts")
     .update({ status: "cancelled", updated_at: new Date().toISOString() })
     .eq("id", id)
-    .eq("user_id", auth.userId);
+    .eq("user_id", auth.userId)
+    .eq("status", "scheduled")
+    .select("id");
 
   if (updateError) {
     return apiError("Failed to cancel scheduled post", "update_failed", 500);
+  }
+  if (!cancelled || cancelled.length === 0) {
+    return apiError(
+      "Post is no longer in 'scheduled' state (publishing may have started)",
+      "invalid_state",
+      409
+    );
   }
 
   // Return the linked draft to DRAFT status so it can be re-queued.

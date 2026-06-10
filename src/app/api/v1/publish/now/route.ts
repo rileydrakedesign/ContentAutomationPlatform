@@ -110,25 +110,25 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
   }
 
   const postedIds: string[] = [];
-  try {
-    const first = await postTweet(accessToken, cleaned[0]);
-    postedIds.push(first.id_str);
+  let publishError: string | null = null;
 
-    let replyTo = first.id_str;
-    for (let i = 1; i < cleaned.length; i++) {
-      const next = await postTweet(accessToken, cleaned[i], { inReplyToStatusId: replyTo });
+  // Post the thread; on mid-thread failure keep the posted prefix so the
+  // error can report it — a blind full retry would double-post those tweets.
+  try {
+    let replyTo: string | undefined;
+    for (let i = 0; i < cleaned.length; i++) {
+      const next = await postTweet(accessToken, cleaned[i], replyTo ? { inReplyToStatusId: replyTo } : undefined);
       postedIds.push(next.id_str);
       replyTo = next.id_str;
     }
   } catch (e) {
-    return apiError(
-      `X rejected the thread after ${postedIds.length} of ${cleaned.length} tweets: ${e instanceof Error ? e.message : "unknown error"}`,
-      "x_api_error",
-      502
-    );
+    publishError = e instanceof Error ? e.message : "unknown error";
+    if (postedIds.length === 0) {
+      return apiError(`X rejected the thread: ${publishError}`, "x_api_error", 502);
+    }
   }
 
-  // Backfill
+  // Backfill every tweet that actually posted, even on partial failure
   try {
     const username = connection.x_username || null;
     const rows = postedIds.map((id, idx) => ({
@@ -146,6 +146,19 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
     await supabase.from("captured_posts").insert(rows);
   } catch (e) {
     console.warn("v1 publish now: thread backfill failed", e);
+  }
+
+  if (publishError) {
+    return apiError(
+      `Thread partially posted: ${postedIds.length} of ${cleaned.length} tweets went out before failing (${publishError}). Do NOT retry the full thread — resume with remainingTweets only.`,
+      "x_partial_thread",
+      502,
+      {
+        postedIds,
+        failedAtIndex: postedIds.length,
+        remainingTweets: cleaned.slice(postedIds.length),
+      }
+    );
   }
 
   if (draftId) {

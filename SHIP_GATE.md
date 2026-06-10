@@ -372,10 +372,20 @@
 
 ## VERIFY (final items — only when everything above is `[x]`/`[~]`)
 
-- [ ] **V1.** Spawn a fresh subagent to adversarially review the publish-pipeline
+- [x] **V1.** Spawn a fresh subagent to adversarially review the publish-pipeline
   changes (B2–B4, H3, M5): confirm no status transition lacks a CAS guard and no
   path can re-post already-posted tweet IDs. Fix anything it finds before checking
-  this off.
+  this off. — done: fresh subagent reviewed all publish paths. It confirmed the
+  core CAS claim, stuck-recovery, retry-resume, and token-refresh race handling
+  are safe, and found 4 real gaps — ALL FIXED: (1) v1/publish/now thread partial
+  failure now backfills the posted prefix and returns x_partial_thread with
+  postedIds/failedAtIndex/remainingTweets instead of a retryable bare 502;
+  (2) publish/retry now CAS-guards failed→scheduled (.eq status failed, 409 on 0
+  rows) so it can't resurrect a cancelled post; (3) publish/cancel + v1/queue
+  DELETE now CAS-guard the cancel (.in scheduled/failed, 409 mid-publish) and
+  execute.ts's terminal posted/failed writes CAS on status='publishing';
+  (4) per-tweet progress persist now aborts the thread on DB error, and the
+  failure path persists posted_post_ids. Verified via tsc + lint (0 errors).
 - [ ] **V2.** Spawn a fresh subagent to adversarially review the security changes
   (H4, H7, H8, M9): headers present in a build, login rate limit fails closed in
   prod, no client path can select X token columns. Fix anything it finds first.

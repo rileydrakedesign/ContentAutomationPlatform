@@ -43,6 +43,9 @@ export async function executeScheduledPost(
     ? (claimed[0].posted_post_ids as string[]).filter(Boolean)
     : [];
 
+  // Declared outside try so the failure path can persist partial progress
+  const postedIds: string[] = [...alreadyPosted];
+
   try {
 
     // Get valid access token
@@ -65,7 +68,6 @@ export async function executeScheduledPost(
     }
 
     // Publish to X, resuming from the first unposted tweet on retry
-    const postedIds: string[] = [...alreadyPosted];
     let previousId: string | undefined =
       postedIds.length > 0 ? postedIds[postedIds.length - 1] : undefined;
 
@@ -76,12 +78,19 @@ export async function executeScheduledPost(
       postedIds.push(result.id_str);
       previousId = result.id_str;
 
-      // Persist progress so a retry resumes instead of re-posting
-      await supabase
+      // Persist progress so a retry resumes instead of re-posting. A failed
+      // persist MUST abort: posting further tweets while the DB lags behind
+      // would let a retry re-post them.
+      const { error: persistError } = await supabase
         .from("scheduled_posts")
         .update({ posted_post_ids: postedIds, updated_at: new Date().toISOString() })
         .eq("id", id)
         .eq("user_id", userId);
+      if (persistError) {
+        throw new Error(
+          `Failed to persist publish progress after tweet ${i + 1}/${tweetTexts.length}: ${persistError.message}`
+        );
+      }
     }
 
     // Backfill captured_posts (matching publish/now schema) — only newly posted
@@ -106,7 +115,8 @@ export async function executeScheduledPost(
       console.warn("executeScheduledPost: failed to backfill captured_posts", e);
     }
 
-    // Mark as posted
+    // Mark as posted — CAS on 'publishing' so we never clobber a state
+    // another actor set on the row in the meantime
     await supabase
       .from("scheduled_posts")
       .update({
@@ -115,7 +125,8 @@ export async function executeScheduledPost(
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("status", "publishing");
 
     // Update linked draft status (best-effort) — use draft_id from DB row, not payload
     if (draft_id) {
@@ -137,15 +148,19 @@ export async function executeScheduledPost(
       tags: { scheduled_post_id: id, content_type },
     });
 
+    // Persist partial progress + failure — CAS on 'publishing' so we never
+    // clobber a state another actor set on the row in the meantime
     await supabase
       .from("scheduled_posts")
       .update({
         status: "failed",
         error: errorMsg,
+        posted_post_ids: postedIds,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("status", "publishing");
 
     return { success: false, error: errorMsg };
   }

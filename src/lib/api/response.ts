@@ -31,9 +31,10 @@ export function apiSuccess(data: unknown, status = 200): NextResponse {
 export function apiError(
   error: string,
   code: string,
-  status: number
+  status: number,
+  details?: Record<string, unknown>
 ): NextResponse {
-  const response = NextResponse.json({ error, code }, { status });
+  const response = NextResponse.json({ error, code, ...details }, { status });
   response.headers.set("X-Request-Id", crypto.randomUUID());
   applyCorsHeaders(response);
   return response;

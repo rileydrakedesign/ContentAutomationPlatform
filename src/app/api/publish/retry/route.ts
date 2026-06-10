@@ -32,8 +32,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only failed posts can be retried" }, { status: 400 });
     }
 
-    // Reset to scheduled
-    await supabase
+    // Reset to scheduled — CAS on status so a concurrent cancel/publish can't
+    // be resurrected. posted_post_ids is intentionally untouched: a retried
+    // thread resumes from the first unposted tweet.
+    const { data: reset, error: resetError } = await supabase
       .from("scheduled_posts")
       .update({
         status: "scheduled",
@@ -41,7 +43,16 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .eq("status", "failed")
+      .select("id");
+
+    if (resetError || !reset || reset.length === 0) {
+      return NextResponse.json(
+        { error: "Post is no longer in a failed state" },
+        { status: 409 }
+      );
+    }
 
     // Enqueue QStash message for immediate retry (5s delay)
     try {

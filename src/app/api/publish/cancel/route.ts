@@ -33,11 +33,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Already posted" }, { status: 400 });
     }
 
-    await supabase
+    // CAS: only cancel posts that aren't mid-publish — cancelling a row in
+    // 'publishing' would lie to the user (tweets may already be going out).
+    const { data: cancelled, error: cancelError } = await supabase
       .from("scheduled_posts")
       .update({ status: "cancelled", updated_at: new Date().toISOString() })
       .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .in("status", ["scheduled", "failed"])
+      .select("id");
+
+    if (cancelError || !cancelled || cancelled.length === 0) {
+      return NextResponse.json(
+        { error: "Post is currently publishing and can no longer be cancelled" },
+        { status: 409 }
+      );
+    }
 
     // Cancel QStash message (best-effort)
     if (post.qstash_message_id) {
