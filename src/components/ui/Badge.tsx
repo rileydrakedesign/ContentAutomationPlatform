@@ -110,8 +110,6 @@ export function TypeBadge({ type }: { type: string }) {
   const typeVariants: Record<string, BadgeVariant> = {
     X_POST: "default",
     X_THREAD: "default",
-    REEL_SCRIPT: "default",
-    VOICE_MEMO: "accent",
     NEWS: "success",
     INSPIRATION: "primary",
     my_post: "primary",
@@ -121,8 +119,6 @@ export function TypeBadge({ type }: { type: string }) {
   const labels: Record<string, string> = {
     X_POST: "X Post",
     X_THREAD: "X Thread",
-    REEL_SCRIPT: "Reel Script",
-    VOICE_MEMO: "Voice Memo",
     NEWS: "News",
     INSPIRATION: "Inspiration",
     my_post: "My Post",

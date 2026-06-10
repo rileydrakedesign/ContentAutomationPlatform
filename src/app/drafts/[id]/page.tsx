@@ -6,7 +6,7 @@ import Link from "next/link";
 
 type Draft = {
   id: string;
-  type: "X_POST" | "X_THREAD" | "REEL_SCRIPT";
+  type: "X_POST" | "X_THREAD";
   status: "DRAFT" | "POSTED" | "SCHEDULED" | "REJECTED";
   content: Record<string, unknown>;
   source_ids: string[] | null;
@@ -101,62 +101,6 @@ function XThreadEditor({
           + Add Tweet
         </button>
       )}
-    </div>
-  );
-}
-
-type ReelScriptContent = {
-  hook: string;
-  body: string;
-  callToAction: string;
-  estimatedDuration: string;
-};
-
-function ReelScriptEditor({
-  content,
-  onChange,
-}: {
-  content: ReelScriptContent;
-  onChange: (content: ReelScriptContent) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm text-[var(--color-text-secondary)] mb-1">Hook (3-5 seconds)</label>
-        <textarea
-          value={content.hook}
-          onChange={(e) => onChange({ ...content, hook: e.target.value })}
-          className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-500)] focus:ring-1 focus:ring-[var(--color-primary-500)] transition"
-          rows={2}
-        />
-      </div>
-      <div>
-        <label className="block text-sm text-[var(--color-text-secondary)] mb-1">Body</label>
-        <textarea
-          value={content.body}
-          onChange={(e) => onChange({ ...content, body: e.target.value })}
-          className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-500)] focus:ring-1 focus:ring-[var(--color-primary-500)] transition"
-          rows={4}
-        />
-      </div>
-      <div>
-        <label className="block text-sm text-[var(--color-text-secondary)] mb-1">Call to Action</label>
-        <textarea
-          value={content.callToAction}
-          onChange={(e) => onChange({ ...content, callToAction: e.target.value })}
-          className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-500)] focus:ring-1 focus:ring-[var(--color-primary-500)] transition"
-          rows={2}
-        />
-      </div>
-      <div>
-        <label className="block text-sm text-[var(--color-text-secondary)] mb-1">Estimated Duration</label>
-        <input
-          type="text"
-          value={content.estimatedDuration}
-          onChange={(e) => onChange({ ...content, estimatedDuration: e.target.value })}
-          className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-500)] focus:ring-1 focus:ring-[var(--color-primary-500)] transition"
-        />
-      </div>
     </div>
   );
 }
@@ -286,7 +230,6 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
   const typeLabels = {
     X_POST: "X Post",
     X_THREAD: "X Thread",
-    REEL_SCRIPT: "Reel Script",
   };
 
   const statusColors: Record<string, string> = {
@@ -336,12 +279,6 @@ export default function DraftEditorPage({ params }: { params: Promise<{ id: stri
           />
         )}
 
-        {draft.type === "REEL_SCRIPT" && editedContent && (
-          <ReelScriptEditor
-            content={editedContent as ReelScriptContent}
-            onChange={setEditedContent}
-          />
-        )}
       </div>
 
       <div className="flex items-center">

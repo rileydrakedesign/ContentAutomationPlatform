@@ -9,7 +9,6 @@ import {
   ConversationStage,
   VoiceGuardrails,
 } from "@/types/voice";
-import { v4 as uuidv4 } from "uuid";
 import { requireAiGeneration } from "@/lib/stripe/gate";
 
 // Stage-specific system prompts
@@ -396,7 +395,7 @@ export async function POST(request: NextRequest) {
 
     // Create user message
     const userMessage: ChatMessage = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       role: "user",
       content: message,
       timestamp: new Date().toISOString(),
@@ -440,7 +439,7 @@ export async function POST(request: NextRequest) {
 
     // Create assistant message
     const assistantMessage: ChatMessage = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       role: "assistant",
       content: response.message || "I've processed your request.",
       timestamp: new Date().toISOString(),
@@ -623,7 +622,7 @@ async function handleAcceptChanges(
   }
 
   const assistantMessage: ChatMessage = {
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     role: "assistant",
     content: parsed.message,
     timestamp: new Date().toISOString(),
@@ -753,7 +752,7 @@ async function handleGuardrailsComplete(
   }
 
   const assistantMessage: ChatMessage = {
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     role: "assistant",
     content: parsed.message,
     timestamp: new Date().toISOString(),
@@ -795,7 +794,7 @@ async function handleSubmitSampleInput(
 
   // Create user message for the input
   const userMessage: ChatMessage = {
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     role: "user",
     content: input,
     timestamp: new Date().toISOString(),
@@ -828,7 +827,7 @@ async function handleSubmitSampleInput(
   }
 
   const assistantMessage: ChatMessage = {
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     role: "assistant",
     content: parsed.message,
     timestamp: new Date().toISOString(),

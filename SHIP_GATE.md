@@ -244,13 +244,21 @@
   refresh_token rotated AND the stored access token is still unexpired (5-min
   buffer), uses it; otherwise rethrows (genuine revocation still fails loudly).
   tsc clean.
-- [ ] **M6. Delete dead BullMQ system** — remove `scripts/publish-worker.mjs`,
+- [x] **M6. Delete dead BullMQ system** — remove `scripts/publish-worker.mjs`,
   `src/lib/queue/`, the `worker:publish` script, and `bullmq`/`ioredis` deps
   (verify nothing imports them first: `grep -r "lib/queue\|bullmq\|ioredis" src/ scripts/`).
   Also drop the legacy `job_id` select in `src/app/api/publish/list/route.ts:21`,
   vestigial `drizzle.config.ts` + `run-migration.mjs`, and the deprecated
   voice-memo/reels dead code (`src/lib/openai/transcribe.ts`,
   `prompts/voice-memo-instructions.ts`, memo branches, `REEL_SCRIPT` type usages).
+  — done: grep-verified no importers, then deleted queue/, worker script+npm
+  script, bullmq+ioredis (npm uninstall), drizzle.config.ts, run-migration.mjs,
+  and the whole dead memo pipeline (transcribe/generate/analyzer/router/
+  preprocessor/voice-memo-instructions/base-principles/knowledge-base/frameworks/
+  + orphaned types/content.ts+index.ts); trimmed openai/index.ts to
+  getOpenAI+analyzeInspirationPost; dropped job_id select; removed REEL_SCRIPT/
+  VOICE_MEMO from UI types/labels. Fixed phantom `uuid` dep (was transitive via
+  bullmq) → crypto.randomUUID(). Build + tsc clean.
 - [ ] **M7. Shared fetch wrapper** — add `src/lib/utils/apiFetch.ts` that checks
   `res.ok`, redirects to `/login` on 401, and throws a typed error; adopt it in the
   worst offenders: `HomePage.tsx`, `QueuePage.tsx` (incl. surfacing cancel/retry

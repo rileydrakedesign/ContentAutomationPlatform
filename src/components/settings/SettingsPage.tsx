@@ -302,7 +302,7 @@ export function SettingsPage() {
                 </div>
                 <div className="flex gap-3">
                   <span className="text-[var(--color-warning-400)]">4.</span>
-                  <span>Use voice memos to draft new posts that match your style</span>
+                  <span>Generate new posts from a topic in your own voice</span>
                 </div>
               </div>
             </Card>

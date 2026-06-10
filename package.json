@@ -6,7 +6,6 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "worker:publish": "node scripts/publish-worker.mjs",
     "lint": "eslint"
   },
   "dependencies": {
@@ -18,8 +17,6 @@
     "@upstash/qstash": "^2.10.1",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
-    "bullmq": "^5.66.4",
-    "ioredis": "^5.8.2",
     "lucide-react": "^0.563.0",
     "next": "16.1.1",
     "openai": "^6.15.0",

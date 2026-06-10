@@ -5,7 +5,7 @@ import { DraftCard } from "./DraftCard";
 
 type Draft = {
   id: string;
-  type: "X_POST" | "X_THREAD" | "REEL_SCRIPT";
+  type: "X_POST" | "X_THREAD";
   status: "DRAFT" | "POSTED" | "SCHEDULED" | "REJECTED";
   content: Record<string, unknown>;
   edited_content: Record<string, unknown> | null;
