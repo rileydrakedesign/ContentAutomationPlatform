@@ -336,7 +336,7 @@ export function registerTools(server: McpServer, api: ApiClient): void {
         type: z.enum(["X_POST", "X_THREAD"]).default("X_POST"),
         content: draftContentSchema,
         topic: z.string().optional(),
-        metadata: z.record(z.unknown()).optional(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
       },
     },
     ({ type, content, topic, metadata }) =>
@@ -352,7 +352,7 @@ export function registerTools(server: McpServer, api: ApiClient): void {
         id: z.string().min(1),
         content: draftContentSchema.optional(),
         status: z.enum(DRAFT_STATUSES).optional(),
-        metadata: z.record(z.unknown()).optional(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
       },
     },
     ({ id, content, status, metadata }) =>
