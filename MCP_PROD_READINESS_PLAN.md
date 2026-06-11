@@ -112,9 +112,11 @@ agents are not. This avoids repricing existing subscribers.
 | Reads with no external cost (drafts, queue, voice, strategy, patterns, me) | 0 | — | infra only | — |
 
 *Sync COGS is $0.10 at owned-read rate, $0.50 at standard rate. Implementation MUST use
-`since_id` deltas so steady-state syncs fetch ~10–30 new posts, not 100. Scheduled (cron)
-syncs remain a Pro plan feature, capped at 1/day, and do not debit credits; on-demand syncs
-via API/MCP debit 15.
+`since_id` deltas so steady-state syncs fetch ~10–30 new posts, not 100. ~~Scheduled (cron)
+syncs remain a Pro plan feature, capped at 1/day, and do not debit credits;~~ **(superseded
+2026-06-11: ALL scheduled X pulls removed by user decision — the `analytics-sync` and
+`metrics-refresh` crons are deleted; X reads happen only on command, credit-metered)**
+on-demand syncs via API/MCP debit 15.
 
 Scheduled posts debit at **schedule time** (refund on cancel) so an agent can't queue
 unlimited posts against a balance it doesn't have. URL detection runs at both schedule and
@@ -324,11 +326,9 @@ Write these (with exact instructions + any IDs/URLs produced by the workstreams)
 `MCP_LAUNCH_HUMAN_TASKS.md` as the final task. Currently:
 
 1. **X Developer Console**: switch/confirm the in-house app on pay-per-use billing, load
-   initial credits, set a monthly spend cap (suggest $200 to start) and enable
-   auto-recharge alerts. Confirm whether reads of users' own timelines via OAuth user
-   context bill at the $0.001 owned-read rate or $0.005 standard — if standard, drop cron
-   sync frequency to weekly for Free-tier-connected accounts (economics in §B assume
-   owned-rate for synced timelines; the plan is profitable either way, but margins move).
+   initial credits (suggest $50 — with all scheduled X pulls removed 2026-06-11, every
+   X call is user-initiated and credit-metered, so fixed daily spend is ~$0), set a
+   monthly spend cap and enable auto-recharge alerts.
 2. **npm**: create/claim the `@agentsforx` org, generate an automation token, add as
    `NPM_TOKEN` GitHub Actions secret, push the `mcp-v1.0.0` tag to trigger first publish.
 3. **Stripe live mode**: run `scripts/stripe-setup-credits.ts` with the live key, copy the

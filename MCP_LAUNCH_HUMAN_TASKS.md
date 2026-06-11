@@ -7,14 +7,11 @@ or a business decision). Work top to bottom; 1–3 are launch-blocking.
 ## 1. X Developer Console (launch-blocking)
 
 - [ ] Confirm the in-house X app is on **pay-per-use billing** and load initial
-      credits (suggest $200 to start).
+      credits (suggest $50 to start — all scheduled X pulls were removed
+      2026-06-11, so every X read/write is now user-initiated and
+      credit-metered; fixed daily X spend is ~$0).
 - [ ] Set a **monthly spend cap** and enable auto-recharge alerts in the
       developer console.
-- [ ] Confirm whether reads of users' own timelines via OAuth user context bill
-      at the **$0.001 owned-read** rate or **$0.005 standard**. The credit
-      pricing is profitable either way, but if it's standard-rate, consider
-      dropping the cron `analytics-sync` frequency (currently daily at 06:00)
-      to weekly — see `vercel.json`.
 
 ## 2. npm publish (launch-blocking for the stdio package)
 
@@ -97,5 +94,6 @@ PKCE-verified single-use codes, and rotating refresh tokens.
 - `usage_daily` table: daily est. COGS rollup; Sentry alerts fire at
   >$25/day total or >$5/day per user.
 - Watch the X developer console spend dashboard against `usage_daily`
-  estimates for the first week — if they diverge, the owned-read question in
-  step 1 is the likely cause.
+  estimates for the first week. With all scheduled X pulls removed
+  (2026-06-11), X spend should track user actions 1:1 — any baseline spend
+  with zero user activity means something is calling X that shouldn't be.
