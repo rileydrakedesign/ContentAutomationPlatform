@@ -79,8 +79,11 @@ PKCE-verified single-use codes, and rotating refresh tokens.
 - [ ] `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` (rate limiting is
       fail-closed in prod without them).
 - [ ] New Stripe price ID vars from step 3.
-- [ ] `CRON_SECRET` set; confirm new crons appear after deploy
-      (`credits-reset` 00:30 UTC, `usage-rollup` 00:15 UTC).
+- [ ] `CRON_SECRET` set; confirm crons appear after deploy. Vercel Hobby
+      allows only 2 once-daily crons, so they are: `daily-ops` 00:30 UTC
+      (credit allowance resets + spend rollup/alerts) and `publish-scheduled`
+      05:00 UTC (QStash safety net). `voice-refresh` is unscheduled — re-add
+      it to `vercel.json` if you upgrade to Vercel Pro.
 - [ ] Optional: `CONTENT_API_SELF_URL` if the MCP route should self-call a
       different host than `NEXT_PUBLIC_APP_URL`.
 - [ ] Pre-existing security advisory surfaced during this work:
