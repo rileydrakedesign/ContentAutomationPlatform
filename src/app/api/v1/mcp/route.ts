@@ -4,14 +4,15 @@
  * Claude Code (`--transport http`), and other remote MCP clients can connect
  * without a local install.
  *
- * Auth is the same Bearer sk_live_... API key as the REST API. Every tool
- * call proxies to the v1 REST endpoints, so scopes, rate limits, and credit
- * metering apply identically to both transports.
+ * Auth is OAuth 2.1 (PKCE + dynamic client registration — see
+ * /.well-known/oauth-authorization-server). Every tool call proxies to the
+ * v1 REST endpoints with the caller's access token, so scopes, rate limits,
+ * and credit metering apply identically to both transports.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
-import { validateRawApiKey } from "@/lib/api/auth";
+import { validateOAuthBearer } from "@/lib/api/auth";
 import { registerTools } from "../../../../../mcp/src/tools";
 import { ApiClient, type CreditsInfo } from "../../../../../mcp/src/client";
 
@@ -69,31 +70,38 @@ const handler = createMcpHandler(
   }
 );
 
+// OAuth 2.1 only — this is a claude.ai-style connector. API keys are NOT
+// accepted here (they remain the credential for the REST API and the stdio
+// package). A 401 carries WWW-Authenticate pointing at the protected-resource
+// metadata, which is how MCP clients discover the OAuth flow.
 const verifyToken = async (
   _req: Request,
   bearerToken?: string
 ): Promise<AuthInfo | undefined> => {
-  if (!bearerToken) return undefined;
-  const key = await validateRawApiKey(bearerToken);
-  if (!key) return undefined;
+  if (!bearerToken || !bearerToken.startsWith("mcp_at_")) return undefined;
+  const info = await validateOAuthBearer(bearerToken);
+  if (!info) return undefined;
   return {
     token: bearerToken,
-    scopes: key.scopes,
-    clientId: key.keyId,
-    extra: { userId: key.userId },
+    scopes: info.scopes,
+    clientId: info.keyId,
+    extra: { userId: info.userId },
   };
 };
 
-const authHandler = withMcpAuth(handler, verifyToken, { required: true });
+const authHandler = withMcpAuth(handler, verifyToken, {
+  required: true,
+  resourceMetadataPath: "/.well-known/oauth-protected-resource",
+});
 
-// Outer wrapper: stash a per-request ApiClient (keyed by this request's
-// bearer token) in ALS so the shared tool layer talks to the v1 API as the
-// caller. Invalid/missing keys are rejected by withMcpAuth before any tool
-// runs — the placeholder client never gets used.
+// Outer wrapper: stash a per-request ApiClient (carrying this request's
+// OAuth access token) in ALS so the shared tool layer talks to the v1 API as
+// the caller. Invalid/missing tokens are rejected by withMcpAuth before any
+// tool runs — the placeholder client never gets used.
 function withRequestClient(req: Request): Promise<Response> {
   const authz = req.headers.get("authorization") ?? "";
-  const token = authz.startsWith("Bearer ") ? authz.slice(7) : "sk_invalid";
-  const client = new ApiClient({ baseUrl: BASE_URL, apiKey: token || "sk_invalid" });
+  const token = authz.startsWith("Bearer ") ? authz.slice(7) : "mcp_at_invalid";
+  const client = new ApiClient({ baseUrl: BASE_URL, apiKey: token || "mcp_at_invalid" });
   return als.run(client, () => authHandler(req));
 }
 

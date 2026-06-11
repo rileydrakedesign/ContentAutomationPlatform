@@ -300,6 +300,22 @@ New scopes: `patterns:read`, `patterns:write`, `inspiration:read`, `inspiration:
 - [x] **W8.5** `PLANS` in `src/types/subscription.ts` gains `monthlyCredits` (100 / 2000 /
   7500) and the optional `agent` plan entry (price ID from env, absent = hidden).
 
+### W9 — OAuth 2.1 connector (added 2026-06-11 by user directive; supersedes the W7.2/D5 out-of-scope call)
+
+- [x] **W9.1** OAuth 2.1 authorization server: `oauth_clients/codes/tokens`
+  tables (hashed, service-role only), RFC 8414 + RFC 9728 well-known metadata,
+  RFC 7591 dynamic client registration (public clients, IP rate-limited),
+  consent page at `/oauth/authorize` (server action, scope labels), token
+  endpoint with PKCE S256 (timing-safe), single-use codes (CAS), rotating
+  refresh tokens (CAS).
+- [x] **W9.2** Hosted `/api/v1/mcp` is OAuth-only — API keys rejected there
+  (they remain the credential for REST + stdio). 401s carry WWW-Authenticate
+  → protected-resource metadata for client auto-discovery. v1 REST accepts
+  `mcp_at_` bearers so the proxy keeps scopes/limits/credits enforcement.
+- [x] **W9.3** Smoke-tested live: DCR → code exchange → 32 tools via OAuth
+  token → REST accepts token → sk_live_ rejected on MCP → code replay
+  rejected → refresh rotation kills the old token.
+
 ---
 
 ## D. HUMAN-REQUIRED CHECKLIST (excluded from completion condition)

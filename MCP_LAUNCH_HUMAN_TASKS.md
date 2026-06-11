@@ -55,12 +55,20 @@ The tier is fully implemented but **hidden until
 `NEXT_PUBLIC_STRIPE_AGENT_PRICE_ID` is set** in Vercel env. To ship it, set the
 env var (live price from step 3) and redeploy; to hold, do nothing.
 
-## 5. Decision: claude.ai connector directory
+## 5. claude.ai connector — verify end-to-end (built, needs a human click-through)
 
-The hosted endpoint works today with API-key headers (Claude Code, API
-clients). A claude.ai **connector directory** listing additionally requires
-OAuth 2.1 + dynamic client registration — a separate project. Decide whether to
-pursue it; until then the README documents the `--header` flow.
+OAuth 2.1 + dynamic client registration is **implemented and smoke-tested**
+(W9): the hosted endpoint at `/api/v1/mcp` is OAuth-only (API keys rejected),
+with discovery metadata at `/.well-known/oauth-authorization-server` and
+`/.well-known/oauth-protected-resource`, a consent page at `/oauth/authorize`,
+PKCE-verified single-use codes, and rotating refresh tokens.
+
+- [ ] After deploying, add `https://app.agentsforx.com/api/v1/mcp` as a custom
+      connector in claude.ai (Settings → Connectors) and complete the login +
+      consent flow with a real account — the only part automation can't do.
+- [ ] Same check from Claude Code: `claude mcp add --transport http agentsforx
+      https://app.agentsforx.com/api/v1/mcp`, then `/mcp` → Authenticate.
+- [ ] Optional: submit to the claude.ai connector directory once verified.
 
 ## 6. Legal / ToS
 

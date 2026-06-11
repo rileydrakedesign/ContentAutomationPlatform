@@ -28,13 +28,38 @@ function hashKey(raw: string): string {
   return crypto.createHash("sha256").update(raw).digest("hex");
 }
 
-// Validate an API key from the request Authorization header
+// Validate a bearer credential from the request Authorization header.
+// Two kinds exist: sk_live_ API keys (REST + stdio MCP) and mcp_at_ OAuth
+// access tokens (hosted MCP connector). Both resolve to the same shape so
+// scopes, rate limits, and credit metering apply identically.
 export async function validateApiKey(
   request: NextRequest
 ): Promise<ApiKeyInfo | null> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
-  return validateRawApiKey(authHeader.slice(7));
+  const token = authHeader.slice(7);
+  if (token.startsWith("mcp_at_")) return validateOAuthBearer(token);
+  return validateRawApiKey(token);
+}
+
+// Validate an OAuth access token issued by /api/oauth/token. Rate limit
+// comes from the user's plan (OAuth tokens have no per-key rate_limit row).
+export async function validateOAuthBearer(
+  token: string
+): Promise<ApiKeyInfo | null> {
+  const { validateAccessToken } = await import("@/lib/oauth/server");
+  const info = await validateAccessToken(token);
+  if (!info) return null;
+
+  const { effectivePlan } = await import("@/lib/billing/credits");
+  const plan = await effectivePlan(info.userId);
+
+  return {
+    userId: info.userId,
+    keyId: info.tokenId, // rate-limit bucket per token
+    scopes: info.scopes,
+    rateLimit: plan.limits.apiRateLimit,
+  };
 }
 
 // Validate a raw sk_live_... token (used by the hosted MCP endpoint, which

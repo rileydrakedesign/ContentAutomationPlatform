@@ -1,17 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+
+  // Same open-redirect guard as /api/auth/callback: relative paths only.
+  const nextParam = searchParams.get("next") ?? "/";
+  const next =
+    nextParam.startsWith("/") && !nextParam.startsWith("//") && !nextParam.includes("://")
+      ? nextParam
+      : "/";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,7 +45,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/");
+      router.push(next);
       router.refresh();
     } catch {
       setError("An unexpected error occurred");
@@ -43,7 +59,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
+        redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
 

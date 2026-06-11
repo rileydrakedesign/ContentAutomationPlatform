@@ -48,6 +48,7 @@ export async function proxy(request: NextRequest) {
     "/login",
     "/signup",
     "/agent-for-x", // privacy, terms, marketing legal
+    "/.well-known", // OAuth AS / protected-resource metadata (MCP connector)
   ];
 
   const isPublicPath = PUBLIC_PAGE_PATHS.some(
@@ -56,15 +57,26 @@ export async function proxy(request: NextRequest) {
 
   if (!isPublicPath && !user) {
     const url = request.nextUrl.clone();
+    // Carry the destination (path + query) so login can return the user —
+    // the OAuth consent page (/oauth/authorize?...) depends on this.
+    const next = request.nextUrl.pathname + request.nextUrl.search;
     url.pathname = "/login";
+    url.search = "";
+    if (next !== "/") url.searchParams.set("next", next);
     return NextResponse.redirect(url);
   }
 
-  // Redirect logged-in users away from auth pages
+  // Redirect logged-in users away from auth pages (honoring a safe next=)
   const authPaths = ["/login", "/signup"];
   if (authPaths.includes(path) && user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    const nextParam = request.nextUrl.searchParams.get("next") ?? "/";
+    const safeNext =
+      nextParam.startsWith("/") && !nextParam.startsWith("//") && !nextParam.includes("://")
+        ? nextParam
+        : "/";
+    url.pathname = safeNext.split("?")[0];
+    url.search = safeNext.includes("?") ? safeNext.slice(safeNext.indexOf("?")) : "";
     return NextResponse.redirect(url);
   }
 

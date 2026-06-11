@@ -39,11 +39,17 @@ claude mcp add agentsforx -e CONTENT_API_KEY=sk_live_... -- npx -y @agentsforx/m
 }
 ```
 
-**Remote (no local install):** the same tools are served over streamable HTTP:
+**Remote (no local install, no key handling):** the same tools are served over
+streamable HTTP with OAuth 2.1 — connect and a browser window asks you to log
+in and approve. API keys are not accepted on the remote endpoint.
+
+- **claude.ai:** Settings → Connectors → Add custom connector →
+  `https://app.agentsforx.com/api/v1/mcp`
+- **Claude Code:**
 
 ```bash
-claude mcp add --transport http agentsforx https://app.agentsforx.com/api/v1/mcp \
-  --header "Authorization: Bearer sk_live_..."
+claude mcp add --transport http agentsforx https://app.agentsforx.com/api/v1/mcp
+# then inside Claude Code: /mcp → Authenticate
 ```
 
 ### Environment variables (stdio)
@@ -156,7 +162,9 @@ Local API: set `CONTENT_API_URL=http://localhost:3000`.
 - `src/stdio.ts` — stdio entrypoint with startup health check.
 
 The tool layer is transport-agnostic: the same `registerTools` powers both this
-stdio package and the hosted streamable-HTTP endpoint at `/api/v1/mcp`.
+stdio package (API-key auth) and the hosted streamable-HTTP endpoint at
+`/api/v1/mcp` (OAuth 2.1 with PKCE + dynamic client registration — metadata at
+`/.well-known/oauth-authorization-server`).
 
 ## Releasing
 
