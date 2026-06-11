@@ -12,6 +12,11 @@ export interface PlanConfig {
     scheduling: boolean;
     patternExtraction: boolean;
     insightsChat: boolean;
+    // Agent surface (v1 API + MCP) metering — in-app UI usage is not metered.
+    monthlyCredits: number;
+    apiRateLimit: number; // requests/min per API key
+    apiPublishPerDay: number; // abuse backstop on top of credits
+    apiGeneratePerDay: number;
   };
 }
 
@@ -33,6 +38,10 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       scheduling: false,
       patternExtraction: false,
       insightsChat: false,
+      monthlyCredits: 100,
+      apiRateLimit: 20,
+      apiPublishPerDay: 5,
+      apiGeneratePerDay: 20,
     },
   },
   pro: {
@@ -55,6 +64,10 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       scheduling: true,
       patternExtraction: true,
       insightsChat: true,
+      monthlyCredits: 2000,
+      apiRateLimit: 60,
+      apiPublishPerDay: 200,
+      apiGeneratePerDay: 1000,
     },
   },
 };
