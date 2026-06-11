@@ -1,4 +1,4 @@
-export type PlanId = "free" | "pro";
+export type PlanId = "free" | "pro" | "agent";
 
 export interface PlanConfig {
   id: PlanId;
@@ -70,7 +70,65 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       apiGeneratePerDay: 1000,
     },
   },
+  // Heavy-automation tier. Hidden everywhere until
+  // NEXT_PUBLIC_STRIPE_AGENT_PRICE_ID is set (see isPlanAvailable).
+  agent: {
+    id: "agent",
+    name: "Agent",
+    price: 79,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_AGENT_PRICE_ID || "",
+    features: [
+      "Everything in Pro",
+      "7,500 agent credits per month",
+      "Higher API rate limits & daily caps",
+      "Built for MCP & automation workloads",
+    ],
+    limits: {
+      aiGenerationsPerDay: Infinity,
+      xApiSync: true,
+      scheduling: true,
+      patternExtraction: true,
+      insightsChat: true,
+      monthlyCredits: 7500,
+      apiRateLimit: 120,
+      apiPublishPerDay: 600,
+      apiGeneratePerDay: 3000,
+    },
+  },
 };
+
+/** Plans that can actually be purchased/shown. The agent tier is feature-
+ *  flagged by the presence of its Stripe price ID. */
+export function isPlanAvailable(planId: PlanId): boolean {
+  if (planId === "agent") return !!PLANS.agent.stripePriceId;
+  return true;
+}
+
+/** One-time credit top-up packs, consumed after the monthly allowance.
+ *  Pricing locked in MCP_PROD_READINESS_PLAN.md §B2 — every pack's $/credit
+ *  stays above the URL-post COGS floor so volume discounts can't go negative. */
+export const CREDIT_PACKS = {
+  credits_500: {
+    id: "credits_500",
+    credits: 500,
+    price: 6,
+    stripePriceId: process.env.STRIPE_PRICE_CREDITS_500 || "",
+  },
+  credits_2000: {
+    id: "credits_2000",
+    credits: 2000,
+    price: 20,
+    stripePriceId: process.env.STRIPE_PRICE_CREDITS_2000 || "",
+  },
+  credits_10000: {
+    id: "credits_10000",
+    credits: 10000,
+    price: 80,
+    stripePriceId: process.env.STRIPE_PRICE_CREDITS_10000 || "",
+  },
+} as const;
+
+export type CreditPackId = keyof typeof CREDIT_PACKS;
 
 export interface UserSubscription {
   plan_id: PlanId;

@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/server";
-import { PLANS, type PlanId } from "@/types/subscription";
+import {
+  PLANS,
+  CREDIT_PACKS,
+  isPlanAvailable,
+  type PlanId,
+  type CreditPackId,
+} from "@/types/subscription";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,9 +23,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const planId = body?.planId as PlanId;
+    const planId = body?.planId as PlanId | undefined;
+    const packId = body?.packId as CreditPackId | undefined;
 
-    if (!planId || !PLANS[planId] || !PLANS[planId].stripePriceId) {
+    if (packId) {
+      if (!CREDIT_PACKS[packId] || !CREDIT_PACKS[packId].stripePriceId) {
+        return NextResponse.json({ error: "Invalid credit pack" }, { status: 400 });
+      }
+    } else if (
+      !planId ||
+      !PLANS[planId] ||
+      !PLANS[planId].stripePriceId ||
+      !isPlanAvailable(planId)
+    ) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
@@ -32,7 +48,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const plan = PLANS[planId];
     const stripe = getStripe();
     const admin = createAdminClient();
 
@@ -78,6 +93,30 @@ export async function POST(request: NextRequest) {
       { onConflict: "user_id" }
     );
 
+    // One-time credit pack purchase (mode=payment). Fulfilled by the webhook's
+    // checkout.session.completed handler via grantPackCredits.
+    if (packId) {
+      const pack = CREDIT_PACKS[packId];
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: "payment",
+        line_items: [{ price: pack.stripePriceId, quantity: 1 }],
+        success_url: `${appUrl}/settings?tab=billing&success=credits&pack=${packId}`,
+        cancel_url: `${appUrl}/settings?tab=billing`,
+        automatic_tax: { enabled: true },
+        tax_id_collection: { enabled: true },
+        billing_address_collection: "required",
+        customer_update: { address: "auto", name: "auto" },
+        metadata: {
+          supabase_user_id: user.id,
+          pack_id: packId,
+          credits: String(pack.credits),
+        },
+      });
+      return NextResponse.json({ url: session.url });
+    }
+
+    const plan = PLANS[planId!];
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
@@ -92,9 +131,9 @@ export async function POST(request: NextRequest) {
       billing_address_collection: "required",
       customer_update: { address: "auto", name: "auto" },
       subscription_data: {
-        metadata: { supabase_user_id: user.id, plan_id: planId },
+        metadata: { supabase_user_id: user.id, plan_id: planId! },
       },
-      metadata: { supabase_user_id: user.id, plan_id: planId },
+      metadata: { supabase_user_id: user.id, plan_id: planId! },
     });
 
     return NextResponse.json({ url: session.url });

@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
 import { upsertSubscription } from "@/lib/stripe/subscription";
+import { grantPackCredits } from "@/lib/billing/credits";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getPlanByPriceId, type PlanId } from "@/types/subscription";
 
@@ -46,7 +47,7 @@ async function resolvePlanId(
   if (plan) return plan.id;
 
   const metaPlan = subscription.metadata?.plan_id;
-  if (metaPlan === "free" || metaPlan === "pro") return metaPlan;
+  if (metaPlan === "free" || metaPlan === "pro" || metaPlan === "agent") return metaPlan;
 
   const message = `Stripe webhook: cannot map price ${priceId} (subscription ${subscription.id}) to a plan — keeping stored plan`;
   console.error(message);
@@ -109,8 +110,20 @@ export async function POST(request: NextRequest) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.metadata?.supabase_user_id;
-        const planId = session.metadata?.plan_id as PlanId;
 
+        // One-time credit pack purchase. Idempotent: the stripe_events claim
+        // above guarantees this grant runs at most once per event.
+        if (session.mode === "payment" && session.metadata?.pack_id) {
+          const credits = Number(session.metadata.credits);
+          if (!userId || !Number.isFinite(credits) || credits <= 0) {
+            console.error("Invalid credit pack checkout metadata:", session.id);
+            break;
+          }
+          await grantPackCredits(userId, credits, session.metadata.pack_id, session.id);
+          break;
+        }
+
+        const planId = session.metadata?.plan_id as PlanId;
         if (!userId || !planId) {
           console.error("Missing metadata in checkout session:", session.id);
           break;

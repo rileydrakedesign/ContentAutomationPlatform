@@ -285,19 +285,19 @@ New scopes: `patterns:read`, `patterns:write`, `inspiration:read`, `inspiration:
 
 ### W8 — Stripe credit packs & ops
 
-- [ ] **W8.1** Script `scripts/stripe-setup-credits.ts` that idempotently creates (test
+- [x] **W8.1** Script `scripts/stripe-setup-credits.ts` that idempotently creates (test
   mode first) Products/Prices: `credits_500` $6, `credits_2000` $20, `credits_10000` $80,
   and optional `plan_agent` $79/mo — then prints the price IDs for env vars. Run it
   against test mode now if `STRIPE_SECRET_KEY` is a test key; live-mode run is human (§D).
-- [ ] **W8.2** `POST /api/stripe/checkout` extended for `mode: "payment"` credit packs
+- [x] **W8.2** `POST /api/stripe/checkout` extended for `mode: "payment"` credit packs
   (metadata: `pack_id`, `credits`); webhook `checkout.session.completed` with
   `mode=payment` grants pack credits via ledger (idempotent via `stripe_events`).
-- [ ] **W8.3** Settings UI: credits balance card (balance, allowance, resets-at, buy-pack
+- [x] **W8.3** Settings UI: credits balance card (balance, allowance, resets-at, buy-pack
   buttons) on the existing settings/billing page; API keys page shows per-key last-used.
-- [ ] **W8.4** Spend telemetry: nightly cron job computes yesterday's estimated X COGS
+- [x] **W8.4** Spend telemetry: nightly cron job computes yesterday's estimated X COGS
   from `credit_ledger` actions and writes to a `usage_daily` table; alert (console/error
   log → Sentry) if estimated daily COGS > $25 or any single user > $5/day.
-- [ ] **W8.5** `PLANS` in `src/types/subscription.ts` gains `monthlyCredits` (100 / 2000 /
+- [x] **W8.5** `PLANS` in `src/types/subscription.ts` gains `monthlyCredits` (100 / 2000 /
   7500) and the optional `agent` plan entry (price ID from env, absent = hidden).
 
 ---

@@ -3,20 +3,23 @@
 import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Check } from "lucide-react";
-import { PLANS, PlanId } from "@/types/subscription";
+import { PLANS, PlanId, isPlanAvailable } from "@/types/subscription";
 
 const planMeta: Record<PlanId, { description: string; cta: string; highlighted: boolean }> = {
   free: { description: "Get started with CSV imports and basic AI", cta: "Current Plan", highlighted: false },
   pro: { description: "Full power for serious X creators", cta: "Upgrade to Pro", highlighted: true },
+  agent: { description: "For MCP agents and automation at volume", cta: "Upgrade to Agent", highlighted: false },
 };
 
-const plans = (Object.keys(PLANS) as PlanId[]).map((id) => ({
-  id,
-  name: PLANS[id].name,
-  price: PLANS[id].price,
-  features: PLANS[id].features,
-  ...planMeta[id],
-}));
+const plans = (Object.keys(PLANS) as PlanId[])
+  .filter(isPlanAvailable)
+  .map((id) => ({
+    id,
+    name: PLANS[id].name,
+    price: PLANS[id].price,
+    features: PLANS[id].features,
+    ...planMeta[id],
+  }));
 
 export default function PricingPage() {
   const { user } = useAuth();
