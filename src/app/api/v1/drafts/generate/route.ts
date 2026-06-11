@@ -1,7 +1,14 @@
 import { withApiAuth, apiSuccess, apiError, apiOptions } from "@/lib/api/v1-handler";
+import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { createChatCompletion, AIProvider } from "@/lib/ai";
-import { requireAiGeneration } from "@/lib/stripe/gate";
+import {
+  CREDIT_COSTS,
+  requireCredits,
+  refundCredits,
+  checkDailyActionCap,
+  withCreditHeaders,
+} from "@/lib/billing/credits";
 
 export const OPTIONS = apiOptions;
 
@@ -43,10 +50,27 @@ export const POST = withApiAuth(["drafts:generate"], async ({ auth, request }) =
     return apiError("draftType must be X_POST or X_THREAD", "validation_error", 400);
   }
 
-  // Quota check + log only after the request is known-valid, so a 400 doesn't
-  // burn a free user's daily AI generation.
-  const aiGate = await requireAiGeneration(auth.userId, "v1-drafts-generate");
-  if (aiGate) return apiError("Daily AI generation limit reached", "ai_limit", 429);
+  // Agent-surface metering replaces the in-app daily AI quota here: the API
+  // is governed by credits + its own daily cap, and does not consume the
+  // in-app free-tier generation allowance (ai_usage_log).
+  const dailyCap = await checkDailyActionCap(auth.userId, "generate");
+  if (!dailyCap.allowed) {
+    return apiError(
+      `Daily API generation cap reached (${dailyCap.used}/${dailyCap.limit})`,
+      "daily_cap",
+      429,
+      { used: dailyCap.used, limit: dailyCap.limit }
+    );
+  }
+
+  // Debit after the request is known-valid (a 400 shouldn't cost credits);
+  // refunded below if the model call or parse fails.
+  const charge = await requireCredits(
+    auth.userId,
+    CREDIT_COSTS["drafts.generate"],
+    "drafts.generate"
+  );
+  if (charge instanceof NextResponse) return charge;
 
   const supabase = createAdminClient();
   const count = Math.min(5, Math.max(1, generateCount));
@@ -149,17 +173,27 @@ Return ONLY the JSON array, no other text.`;
   const { getAssembledPromptForUser } = await import("@/lib/openai/prompts/prompt-assembler");
   const systemPrompt = await getAssembledPromptForUser(supabase, auth.userId, voiceType);
 
-  const result = await createChatCompletion({
-    provider: aiProvider,
-    modelTier: "fast",
-    messages: [
-      { role: "system", content: `${systemPrompt}\n\nReturn valid JSON only.` },
-      { role: "user", content: prompt },
-    ],
-    temperature: 0.8,
-    maxTokens: 2000,
-    jsonResponse: false,
-  });
+  let result: { content: string | null };
+  try {
+    result = await createChatCompletion({
+      provider: aiProvider,
+      modelTier: "fast",
+      messages: [
+        { role: "system", content: `${systemPrompt}\n\nReturn valid JSON only.` },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.8,
+      maxTokens: 2000,
+      jsonResponse: false,
+    });
+  } catch (e) {
+    await refundCredits(auth.userId, charge.charged, "refund.generate_failed");
+    return apiError(
+      `Generation failed: ${e instanceof Error ? e.message : "unknown error"}`,
+      "generation_failed",
+      502
+    );
+  }
 
   const responseText = result.content || "[]";
 
@@ -170,6 +204,7 @@ Return ONLY the JSON array, no other text.`;
       generatedOptions = JSON.parse(jsonMatch[0]);
     }
   } catch {
+    await refundCredits(auth.userId, charge.charged, "refund.generate_failed");
     return apiError("Failed to parse generated content", "generation_failed", 500);
   }
 
@@ -206,5 +241,8 @@ Return ONLY the JSON array, no other text.`;
     };
   });
 
-  return apiSuccess({ options, patterns_used: patterns, topic: topic || null, voice_type: voiceType });
+  return withCreditHeaders(
+    apiSuccess({ options, patterns_used: patterns, topic: topic || null, voice_type: voiceType }),
+    charge
+  );
 });

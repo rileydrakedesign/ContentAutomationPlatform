@@ -148,7 +148,10 @@ export async function upsertSubscription(
       console.error("Failed to update subscription:", error);
       throw error;
     }
-    if (updated && updated.length > 0) return;
+    if (updated && updated.length > 0) {
+      await syncApiKeyRateLimits(userId);
+      return;
+    }
 
     const { data: existing } = await supabase
       .from("subscriptions")
@@ -172,5 +175,29 @@ export async function upsertSubscription(
   if (error) {
     console.error("Failed to upsert subscription:", error);
     throw error;
+  }
+
+  await syncApiKeyRateLimits(userId);
+}
+
+/**
+ * Keep per-key rate limits in step with the user's effective plan. Called on
+ * every subscription change; best-effort (credits + daily caps are the
+ * economic backstop, the per-minute limit is just throttling).
+ */
+export async function syncApiKeyRateLimits(userId: string): Promise<void> {
+  try {
+    const supabase = await createAdminClient();
+    const sub = await getUserSubscription(userId);
+    const plan = PLANS[sub.plan_id] || PLANS.free;
+    const effective = isSubscriptionActive(sub) ? plan : PLANS.free;
+
+    await supabase
+      .from("api_keys")
+      .update({ rate_limit: effective.limits.apiRateLimit })
+      .eq("user_id", userId)
+      .is("revoked_at", null);
+  } catch (e) {
+    console.error("Failed to sync API key rate limits:", e);
   }
 }

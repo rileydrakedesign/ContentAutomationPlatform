@@ -1,10 +1,24 @@
-import { withApiAuth, apiSuccess, apiError, apiOptions } from "@/lib/api/v1-handler";
+import { withApiAuth, apiSuccess, apiOptions } from "@/lib/api/v1-handler";
+import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import {
+  CREDIT_COSTS,
+  requireCredits,
+  withCreditHeaders,
+} from "@/lib/billing/credits";
 
 export const OPTIONS = apiOptions;
 
 // GET /api/v1/analytics — Get analytics data (CSV-uploaded + captured posts)
 export const GET = withApiAuth(["analytics:read"], async ({ auth, request }) => {
+  // Flat 1 credit: served from our DB, no X call — covers infra.
+  const charge = await requireCredits(
+    auth.userId,
+    CREDIT_COSTS["analytics.read"],
+    "analytics.read"
+  );
+  if (charge instanceof NextResponse) return charge;
+
   const supabase = createAdminClient();
   const url = new URL(request.url);
   const include = url.searchParams.get("include") || "summary"; // "summary" | "posts" | "all"
@@ -46,5 +60,5 @@ export const GET = withApiAuth(["analytics:read"], async ({ auth, request }) => 
     response.csv_posts = analytics.posts;
   }
 
-  return apiSuccess(response);
+  return withCreditHeaders(apiSuccess(response), charge);
 });

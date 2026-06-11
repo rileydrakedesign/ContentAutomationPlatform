@@ -87,7 +87,7 @@ export function publishCreditCost(texts: string[]): number {
   );
 }
 
-async function effectivePlan(userId: string): Promise<PlanConfig> {
+export async function effectivePlan(userId: string): Promise<PlanConfig> {
   const sub = await getUserSubscription(userId);
   const plan = PLANS[sub.plan_id] || PLANS.free;
   return isSubscriptionActive(sub) ? plan : PLANS.free;

@@ -1,6 +1,7 @@
 import { withApiAuth, apiSuccess, apiError, apiOptions } from "@/lib/api/v1-handler";
 import { createAdminClient } from "@/lib/supabase/server";
 import { qstash } from "@/lib/qstash/client";
+import { refundCredits } from "@/lib/billing/credits";
 
 export const OPTIONS = apiOptions;
 
@@ -15,7 +16,7 @@ export const DELETE = withApiAuth(["publish:write"], async ({ auth, params }) =>
 
   const { data: row, error: fetchError } = await supabase
     .from("scheduled_posts")
-    .select("id, status, draft_id, qstash_message_id")
+    .select("id, status, draft_id, qstash_message_id, credits_charged")
     .eq("id", id)
     .eq("user_id", auth.userId)
     .single();
@@ -60,6 +61,12 @@ export const DELETE = withApiAuth(["publish:write"], async ({ auth, params }) =>
       "invalid_state",
       409
     );
+  }
+
+  // Refund what schedule-time debited. The CAS above guarantees this runs at
+  // most once per scheduled post — a second cancel hits the 409 path.
+  if (row.credits_charged > 0) {
+    await refundCredits(auth.userId, row.credits_charged, "refund.schedule_cancel", id);
   }
 
   // Return the linked draft to DRAFT status so it can be re-queued.

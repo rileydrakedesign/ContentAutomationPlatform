@@ -1,6 +1,7 @@
 import { withApiAuth, apiSuccess, apiOptions } from "@/lib/api/v1-handler";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/x-api";
+import { getCredits, effectivePlan } from "@/lib/billing/credits";
 
 export const OPTIONS = apiOptions;
 
@@ -29,6 +30,11 @@ export const GET = withApiAuth([], async ({ auth }) => {
     }
   }
 
+  const [credits, plan] = await Promise.all([
+    getCredits(auth.userId),
+    effectivePlan(auth.userId),
+  ]);
+
   return apiSuccess({
     user_id: auth.userId,
     x_username: conn?.x_username ?? null,
@@ -40,5 +46,13 @@ export const GET = withApiAuth([], async ({ auth }) => {
     last_api_sync_at: conn?.last_api_sync_at ?? null,
     scopes: auth.scopes,
     rate_limit: auth.rateLimit,
+    plan: plan.id,
+    credits: {
+      balance: credits.total,
+      allowance_remaining: credits.balance,
+      pack_balance: credits.packBalance,
+      monthly_allowance: credits.monthlyAllowance,
+      resets_at: credits.resetsAt,
+    },
   });
 });

@@ -1,7 +1,15 @@
 import { withApiAuth, apiSuccess, apiError, apiOptions } from "@/lib/api/v1-handler";
+import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { qstash } from "@/lib/qstash/client";
 import { requireFeature } from "@/lib/stripe/gate";
+import {
+  publishCreditCost,
+  requireCredits,
+  refundCredits,
+  checkDailyActionCap,
+  withCreditHeaders,
+} from "@/lib/billing/credits";
 
 export const OPTIONS = apiOptions;
 
@@ -38,6 +46,35 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
     return apiError("scheduledFor must be in the future", "validation_error", 400);
   }
 
+  // Resolve the tweet texts now: they drive the credit price (URL surcharge),
+  // and a schedule with no content should fail here, not at publish time.
+  const texts: string[] =
+    contentType === "X_THREAD"
+      ? ((payload.tweets as string[]) || (payload.thread as string[]) || [])
+          .map((t) => String(t || "").trim())
+          .filter(Boolean)
+      : [String(payload.text || "").trim()].filter(Boolean);
+  if (texts.length === 0) {
+    return apiError("Missing text/tweets in payload", "validation_error", 400);
+  }
+
+  // Daily publish cap counts scheduled posts too — they become X writes.
+  const cap = await checkDailyActionCap(auth.userId, "publish");
+  if (!cap.allowed) {
+    return apiError(
+      `Daily API publish cap reached (${cap.used}/${cap.limit})`,
+      "daily_cap",
+      429,
+      { used: cap.used, limit: cap.limit }
+    );
+  }
+
+  // Debit at schedule time (refunded on cancel) so an agent can't queue
+  // unlimited posts against a balance it doesn't have.
+  const cost = publishCreditCost(texts);
+  const charge = await requireCredits(auth.userId, cost, "publish.schedule", draftId);
+  if (charge instanceof NextResponse) return charge;
+
   const { data: row, error: insertError } = await supabase
     .from("scheduled_posts")
     .insert({
@@ -47,11 +84,13 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
       payload,
       scheduled_for: scheduledDate.toISOString(),
       status: "scheduled",
+      credits_charged: cost,
     })
     .select("id, scheduled_for")
     .single();
 
   if (insertError) {
+    await refundCredits(auth.userId, cost, "refund.schedule_failed", draftId);
     return apiError("Failed to schedule post", "create_failed", 500);
   }
 
@@ -84,5 +123,8 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
       .eq("user_id", auth.userId);
   }
 
-  return apiSuccess({ id: row.id, scheduledFor: row.scheduled_for }, 201);
+  return withCreditHeaders(
+    apiSuccess({ id: row.id, scheduledFor: row.scheduled_for }, 201),
+    charge
+  );
 });

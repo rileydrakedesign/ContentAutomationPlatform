@@ -1,6 +1,15 @@
 import { withApiAuth, apiSuccess, apiError, apiOptions } from "@/lib/api/v1-handler";
+import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { postTweet, getValidAccessToken } from "@/lib/x-api";
+import {
+  publishCreditCost,
+  containsUrl,
+  requireCredits,
+  refundCredits,
+  checkDailyActionCap,
+  withCreditHeaders,
+} from "@/lib/billing/credits";
 
 export const OPTIONS = apiOptions;
 
@@ -39,6 +48,17 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
     );
   }
 
+  // Daily publish cap — abuse backstop on top of credits.
+  const cap = await checkDailyActionCap(auth.userId, "publish");
+  if (!cap.allowed) {
+    return apiError(
+      `Daily API publish cap reached (${cap.used}/${cap.limit})`,
+      "daily_cap",
+      429,
+      { used: cap.used, limit: cap.limit }
+    );
+  }
+
   if (contentType === "X_POST" || contentType === "X_REPLY") {
     const text = String(payload.text || "").trim();
     if (!text) {
@@ -52,6 +72,16 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
       return apiError("X_REPLY requires payload.inReplyToId (the tweet being replied to)", "validation_error", 400);
     }
 
+    // Debit before the X call; refund below if X rejects it.
+    const action = containsUrl(text) ? "publish.tweet_with_url" : "publish.tweet";
+    const charge = await requireCredits(
+      auth.userId,
+      publishCreditCost([text]),
+      action,
+      draftId
+    );
+    if (charge instanceof NextResponse) return charge;
+
     let posted: { id_str: string };
     try {
       posted = await postTweet(
@@ -60,6 +90,7 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
         inReplyToId ? { inReplyToStatusId: inReplyToId } : undefined
       );
     } catch (e) {
+      await refundCredits(auth.userId, charge.charged, "refund.publish_failed", draftId);
       return apiError(
         `X rejected the post: ${e instanceof Error ? e.message : "unknown error"}`,
         "x_api_error",
@@ -95,7 +126,10 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
         .eq("user_id", auth.userId);
     }
 
-    return apiSuccess({ posted: true, postedIds: [posted.id_str] });
+    return withCreditHeaders(
+      apiSuccess({ posted: true, postedIds: [posted.id_str] }),
+      charge
+    );
   }
 
   // Thread
@@ -108,6 +142,15 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
   if (cleaned.length === 0) {
     return apiError("Missing tweets in payload", "validation_error", 400);
   }
+
+  // Debit the whole thread up front; un-posted tweets are refunded on failure.
+  const charge = await requireCredits(
+    auth.userId,
+    publishCreditCost(cleaned),
+    "publish.thread",
+    draftId
+  );
+  if (charge instanceof NextResponse) return charge;
 
   const postedIds: string[] = [];
   let publishError: string | null = null;
@@ -123,6 +166,9 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
     }
   } catch (e) {
     publishError = e instanceof Error ? e.message : "unknown error";
+    // Refund the un-posted remainder — the posted prefix did cost us X writes.
+    const refund = publishCreditCost(cleaned.slice(postedIds.length));
+    await refundCredits(auth.userId, refund, "refund.thread_partial", draftId);
     if (postedIds.length === 0) {
       return apiError(`X rejected the thread: ${publishError}`, "x_api_error", 502);
     }
@@ -169,5 +215,5 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
       .eq("user_id", auth.userId);
   }
 
-  return apiSuccess({ posted: true, postedIds });
+  return withCreditHeaders(apiSuccess({ posted: true, postedIds }), charge);
 });

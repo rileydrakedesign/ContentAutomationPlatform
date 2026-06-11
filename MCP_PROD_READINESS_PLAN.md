@@ -171,7 +171,7 @@ in this file as you complete tasks.
 
 ### W1 — Credit ledger & metering core
 
-- [ ] **W1.1** Migration: `credit_ledger` table (`id`, `user_id`, `delta` int — positive
+- [x] **W1.1** Migration: `credit_ledger` table (`id`, `user_id`, `delta` int — positive
   grant / negative debit, `balance_after` int, `action` text, `reference_id` text nullable
   — draft/queue/tweet id, `pack_id` nullable, `created_at`) + `credit_balances` materialized
   view or a `user_credits` table (`user_id` PK, `balance`, `monthly_allowance`,
@@ -179,31 +179,31 @@ in this file as you complete tasks.
   (`debit_credits(user_id, amount, action, reference)` — `SECURITY DEFINER`, row-lock,
   rejects if balance < amount, returns new balance). RLS: users read own rows only.
   *Verify:* migration applied; RPC rejects overdraft in a SQL test via `execute_sql`.
-- [ ] **W1.2** `src/lib/billing/credits.ts`: `CREDIT_COSTS` map exactly as §B2,
+- [x] **W1.2** `src/lib/billing/credits.ts`: `CREDIT_COSTS` map exactly as §B2,
   `debitCredits()`, `grantMonthlyAllowance()`, `getBalance()`, URL detector
   (`containsUrl(text)` — match `https?://` and bare domains the way X's pricing counts
   them: any t.co-shortenable URL). Unit tests for the URL detector edge cases
   (bare domain, @mention, $cashtag, no-TLD strings must not match).
-- [ ] **W1.3** Allowance reset: extend an existing daily cron (`src/app/api/cron/`) to call
+- [x] **W1.3** Allowance reset: extend an existing daily cron (`src/app/api/cron/`) to call
   `grantMonthlyAllowance()` for users whose `allowance_resets_at <= now()` (reset to plan
   allowance, not additive; pack credits tracked separately and untouched).
-- [ ] **W1.4** Insufficient credits → HTTP 402 `{ error, code: "INSUFFICIENT_CREDITS",
+- [x] **W1.4** Insufficient credits → HTTP 402 `{ error, code: "INSUFFICIENT_CREDITS",
   balance, required, topup_url }`; every metered response includes `X-Credits-Remaining`
   and `X-Credits-Charged` headers.
 
 ### W2 — Meter the v1 surface
 
-- [ ] **W2.1** Wire debits into: `POST /v1/drafts/generate` (3), `POST /v1/publish/now`
+- [x] **W2.1** Wire debits into: `POST /v1/drafts/generate` (3), `POST /v1/publish/now`
   (3/tweet, 30 if URL), `POST /v1/publish/schedule` (debit at schedule; refund on
   `DELETE /v1/queue/{id}`), `GET /v1/tweets/{id}` (1), `GET /v1/analytics` (1). Debit
   BEFORE the X/LLM call; refund on hard failure of the external call (publish failed,
   generation threw). QStash publish path must NOT double-debit already-scheduled posts.
-- [ ] **W2.2** Per-plan daily caps + per-plan default `rate_limit` (§B4) enforced in
+- [x] **W2.2** Per-plan daily caps + per-plan default `rate_limit` (§B4) enforced in
   `requireApiAuth`/metering layer; key creation and plan-change webhook set `rate_limit`.
-- [ ] **W2.3** `GET /v1/me` response gains `credits: { balance, monthly_allowance,
+- [x] **W2.3** `GET /v1/me` response gains `credits: { balance, monthly_allowance,
   resets_at }` and `plan`. Free-plan keys: scheduling scope rejected as today; publish
   allowed within caps.
-- [ ] **W2.4** Tests (vitest, root project): debit/refund on publish failure, URL
+- [x] **W2.4** Tests (vitest, root project): debit/refund on publish failure, URL
   surcharge, 402 shape, schedule-then-cancel refund, cron no-double-grant.
 
 ### W3 — v1 endpoint parity (new endpoints, all metered/scoped)

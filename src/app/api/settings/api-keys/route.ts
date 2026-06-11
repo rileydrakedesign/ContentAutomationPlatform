@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
 import { generateApiKey } from "@/lib/api/auth";
 import { ALLOWED_SCOPES } from "@/lib/api/scopes";
+import { effectivePlan } from "@/lib/billing/credits";
 
 export async function GET() {
   const supabase = await createAuthClient();
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { raw, prefix, hash } = generateApiKey();
+  const plan = await effectivePlan(user.id);
 
   const { data: key, error } = await supabase
     .from("api_keys")
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest) {
       key_hash: hash,
       name: name.trim(),
       scopes,
+      rate_limit: plan.limits.apiRateLimit,
     })
     .select("id, key_prefix, name, scopes, created_at")
     .single();
