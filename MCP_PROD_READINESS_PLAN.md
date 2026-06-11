@@ -273,12 +273,12 @@ New scopes: `patterns:read`, `patterns:write`, `inspiration:read`, `inspiration:
 
 ### W7 — Remote MCP transport (hosted)
 
-- [ ] **W7.1** Streamable-HTTP MCP endpoint at `POST /api/v1/mcp` in the Next.js app,
+- [x] **W7.1** Streamable-HTTP MCP endpoint at `POST /api/v1/mcp` in the Next.js app,
   reusing `registerTools` from a shared build (move `mcp/src/tools.ts` consumption via a
   small shared package or duplicate-import with a sync test). Auth: `Authorization:
   Bearer sk_live_...` (same API keys). Stateless JSON mode (no SSE session) is acceptable
   for v1. Rate-limited and metered identically to REST.
-- [ ] **W7.2** Document remote usage in README + docs page (`claude mcp add --transport
+- [x] **W7.2** Document remote usage in README + docs page (`claude mcp add --transport
   http agentsforx https://app.agentsforx.com/api/v1/mcp --header "Authorization: Bearer ..."`).
   OAuth/dynamic-client-registration for the claude.ai connector directory is explicitly
   OUT of scope (human decision, §D).

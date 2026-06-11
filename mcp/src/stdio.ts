@@ -8,8 +8,8 @@
  *   MCP_DEBUG=1      — structured request logging to stderr
  */
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { buildServer } from "./server.js";
-import { ApiClient, ApiError } from "./client.js";
+import { buildServer } from "./server";
+import { ApiClient, ApiError } from "./client";
 
 async function main(): Promise<void> {
   const apiKey = process.env.CONTENT_API_KEY;

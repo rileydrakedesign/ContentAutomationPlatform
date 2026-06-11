@@ -3,8 +3,8 @@
  * (stdio entrypoint or the hosted streamable-HTTP endpoint).
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ApiClient } from "./client.js";
-import { registerTools } from "./tools.js";
+import { ApiClient } from "./client";
+import { registerTools } from "./tools";
 
 const INSTRUCTIONS = `Agents For X lets you draft, schedule, and publish X (Twitter) posts and replies in the user's own voice, read their analytics, and manage their patterns, inspiration, and strategy.
 

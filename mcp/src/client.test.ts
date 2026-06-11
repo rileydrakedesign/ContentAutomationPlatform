@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ApiClient, ApiError } from "./client.js";
+import { ApiClient, ApiError } from "./client";
 
 function jsonResponse(
   status: number,

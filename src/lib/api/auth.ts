@@ -34,8 +34,14 @@ export async function validateApiKey(
 ): Promise<ApiKeyInfo | null> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
+  return validateRawApiKey(authHeader.slice(7));
+}
 
-  const token = authHeader.slice(7);
+// Validate a raw sk_live_... token (used by the hosted MCP endpoint, which
+// gets the bearer token from its own auth wrapper rather than a NextRequest).
+export async function validateRawApiKey(
+  token: string
+): Promise<ApiKeyInfo | null> {
   if (!token.startsWith(KEY_PREFIX)) return null;
 
   const keyHash = hashKey(token);

@@ -1,7 +1,7 @@
 {
   "name": "@agentsforx/mcp",
   "version": "1.0.0",
-  "description": "MCP server for Agents For X \u2014 generate, draft, schedule, and publish X posts and replies in your voice, plus analytics.",
+  "description": "MCP server for Agents For X — generate, draft, schedule, and publish X posts and replies in your voice, plus analytics.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -16,8 +16,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
+    "build": "tsup src/stdio.ts src/server.ts src/tools.ts src/client.ts --format esm --dts --clean --out-dir dist",
+    "dev": "tsup src/stdio.ts --format esm --watch --out-dir dist",
     "start": "node dist/stdio.js",
     "inspector": "npm run build && npx @modelcontextprotocol/inspector node dist/stdio.js",
     "test": "vitest run",
@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.6.0",
     "vitest": "^4.1.8"
   },

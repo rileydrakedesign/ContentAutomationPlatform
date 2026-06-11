@@ -11,7 +11,7 @@
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { ApiClient, ApiError } from "./client.js";
+import { ApiClient, ApiError } from "./client";
 
 type ToolResult = {
   content: Array<{ type: "text"; text: string }>;

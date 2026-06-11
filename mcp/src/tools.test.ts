@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { registerTools } from "./tools.js";
-import { ApiClient, ApiError, type CreditsInfo } from "./client.js";
+import { registerTools } from "./tools";
+import { ApiClient, ApiError, type CreditsInfo } from "./client";
 
 const EXPECTED_TOOLS = [
   // identity & config
