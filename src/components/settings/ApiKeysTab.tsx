@@ -27,6 +27,10 @@ const SCOPE_GROUPS: Record<string, string[]> = {
   Analytics: ["analytics:read"],
   Voice: ["voice:read", "voice:write"],
   Strategy: ["strategy:read", "strategy:write"],
+  Patterns: ["patterns:read", "patterns:write"],
+  Inspiration: ["inspiration:read", "inspiration:write"],
+  Niche: ["niche:read"],
+  Search: ["search:read"],
 };
 
 export function ApiKeysTab() {

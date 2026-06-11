@@ -4,7 +4,7 @@ export const openApiSpec = {
     title: "Content Automation API",
     version: "1.0.0",
     description:
-      "Programmatic access to your content automation platform — manage drafts, generate AI content, publish to X, read analytics, configure voice settings, and set content strategy.\n\n## Authentication\n\nAll endpoints require an API key passed via the `Authorization` header:\n\n```\nAuthorization: Bearer sk_live_...\n```\n\nCreate API keys in **Settings → API Keys**. Each key has scoped permissions — only endpoints matching the key's scopes will be accessible.\n\n## Rate Limiting\n\nRequests are rate-limited per API key using a sliding window (default: 60 requests/minute). Rate limit info is included in response headers:\n\n| Header | Description |\n|---|---|\n| `X-RateLimit-Limit` | Max requests per window |\n| `X-RateLimit-Remaining` | Requests remaining |\n| `X-RateLimit-Reset` | Unix timestamp when the window resets |\n\n## Error Format\n\nAll errors return a consistent JSON structure:\n\n```json\n{\n  \"error\": \"Human-readable message\",\n  \"code\": \"machine_readable_code\"\n}\n```\n\nCommon error codes: `unauthorized`, `forbidden`, `rate_limited`, `validation_error`, `not_found`, `internal_error`.",
+      "Programmatic access to your content automation platform — manage drafts, generate AI content, publish to X, read analytics, configure voice settings, and set content strategy.\n\n## Authentication\n\nAll endpoints require an API key passed via the `Authorization` header:\n\n```\nAuthorization: Bearer sk_live_...\n```\n\nCreate API keys in **Settings → API Keys**. Each key has scoped permissions — only endpoints matching the key's scopes will be accessible.\n\n## Rate Limiting\n\nRequests are rate-limited per API key using a sliding window (per-plan: 20–120 requests/minute). Rate limit info is included in response headers:\n\n| Header | Description |\n|---|---|\n| `X-RateLimit-Limit` | Max requests per window |\n| `X-RateLimit-Remaining` | Requests remaining |\n| `X-RateLimit-Reset` | Unix timestamp when the window resets |\n\n## Credits\n\nActions that incur real X API or AI costs are metered in credits (1 credit = $0.01). Each operation documents its price via the `x-credits` extension. Key prices: generation 3, publish 3 per tweet, publish containing a URL 30, tweet read 1, search 1/result (min 5), on-demand sync 15. Your monthly allowance resets on your billing anniversary; purchased credit packs are consumed after the allowance and never expire while subscribed.\n\nMetered responses include `X-Credits-Charged` and `X-Credits-Remaining` headers. When you run out you'll get **402** `INSUFFICIENT_CREDITS` with your balance and a top-up URL. Failed external calls are automatically refunded.\n\n## Error Format\n\nAll errors return a consistent JSON structure:\n\n```json\n{\n  \"error\": \"Human-readable message\",\n  \"code\": \"machine_readable_code\"\n}\n```\n\nCommon error codes: `unauthorized`, `forbidden`, `rate_limited`, `daily_cap`, `INSUFFICIENT_CREDITS`, `validation_error`, `not_found`, `internal_error`.",
   },
   servers: [
     {
@@ -21,6 +21,11 @@ export const openApiSpec = {
     { name: "Analytics", description: "Read engagement and performance data" },
     { name: "Voice", description: "Configure voice settings and examples" },
     { name: "Strategy", description: "Manage content strategy and weekly targets" },
+    { name: "Patterns", description: "Extracted growth patterns" },
+    { name: "Inspiration", description: "Saved inspiration posts" },
+    { name: "Niche", description: "Niche profile" },
+    { name: "Search", description: "Search recent tweets on X" },
+    { name: "Account", description: "Identity, credits, and feedback" },
   ],
   paths: {
     "/health": {
@@ -185,6 +190,7 @@ export const openApiSpec = {
       post: {
         tags: ["Generation"],
         summary: "Generate draft options",
+        "x-credits": 3,
         description: "Uses AI to generate multiple draft options from a topic. Applies your voice settings, extracted patterns, and voice examples automatically. Returns options in memory — nothing is saved to the database until you create a draft via `POST /drafts`.",
         requestBody: {
           required: true,
@@ -280,6 +286,7 @@ export const openApiSpec = {
       post: {
         tags: ["Publishing"],
         summary: "Publish immediately",
+        "x-credits": "3 per tweet; 30 if the tweet contains a URL",
         description: "Publishes content to X immediately. Supports single posts and threads. Optionally links to an existing draft (updates its status to `POSTED`).",
         requestBody: {
           required: true,
@@ -324,6 +331,7 @@ export const openApiSpec = {
       post: {
         tags: ["Publishing"],
         summary: "Schedule a post",
+        "x-credits": "3 per tweet; 30 if the tweet contains a URL (debited at schedule time, refunded on cancel)",
         description: "Schedules content for future publishing via QStash. The `scheduledFor` time must be in the future.",
         requestBody: {
           required: true,
@@ -365,6 +373,7 @@ export const openApiSpec = {
       get: {
         tags: ["Analytics"],
         summary: "Get analytics data",
+        "x-credits": 1,
         description: "Returns analytics data from CSV uploads and captured posts. Use the `include` parameter to control response detail level.",
         parameters: [
           {
@@ -514,6 +523,203 @@ export const openApiSpec = {
             },
           },
         },
+      },
+    },
+    "/me": {
+      get: {
+        tags: ["Account"],
+        summary: "Identity, plan & credits",
+        description: "Returns the API key holder's identity (X connection health, scopes, rate limit) plus their plan and credit balances (`credits.balance` is total spendable; `allowance_remaining` resets monthly, `pack_balance` never expires while subscribed).",
+        responses: { "200": { description: "Identity, plan, and credits" } },
+      },
+    },
+    "/queue": {
+      get: {
+        tags: ["Publishing"],
+        summary: "List scheduled posts",
+        parameters: [
+          { name: "status", in: "query", schema: { type: "string", enum: ["scheduled", "publishing", "posted", "failed", "cancelled"] } },
+          { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 50 } },
+          { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
+        ],
+        responses: {
+          "200": {
+            description: "Scheduled posts",
+            content: { "application/json": { schema: { type: "object", properties: { data: { type: "array", items: { $ref: "#/components/schemas/ScheduledPost" } } } } } },
+          },
+        },
+      },
+    },
+    "/queue/{id}": {
+      delete: {
+        tags: ["Publishing"],
+        summary: "Cancel a scheduled post",
+        description: "Cancels a post that is still in `scheduled` state and refunds the credits debited when it was scheduled.",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          "200": { description: "Cancelled (credits refunded)" },
+          "404": { description: "Not found" },
+          "409": { description: "No longer cancellable" },
+        },
+      },
+    },
+    "/tweets/{id}": {
+      get: {
+        tags: ["Analytics"],
+        summary: "Fetch a tweet",
+        description: "Fetches a single tweet's text and metrics. `id` may be a raw tweet ID or an x.com status URL. Useful as reply context for generation.",
+        "x-credits": 1,
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" }, description: "Tweet ID or x.com URL" }],
+        responses: {
+          "200": { description: "Tweet text + metrics" },
+          "402": { $ref: "#/components/responses/InsufficientCredits" },
+        },
+      },
+    },
+    "/patterns": {
+      get: {
+        tags: ["Patterns"],
+        summary: "List extracted patterns",
+        description: "Growth patterns extracted from your top posts. Use pattern IDs with `/drafts/generate` to steer generation.",
+        parameters: [
+          { name: "type", in: "query", schema: { type: "string" }, description: "Filter by pattern_type" },
+          { name: "enabled_only", in: "query", schema: { type: "boolean", default: false } },
+          { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 500, default: 200 } },
+        ],
+        responses: { "200": { description: "Patterns ordered by engagement multiplier" } },
+      },
+    },
+    "/patterns/{id}": {
+      patch: {
+        tags: ["Patterns"],
+        summary: "Enable/disable or rename a pattern",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { type: "object", properties: { is_enabled: { type: "boolean" }, pattern_name: { type: "string" } } } } },
+        },
+        responses: { "200": { description: "Updated pattern" }, "404": { description: "Not found" } },
+      },
+    },
+    "/inspiration": {
+      get: {
+        tags: ["Inspiration"],
+        summary: "List inspiration posts",
+        parameters: [{ name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 500, default: 100 } }],
+        responses: { "200": { description: "Saved inspiration posts with analysis" } },
+      },
+      post: {
+        tags: ["Inspiration"],
+        summary: "Save an inspiration post",
+        description: "Saves a post and auto-analyzes its voice/format in the background (poll the list for `analysis_status: completed`).",
+        "x-credits": 3,
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["content"],
+                properties: {
+                  content: { type: "string" },
+                  url: { type: "string", description: "Source URL (deduplicated)" },
+                  authorHandle: { type: "string" },
+                  metrics: { type: "object" },
+                  post_timestamp: { type: "string", format: "date-time" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Saved (analysis pending)" },
+          "402": { $ref: "#/components/responses/InsufficientCredits" },
+          "409": { description: "Already saved (duplicate URL)" },
+        },
+      },
+    },
+    "/inspiration/{id}": {
+      delete: {
+        tags: ["Inspiration"],
+        summary: "Delete an inspiration post",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { "200": { description: "Deleted" }, "404": { description: "Not found" } },
+      },
+    },
+    "/niche": {
+      get: {
+        tags: ["Niche"],
+        summary: "Get niche profile",
+        description: "The user's analyzed niche: summary, content pillars, and topic clusters. `profile` is null if not yet analyzed.",
+        responses: { "200": { description: "Niche profile or null" } },
+      },
+    },
+    "/analytics/best-times": {
+      get: {
+        tags: ["Analytics"],
+        summary: "Best posting days",
+        description: "Day-of-week engagement breakdown computed from uploaded CSV analytics.",
+        "x-credits": 1,
+        responses: {
+          "200": { description: "Per-day stats + best day" },
+          "402": { $ref: "#/components/responses/InsufficientCredits" },
+        },
+      },
+    },
+    "/analytics/sync": {
+      post: {
+        tags: ["Analytics"],
+        summary: "Sync timeline from X",
+        description: "On-demand sync of your own X timeline into captured posts. Delta-based (since_id) — only new posts are fetched. Pro plan required.",
+        "x-credits": 15,
+        responses: {
+          "200": { description: "{ synced, fetched, since_id }" },
+          "402": { $ref: "#/components/responses/InsufficientCredits" },
+          "403": { description: "Pro plan required" },
+        },
+      },
+    },
+    "/search": {
+      get: {
+        tags: ["Search"],
+        summary: "Search recent tweets",
+        description: "Search public tweets from the last 7 days. Charged per result returned (min 5 credits). Pro plan required.",
+        "x-credits": "1 per result (min 5)",
+        parameters: [
+          { name: "query", in: "query", required: true, schema: { type: "string" }, description: "X search query syntax" },
+          { name: "max_results", in: "query", schema: { type: "integer", minimum: 10, maximum: 25, default: 10 } },
+        ],
+        responses: {
+          "200": { description: "Matching tweets with author info" },
+          "402": { $ref: "#/components/responses/InsufficientCredits" },
+          "403": { description: "Pro plan required" },
+        },
+      },
+    },
+    "/feedback": {
+      post: {
+        tags: ["Account"],
+        summary: "Submit generation feedback",
+        description: "Log like/dislike feedback on generated content; feeds future prompt assembly.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["feedback_type", "generation_type", "content_text"],
+                properties: {
+                  feedback_type: { type: "string", enum: ["like", "dislike"] },
+                  generation_type: { type: "string", enum: ["post", "reply"] },
+                  content_text: { type: "string" },
+                  context_prompt: { type: "string" },
+                  metadata: { type: "object" },
+                },
+              },
+            },
+          },
+        },
+        responses: { "201": { description: "Feedback recorded" } },
       },
     },
   },
@@ -687,6 +893,23 @@ export const openApiSpec = {
               properties: {
                 error: { type: "string", example: "Rate limit exceeded" },
                 code: { type: "string", example: "rate_limited" },
+              },
+            },
+          },
+        },
+      },
+      InsufficientCredits: {
+        description: "Not enough credits — top up or wait for the monthly reset",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                error: { type: "string", example: "Insufficient credits" },
+                code: { type: "string", example: "INSUFFICIENT_CREDITS" },
+                balance: { type: "integer", example: 2 },
+                required: { type: "integer", example: 30 },
+                topup_url: { type: "string", example: "/settings?tab=billing" },
               },
             },
           },

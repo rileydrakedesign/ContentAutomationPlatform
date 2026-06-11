@@ -19,6 +19,7 @@ export interface XTweetV2 {
   id: string;
   text: string;
   created_at?: string;
+  author_id?: string;
   referenced_tweets?: Array<{ type: string; id: string }>;
   public_metrics?: {
     retweet_count: number;
@@ -293,7 +294,8 @@ export async function getUserTimeline(
   accessToken: string,
   userId: string,
   maxResults: number = 100,
-  paginationToken?: string
+  paginationToken?: string,
+  sinceId?: string
 ): Promise<{ data: XTweetV2[]; meta: { next_token?: string; result_count: number } }> {
   const url = `${X_API_BASE}/2/users/${userId}/tweets`;
 
@@ -305,6 +307,12 @@ export async function getUserTimeline(
 
   if (paginationToken) {
     queryParams.pagination_token = paginationToken;
+  }
+
+  // Delta sync: only tweets newer than this ID. X bills per post returned, so
+  // steady-state syncs should fetch the handful of new posts, not all 100.
+  if (sinceId) {
+    queryParams.since_id = sinceId;
   }
 
   const response = await makeBearerRequest("GET", url, accessToken, queryParams);

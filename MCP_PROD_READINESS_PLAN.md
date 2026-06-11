@@ -211,18 +211,18 @@ in this file as you complete tasks.
 New scopes: `patterns:read`, `patterns:write`, `inspiration:read`, `inspiration:write`,
 `niche:read`, `search:read` — add to `src/lib/api/scopes.ts` + key-creation UI list.
 
-- [ ] **W3.1** `GET /v1/patterns` (list, `extraction_batch`/`is_enabled` aware),
+- [x] **W3.1** `GET /v1/patterns` (list, `extraction_batch`/`is_enabled` aware),
   `PATCH /v1/patterns/{id}` (toggle `is_enabled`). 0 credits.
-- [ ] **W3.2** `GET /v1/inspiration`, `POST /v1/inspiration` (reuses internal analyze flow;
+- [x] **W3.2** `GET /v1/inspiration`, `POST /v1/inspiration` (reuses internal analyze flow;
   3 credits — it triggers an LLM analysis), `DELETE /v1/inspiration/{id}`.
-- [ ] **W3.3** `GET /v1/niche` (profile read). 0 credits.
-- [ ] **W3.4** `GET /v1/analytics/best-times` (Pro-gated as internally). 1 credit.
-- [ ] **W3.5** `GET /v1/search?query=&max_results=` wrapping `GET /2/tweets/search/recent`
+- [x] **W3.3** `GET /v1/niche` (profile read). 0 credits.
+- [x] **W3.4** `GET /v1/analytics/best-times` (Pro-gated as internally). 1 credit.
+- [x] **W3.5** `GET /v1/search?query=&max_results=` wrapping `GET /2/tweets/search/recent`
   (Pro-gated; 1 credit/result, min 5; `max_results` clamp 10–25 to bound cost).
-- [ ] **W3.6** `POST /v1/analytics/sync` (on-demand, 15 credits, Pro-gated, reuses
+- [x] **W3.6** `POST /v1/analytics/sync` (on-demand, 15 credits, Pro-gated, reuses
   `since_id` delta logic — implement delta fetch in `src/lib/x-api` if missing).
-- [ ] **W3.7** `POST /v1/feedback` (generation feedback passthrough). 0 credits.
-- [ ] **W3.8** Regenerate `/v1/openapi.json` to include everything above + credit costs
+- [x] **W3.7** `POST /v1/feedback` (generation feedback passthrough). 0 credits.
+- [x] **W3.8** Regenerate `/v1/openapi.json` to include everything above + credit costs
   documented per endpoint (`x-credits` extension field).
 
 ### W4 — MCP tool parity
