@@ -227,49 +227,49 @@ New scopes: `patterns:read`, `patterns:write`, `inspiration:read`, `inspiration:
 
 ### W4 — MCP tool parity
 
-- [ ] **W4.1** New tools wrapping W3 + existing uncovered endpoints: `health`,
+- [x] **W4.1** New tools wrapping W3 + existing uncovered endpoints: `health`,
   `update_voice_settings` (PATCH /v1/voice), `update_strategy` (PUT /v1/strategy),
   `list_published` (GET /v1/publish), `list_patterns`, `toggle_pattern`,
   `list_inspiration`, `add_inspiration`, `get_niche`, `get_best_times`, `search_tweets`,
   `sync_analytics`, `send_feedback`, `get_credits` (reads /v1/me, returns balance/plan).
-- [ ] **W4.2** Every tool description states its credit cost (e.g. "Costs 3 credits.
+- [x] **W4.2** Every tool description states its credit cost (e.g. "Costs 3 credits.
   Publishing a post containing a URL costs 30."). Publish/schedule tool descriptions keep
   the confirm-with-user warning.
-- [ ] **W4.3** Schema hardening: replace `z.record(z.any())` with typed content shapes
+- [x] **W4.3** Schema hardening: replace `z.record(z.any())` with typed content shapes
   (`{ text }` for X_POST, `{ tweets: string[] }` for X_THREAD); `status` params become
   `z.enum`s matching server values; ids get `.min(1)`; `schedule_post` rejects
   empty-array tweets.
 
 ### W5 — MCP client reliability
 
-- [ ] **W5.1** Retries in `mcp/src/client.ts`: up to 3 attempts on network errors and
+- [x] **W5.1** Retries in `mcp/src/client.ts`: up to 3 attempts on network errors and
   5xx, exponential backoff + jitter; on 429 honor `Retry-After`/`X-RateLimit-Reset`
   (sleep ≤ 30s, else surface a clear "rate limited, retry after Xs" error). NEVER retry
   non-idempotent POSTs (publish, generate) after an ambiguous failure (timeout post-send)
   — surface the ambiguity instead.
-- [ ] **W5.2** Error mapping: 401 → "API key invalid/revoked — check CONTENT_API_KEY";
+- [x] **W5.2** Error mapping: 401 → "API key invalid/revoked — check CONTENT_API_KEY";
   403 → "key lacks scope X"; 402 → "out of credits, balance B, top up at URL"; 404 →
   "not found"; include `X-Credits-Remaining` in tool results where present.
-- [ ] **W5.3** Structured stderr logging (timestamp, tool, status, latency, request-id)
+- [x] **W5.3** Structured stderr logging (timestamp, tool, status, latency, request-id)
   behind `MCP_DEBUG=1`; startup pings `/v1/health` and logs key prefix + scopes (never
   the key).
-- [ ] **W5.4** Tests (vitest in `mcp/`): client retry/backoff/429 paths (mock fetch),
+- [x] **W5.4** Tests (vitest in `mcp/`): client retry/backoff/429 paths (mock fetch),
   error mapping, every tool's schema accepts valid / rejects invalid input, run() wraps
   ApiError into isError results.
 
 ### W6 — Packaging & distribution
 
-- [ ] **W6.1** `mcp/package.json`: version `1.0.0`, `"license": "MIT"`, `LICENSE` file,
+- [x] **W6.1** `mcp/package.json`: version `1.0.0`, `"license": "MIT"`, `LICENSE` file,
   `description`, `repository`, `homepage`, `keywords` (mcp, x, twitter, agents),
   `prepublishOnly: "npm run build"`, `files: ["dist", "README.md", "LICENSE"]`.
-- [ ] **W6.2** README: per-tool credit costs table, scope reference (which tools need
+- [x] **W6.2** README: per-tool credit costs table, scope reference (which tools need
   which scopes), error-code reference, rate-limit/429 behavior, security note (key
   storage), Claude Desktop + Claude Code + generic MCP-client config examples,
   troubleshooting.
-- [ ] **W6.3** GitHub Actions workflow `.github/workflows/mcp-publish.yml`: on tag
+- [x] **W6.3** GitHub Actions workflow `.github/workflows/mcp-publish.yml`: on tag
   `mcp-v*` → install, build, test, `npm publish --access public` using `NPM_TOKEN`
   secret (workflow authored now; secret + first publish are human, §D).
-- [ ] **W6.4** `npm pack --dry-run` clean (verification for Completion Condition #4).
+- [x] **W6.4** `npm pack --dry-run` clean (verification for Completion Condition #4).
 
 ### W7 — Remote MCP transport (hosted)
 

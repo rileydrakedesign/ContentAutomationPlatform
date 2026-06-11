@@ -5,9 +5,11 @@
  * Configured via environment variables:
  *   CONTENT_API_KEY  — an sk_live_... API key (Settings → API Keys)
  *   CONTENT_API_URL  — base URL of the deployment (default: https://app.agentsforx.com)
+ *   MCP_DEBUG=1      — structured request logging to stderr
  */
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { buildServer } from "./server.js";
+import { ApiClient, ApiError } from "./client.js";
 
 async function main(): Promise<void> {
   const apiKey = process.env.CONTENT_API_KEY;
@@ -26,6 +28,32 @@ async function main(): Promise<void> {
 
   // stderr is safe for logs; stdout is reserved for the MCP protocol.
   console.error(`[agentsforx-mcp] connected (API: ${baseUrl})`);
+
+  // Startup health ping: verifies reachability and that the key is valid.
+  // Non-fatal — tools surface their own errors — but saves a confusing first
+  // failed tool call. Never logs the key itself.
+  void (async () => {
+    try {
+      const api = new ApiClient({ baseUrl, apiKey });
+      const health = (await api.get("/api/v1/health")) as {
+        authenticated?: boolean;
+        key_prefix?: string;
+        scopes?: string[];
+      };
+      if (health.authenticated) {
+        console.error(
+          `[agentsforx-mcp] API key OK (${health.key_prefix ?? "sk_live_..."}, scopes: ${(health.scopes ?? []).join(", ") || "none"})`
+        );
+      } else {
+        console.error(
+          "[agentsforx-mcp] WARNING: API reachable but the key did not authenticate — check CONTENT_API_KEY."
+        );
+      }
+    } catch (e) {
+      const detail = e instanceof ApiError ? `${e.status} ${e.code}: ${e.message}` : String(e);
+      console.error(`[agentsforx-mcp] WARNING: startup health check failed (${detail})`);
+    }
+  })();
 }
 
 main().catch((err) => {
