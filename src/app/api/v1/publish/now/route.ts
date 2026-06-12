@@ -90,12 +90,14 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
         inReplyToId ? { inReplyToStatusId: inReplyToId } : undefined
       );
     } catch (e) {
-      await refundCredits(auth.userId, charge.charged, "refund.publish_failed", draftId);
-      return apiError(
-        `X rejected the post: ${e instanceof Error ? e.message : "unknown error"}`,
-        "x_api_error",
-        502
+      const detail = e instanceof Error ? e.message : "unknown error";
+      // Log server-side: the MCP client may swallow or truncate this, and
+      // X's error body is the only way to diagnose write failures.
+      console.error(
+        `v1 publish now: X rejected post for user ${auth.userId}: ${detail}`
       );
+      await refundCredits(auth.userId, charge.charged, "refund.publish_failed", draftId);
+      return apiError(`X rejected the post: ${detail}`, "x_api_error", 502);
     }
 
     // Backfill captured_posts
@@ -166,6 +168,9 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
     }
   } catch (e) {
     publishError = e instanceof Error ? e.message : "unknown error";
+    console.error(
+      `v1 publish now: X rejected thread for user ${auth.userId} at tweet ${postedIds.length + 1}: ${publishError}`
+    );
     // Refund the un-posted remainder — the posted prefix did cost us X writes.
     const refund = publishCreditCost(cleaned.slice(postedIds.length));
     await refundCredits(auth.userId, refund, "refund.thread_partial", draftId);
