@@ -88,7 +88,7 @@ empty.
 The URL surcharge mirrors X's API pricing, which bills posts containing links at
 ~13x the plain-post rate.
 
-## Tools (32)
+## Tools (33)
 
 | Tool | What it does | Scope |
 |---|---|---|
@@ -98,7 +98,8 @@ The URL surcharge mirrors X's API pricing, which bills posts containing links at
 | `get_voice_settings` / `update_voice_settings` | Read/update voice dials, guardrails, AI model | `voice:read` / `voice:write` |
 | `get_strategy` / `update_strategy` | Read/set weekly content strategy | `strategy:read` / `strategy:write` |
 | `get_niche` | Analyzed niche profile | `niche:read` |
-| `generate_post` / `generate_reply` | Voice-applied generation (options only — never publishes) | `drafts:generate` |
+| `get_writing_context` | **Preferred:** the user's voice prompt + patterns + rules so the calling model writes the content itself (free) | `voice:read` |
+| `generate_post` / `generate_reply` | Server-side generation fallback (options only — never publishes) | `drafts:generate` |
 | `send_feedback` | Like/dislike feedback on generations | `drafts:write` |
 | `list_drafts` / `get_draft` / `create_draft` / `update_draft` / `delete_draft` | Draft CRUD | `drafts:read` / `drafts:write` |
 | `publish_post` / `publish_thread` / `publish_reply` | Publish to X **immediately** | `publish:write` |
@@ -114,8 +115,10 @@ The URL surcharge mirrors X's API pricing, which bills posts containing links at
 ### Typical flow
 
 1. `whoami` → confirm the X account is connected and check credits.
-2. `generate_post` (topic) or `get_tweet` → `generate_reply` (replies).
-3. Show options to the user; `create_draft` to save, `send_feedback` on reactions.
+2. `get_writing_context` → the agent writes the post/reply itself in the
+   user's voice (server-side `generate_post`/`generate_reply` remain as a
+   3-credit fallback). For replies, `get_tweet` first for context.
+3. Show drafts to the user; `create_draft` to save, `send_feedback` on reactions.
 4. `publish_post` / `publish_reply` after explicit user confirmation, or
    `schedule_post` for later.
 5. `get_analytics`, `get_best_times`, `list_patterns`, `get_strategy` to plan.

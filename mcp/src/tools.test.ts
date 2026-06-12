@@ -11,7 +11,7 @@ const EXPECTED_TOOLS = [
   "get_voice_settings", "update_voice_settings",
   "get_strategy", "update_strategy", "get_niche",
   // generation
-  "generate_post", "generate_reply", "send_feedback",
+  "get_writing_context", "generate_post", "generate_reply", "send_feedback",
   // drafts
   "list_drafts", "get_draft", "create_draft", "update_draft", "delete_draft",
   // publishing
@@ -69,7 +69,15 @@ describe("tool registry", () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([...EXPECTED_TOOLS].sort());
-    expect(names).toHaveLength(32);
+    expect(names).toHaveLength(33);
+  });
+
+  it("steers agents to client-side writing over server-side generation", async () => {
+    const { tools } = await client.listTools();
+    const byName = new Map(tools.map((t) => [t.name, t.description ?? ""]));
+    expect(byName.get("get_writing_context")).toMatch(/WRITE THE POST OR REPLY YOURSELF/);
+    expect(byName.get("generate_post")).toMatch(/Prefer get_writing_context/);
+    expect(byName.get("generate_reply")).toMatch(/Prefer get_writing_context/);
   });
 
   it("metered tools state their credit cost in the description", async () => {

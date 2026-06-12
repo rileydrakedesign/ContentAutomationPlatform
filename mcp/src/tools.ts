@@ -194,11 +194,27 @@ export function registerTools(server: McpServer, api: ApiClient): void {
 
   // ── Generation (voice-applied) ─────────────────────────────────
   server.registerTool(
+    "get_writing_context",
+    {
+      title: "Get writing context (write it yourself)",
+      description:
+        "PREFERRED way to create content: fetch the user's full writing context — their assembled voice system prompt (tone dials, guardrails, real examples of their writing, inspiration) plus their highest-performing growth patterns and the platform rules — then WRITE THE POST OR REPLY YOURSELF following it. You are a more capable writer than the server-side generator. Free. After writing, show the user, then create_draft / publish / schedule.",
+      inputSchema: {
+        voiceType: z
+          .enum(["post", "reply"])
+          .default("post")
+          .describe("'post' for original posts/threads, 'reply' for replies."),
+      },
+    },
+    ({ voiceType }) => run(() => api.get("/api/v1/voice/context", { type: voiceType }))
+  );
+
+  server.registerTool(
     "generate_post",
     {
-      title: "Generate post drafts",
+      title: "Generate post drafts (server-side)",
       description:
-        "Generate post or thread options about a topic, written in the user's POST voice (their voice settings, examples, and inspiration are applied server-side). Returns draft options — it does NOT save or publish them. Review, then create_draft / publish_post / schedule_post. Costs 3 credits.",
+        "Server-side generation: the platform's configured AI model writes post or thread options in the user's POST voice. Prefer get_writing_context and writing the content yourself — it is free and usually better. Use this only when you cannot write the content directly. Returns options; does NOT save or publish. Costs 3 credits.",
       inputSchema: {
         topic: z.string().min(3).describe("What the post should be about."),
         draftType: z
@@ -238,9 +254,9 @@ export function registerTools(server: McpServer, api: ApiClient): void {
   server.registerTool(
     "generate_reply",
     {
-      title: "Generate reply drafts",
+      title: "Generate reply drafts (server-side)",
       description:
-        "Generate reply options to a specific tweet, written in the user's REPLY voice. Pass the target tweet's text (use get_tweet first if you only have a URL/ID). Returns options — does NOT publish. Review, then publish_reply with the chosen text and the tweet ID. Costs 3 credits.",
+        "Server-side generation: the platform's configured AI model writes reply options in the user's REPLY voice. Prefer get_writing_context (voiceType: 'reply') and writing the reply yourself — free and usually better. Pass the target tweet's text (use get_tweet first if you only have a URL/ID). Returns options — does NOT publish. Costs 3 credits.",
       inputSchema: {
         replyToText: z
           .string()

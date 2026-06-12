@@ -646,6 +646,19 @@ export const openApiSpec = {
         responses: { "200": { description: "Deleted" }, "404": { description: "Not found" } },
       },
     },
+    "/voice/context": {
+      get: {
+        tags: ["Voice"],
+        summary: "Get writing context (for self-generating agents)",
+        description: "The user's full writing context — assembled voice system prompt (dials, guardrails, real writing examples, inspiration), enabled growth patterns, and platform rules — for agents that write content themselves instead of calling /drafts/generate. Free: the caller's model pays the inference.",
+        parameters: [
+          { name: "type", in: "query", schema: { type: "string", enum: ["post", "reply"], default: "post" } },
+        ],
+        responses: {
+          "200": { description: "{ voice_type, system_prompt, patterns, rules }" },
+        },
+      },
+    },
     "/niche": {
       get: {
         tags: ["Niche"],
