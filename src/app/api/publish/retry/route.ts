@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthClient } from "@/lib/supabase/server";
-import { qstash } from "@/lib/qstash/client";
+import { enqueuePublish } from "@/lib/qstash/enqueue";
 
 // POST /api/publish/retry - retry a failed scheduled post
 export async function POST(request: NextRequest) {
@@ -54,28 +54,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Enqueue QStash message for immediate retry (5s delay)
-    try {
-      const publishUrl = `${process.env.QSTASH_PUBLISH_URL}/api/qstash/publish`;
-      const notBefore = Math.floor(Date.now() / 1000) + 5;
-
-      const qstashRes = await qstash.publishJSON({
-        url: publishUrl,
-        body: { scheduledPostId: id, userId: user.id },
-        notBefore,
-        retries: 3,
-      });
-
+    // Enqueue QStash message for immediate retry (5s delay). On enqueue failure
+    // the row is back to `scheduled` and the publish-scheduled sweep will pick
+    // it up — reported as deliveryConfirmed:false.
+    const { messageId } = await enqueuePublish({
+      scheduledPostId: id,
+      userId: user.id,
+      notBefore: Math.floor(Date.now() / 1000) + 5,
+    });
+    if (messageId) {
       await supabase
         .from("scheduled_posts")
-        .update({ qstash_message_id: qstashRes.messageId })
+        .update({ qstash_message_id: messageId })
         .eq("id", id);
-    } catch (qstashErr) {
-      console.error("Failed to enqueue QStash retry:", qstashErr);
-      // Cron safety net will pick it up
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, deliveryConfirmed: messageId !== null });
   } catch (error) {
     console.error("Failed to retry scheduled post:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

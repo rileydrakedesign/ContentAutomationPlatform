@@ -1,7 +1,7 @@
 import { withApiAuth, apiSuccess, apiError, apiOptions } from "@/lib/api/v1-handler";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { qstash } from "@/lib/qstash/client";
+import { enqueuePublish } from "@/lib/qstash/enqueue";
 import { requireFeature } from "@/lib/stripe/gate";
 import {
   publishCreditCost,
@@ -94,24 +94,19 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
     return apiError("Failed to schedule post", "create_failed", 500);
   }
 
-  // Enqueue QStash
-  try {
-    const publishUrl = `${process.env.QSTASH_PUBLISH_URL}/api/qstash/publish`;
-    const notBefore = Math.floor(scheduledDate.getTime() / 1000);
-
-    const qstashRes = await qstash.publishJSON({
-      url: publishUrl,
-      body: { scheduledPostId: row.id, userId: auth.userId },
-      notBefore,
-      retries: 3,
-    });
-
+  // Enqueue QStash delivery. A null messageId means we couldn't confirm
+  // exact-time delivery; the row stays `scheduled` and the publish-scheduled
+  // sweep will publish it (reported as deliveryConfirmed:false below).
+  const { messageId } = await enqueuePublish({
+    scheduledPostId: row.id,
+    userId: auth.userId,
+    notBefore: Math.floor(scheduledDate.getTime() / 1000),
+  });
+  if (messageId) {
     await supabase
       .from("scheduled_posts")
-      .update({ qstash_message_id: qstashRes.messageId })
+      .update({ qstash_message_id: messageId })
       .eq("id", row.id);
-  } catch (e) {
-    console.error("v1 schedule: QStash enqueue failed", e);
   }
 
   // Mark draft as SCHEDULED
@@ -124,7 +119,10 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
   }
 
   return withCreditHeaders(
-    apiSuccess({ id: row.id, scheduledFor: row.scheduled_for }, 201),
+    apiSuccess(
+      { id: row.id, scheduledFor: row.scheduled_for, deliveryConfirmed: messageId !== null },
+      201
+    ),
     charge
   );
 });
