@@ -12,16 +12,22 @@
  * Run once per environment:
  *   node scripts/setup-qstash-schedule.mjs
  *
- * Requires QSTASH_TOKEN and APP_URL (or NEXT_PUBLIC_APP_URL). Loads .env.local
- * if present.
+ * Requires QSTASH_TOKEN and APP_URL (or NEXT_PUBLIC_APP_URL). Loads .env then
+ * .env.local if present.
+ *
+ * NOTE: QStash is region-pinned. This must use the same region as the app's
+ * client (src/lib/qstash/client.ts) or the token resolves to the wrong region
+ * ("user not found in this region"). Override with QSTASH_URL if you migrate.
  */
 import { config } from "dotenv";
-config({ path: ".env.local" });
+config({ path: ".env" });
+config({ path: ".env.local", override: true });
 
 import { Client } from "@upstash/qstash";
 
 const token = process.env.QSTASH_TOKEN;
 const appUrl = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+const baseUrl = process.env.QSTASH_URL || "https://qstash-us-east-1.upstash.io";
 
 if (!token || !appUrl) {
   console.error("Missing QSTASH_TOKEN or APP_URL/NEXT_PUBLIC_APP_URL");
@@ -30,7 +36,7 @@ if (!token || !appUrl) {
 
 const destination = `${appUrl}/api/cron/publish-scheduled`;
 const cron = "*/5 * * * *";
-const qstash = new Client({ token });
+const qstash = new Client({ token, baseUrl });
 
 const existing = await qstash.schedules.list();
 const match = existing.find((s) => s.destination === destination);
