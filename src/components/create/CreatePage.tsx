@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { TopicInput } from "./TopicInput";
 import { PatternSelector } from "./PatternSelector";
 import { DraftsList } from "./DraftsList";
+import { VoiceCheckPanel } from "./VoiceCheckPanel";
 import { InspirationPost } from "@/types/inspiration";
 import {
   Sparkles,
@@ -230,6 +231,28 @@ export function CreatePage() {
     } catch (err) {
       console.error("Failed to submit feedback:", err);
     }
+  };
+
+  const getDraftText = (draft: GeneratedDraft): string => {
+    if (typeof draft.content.text === "string") return draft.content.text;
+    if (Array.isArray(draft.content.tweets)) return draft.content.tweets.join("\n\n");
+    if (Array.isArray(draft.content.posts)) return draft.content.posts.join("\n\n");
+    return "";
+  };
+
+  const applyVoiceEditToDraft = (index: number, newText: string) => {
+    setGeneratedDrafts((prev) =>
+      prev.map((d, i) => {
+        if (i !== index) return d;
+        if (Array.isArray(d.content.tweets)) {
+          return { ...d, content: { ...d.content, tweets: newText.split(/\n{2,}/) } };
+        }
+        if (Array.isArray(d.content.posts)) {
+          return { ...d, content: { ...d.content, posts: newText.split(/\n{2,}/) } };
+        }
+        return { ...d, content: { ...d.content, text: newText } };
+      })
+    );
   };
 
   const handleSaveCompose = async () => {
@@ -596,6 +619,13 @@ export function CreatePage() {
                         </button>
                       </div>
 
+                      <VoiceCheckPanel
+                        text={getDraftText(draft)}
+                        voiceType="post"
+                        onApplyEdit={(newText) => applyVoiceEditToDraft(index, newText)}
+                        className="mb-3"
+                      />
+
                       <Button
                         variant="secondary"
                         size="sm"
@@ -759,6 +789,24 @@ export function CreatePage() {
                     )}
                   </div>
                 )}
+
+                <div className="mt-4 pt-4 border-t border-[var(--color-border-subtle)]">
+                  <VoiceCheckPanel
+                    text={
+                      composeType === "X_POST"
+                        ? composeText
+                        : composeThreadTweets.filter((t) => t.trim()).join("\n\n")
+                    }
+                    voiceType="post"
+                    onApplyEdit={(newText) => {
+                      if (composeType === "X_POST") {
+                        setComposeText(newText);
+                      } else {
+                        setComposeThreadTweets(newText.split(/\n{2,}/));
+                      }
+                    }}
+                  />
+                </div>
               </CardContent>
             </Card>
 

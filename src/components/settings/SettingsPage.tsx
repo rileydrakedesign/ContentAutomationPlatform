@@ -294,7 +294,7 @@ export function SettingsPage() {
                 </div>
                 <div className="flex gap-3">
                   <span className="text-[var(--color-warning-400)]">2.</span>
-                  <span>Your posts appear in the Library with engagement metrics</span>
+                  <span>Your posts appear on the Inspiration page with engagement metrics</span>
                 </div>
                 <div className="flex gap-3">
                   <span className="text-[var(--color-warning-400)]">3.</span>

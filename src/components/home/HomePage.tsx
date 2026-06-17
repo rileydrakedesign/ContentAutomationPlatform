@@ -8,6 +8,7 @@ import { ContentSidebar } from "./ContentSidebar";
 import { InsightsHub } from "./InsightsHub";
 import { BoostOpportunitiesCard } from "./BoostOpportunitiesCard";
 import { StrategyProgress } from "./StrategyProgress";
+import { VoiceHealthCard, RetuneBanner } from "./VoiceHealthCard";
 import { CsvUploadDrawer } from "./CsvUploadDrawer";
 import { SetupChecklist } from "./SetupChecklist";
 import { FreePlanBanner } from "./FreePlanBanner";
@@ -125,7 +126,7 @@ export function HomePage() {
             Dashboard
           </h1>
           <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-            Your content command center
+            Tune your voice, then ship content that sounds like you
           </p>
         </div>
         <QuickActionsBar onUploadClick={() => setShowUploadDrawer(true)} />
@@ -133,6 +134,9 @@ export function HomePage() {
 
       {/* Free Plan Banner */}
       <FreePlanBanner />
+
+      {/* Re-tune recommendation banner */}
+      <RetuneBanner />
 
       {/* Main Layout: Left stacked items | Right sidebar */}
       <div className="grid grid-cols-[1fr_360px] gap-5">
@@ -145,6 +149,8 @@ export function HomePage() {
               onUploadCsv={() => setShowUploadDrawer(true)}
             />
           </div>
+
+          <VoiceHealthCard />
 
           <StrategyProgress />
 

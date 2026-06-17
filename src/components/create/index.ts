@@ -3,3 +3,4 @@ export { FormatSelector } from "./FormatSelector";
 export { StyleSelector } from "./StyleSelector";
 export { DraftCard } from "./DraftCard";
 export { DraftsList } from "./DraftsList";
+export { VoiceCheckPanel } from "./VoiceCheckPanel";

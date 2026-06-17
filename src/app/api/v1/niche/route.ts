@@ -11,7 +11,7 @@ export const GET = withApiAuth(["niche:read"], async ({ auth }) => {
   const { data: profile, error } = await supabase
     .from("user_niche_profile")
     .select(
-      "niche_summary, content_pillars, topic_clusters, last_analyzed_at, total_posts_analyzed, updated_at"
+      "niche_summary, content_pillars, topic_clusters, positioning, last_analyzed_at, total_posts_analyzed, updated_at"
     )
     .eq("user_id", auth.userId)
     .maybeSingle();

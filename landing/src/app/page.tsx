@@ -27,10 +27,10 @@ import {
 const APP_URL = "https://app.agentsforx.com";
 
 const CYCLING_WORDS = [
-  "your personal voice",
-  "pattern intelligence",
-  "smart scheduling",
-  "real analytics",
+  "niche analysis",
+  "your proven patterns",
+  "voice examples",
+  "a voice check",
 ];
 
 /* ------------------------------------------------------------------ */
@@ -237,12 +237,12 @@ export default function LandingPage() {
             }}
           >
             <span style={{ color: "var(--color-text-muted)" }}>
-              Grow on{" "}
+              Tune your{" "}
             </span>
             <span style={{ color: "var(--color-text-primary)" }}>
               &#x1D54F;{" "}
             </span>
-            <span style={{ color: "var(--color-text-muted)" }}>with </span>
+            <span style={{ color: "var(--color-text-muted)" }}>voice with </span>
             <br className="hidden sm:block" />
             <span
               className="inline-block overflow-hidden align-bottom"
@@ -281,9 +281,8 @@ export default function LandingPage() {
               animationDelay: "0.35s",
             }}
           >
-            AI agents that save inspiration, generate content in your voice,
-            find your winning patterns, and publish — all from inside your
-            timeline.
+            Analyze your niche, tune your voice, and generate content that
+            sounds like you — and performs like your best posts.
           </p>
 
           {/* CTAs */}

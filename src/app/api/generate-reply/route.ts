@@ -87,20 +87,25 @@ interface GenerateReplyResponse {
 }
 
 /**
- * Get tone instruction based on selected tone
+ * Get tone instruction based on selected tone.
+ * Framed as a one-off ANGLE, subordinate to the tuned voice — the user's
+ * examples, controls, and guardrails still govern how the reply is written.
  */
 function getToneInstruction(tone: string | undefined): string {
   if (!tone) return '';
 
-  const toneInstructions: Record<string, string> = {
-    controversial: 'Write a CONTROVERSIAL reply that challenges conventional thinking, presents an unpopular opinion, or takes a bold contrarian stance. Be provocative but not offensive.',
-    sarcastic: 'Write a SARCASTIC reply with witty, ironic humor. Use dry wit and clever wordplay. Be playfully cutting without being mean-spirited.',
-    helpful: 'Write a HELPFUL reply that adds genuine value, offers useful advice, or shares practical information. Be constructive and supportive.',
-    insight: 'Write an INSIGHTFUL reply that offers a unique perspective, connects unexpected dots, or reveals a deeper truth. Make them think.',
-    enthusiastic: 'Write an ENTHUSIASTIC reply with genuine excitement and positive energy. Be energetic and uplifting but stay authentic - avoid being cheesy.',
+  const toneAngles: Record<string, string> = {
+    controversial: 'take a contrarian stance — challenge conventional thinking or present an unpopular opinion (provocative, not offensive)',
+    sarcastic: 'use dry, ironic wit — playfully cutting without being mean-spirited',
+    helpful: 'offer genuinely useful advice or practical information',
+    insight: 'offer a unique perspective, connect unexpected dots, or reveal a deeper truth',
+    enthusiastic: 'bring genuine excitement and positive energy without being cheesy',
   };
 
-  return toneInstructions[tone.toLowerCase()] || '';
+  const angle = toneAngles[tone.toLowerCase()];
+  if (!angle) return '';
+
+  return `ANGLE for this reply (one-off adjustment for this request only — the user's voice, examples, and guardrails still apply): ${angle}.`;
 }
 
 /**

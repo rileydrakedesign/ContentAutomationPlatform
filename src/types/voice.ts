@@ -75,10 +75,17 @@ export const DEFAULT_VOICE_SETTINGS: Omit<UserVoiceSettings, 'id' | 'user_id' | 
   tone_formal_casual: 50,
   energy_calm_punchy: 50,
   stance_neutral_opinionated: 50,
+  // Default style rules — formerly hardcoded in the base prompts, now visible
+  // and editable on the voice page. Users can delete any of these.
   guardrails: {
     avoid_words: [],
     avoid_topics: [],
-    custom_rules: [],
+    custom_rules: [
+      'No em dashes, semicolons, or asterisks',
+      'No hashtags or emojis unless my examples use them',
+      'Cut filler and hedging; be direct',
+      'Offer something concrete: a process, example, number, or edge case',
+    ],
   },
   special_notes: null,
   // AI model default (OpenAI for backward compatibility)
@@ -240,6 +247,7 @@ export interface TokenBreakdown {
   base_prompt_tokens: number;
   controls_tokens: number;
   niche_tokens: number;
+  patterns_tokens: number;
   voice_examples_tokens: number;
   inspiration_tokens: number;
   feedback_tokens: number;

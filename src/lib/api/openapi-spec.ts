@@ -21,7 +21,7 @@ export const openApiSpec = {
     { name: "Analytics", description: "Read engagement and performance data" },
     { name: "Voice", description: "Configure voice settings and examples" },
     { name: "Strategy", description: "Manage content strategy and weekly targets" },
-    { name: "Patterns", description: "Extracted growth patterns" },
+    { name: "Patterns", description: "Extracted proven patterns" },
     { name: "Inspiration", description: "Saved inspiration posts" },
     { name: "Niche", description: "Niche profile" },
     { name: "Search", description: "Search recent tweets on X" },
@@ -580,7 +580,7 @@ export const openApiSpec = {
       get: {
         tags: ["Patterns"],
         summary: "List extracted patterns",
-        description: "Growth patterns extracted from your top posts. Use pattern IDs with `/drafts/generate` to steer generation.",
+        description: "Proven patterns extracted from your top posts. Use pattern IDs with `/drafts/generate` to steer generation.",
         parameters: [
           { name: "type", in: "query", schema: { type: "string" }, description: "Filter by pattern_type" },
           { name: "enabled_only", in: "query", schema: { type: "boolean", default: false } },
@@ -650,12 +650,54 @@ export const openApiSpec = {
       get: {
         tags: ["Voice"],
         summary: "Get writing context (for self-generating agents)",
-        description: "The user's full writing context — assembled voice system prompt (dials, guardrails, real writing examples, inspiration), enabled growth patterns, and platform rules — for agents that write content themselves instead of calling /drafts/generate. Free: the caller's model pays the inference.",
+        description: "The user's full writing context — assembled voice system prompt (dials, guardrails, niche & positioning, PROVEN PATTERNS, real writing examples, inspiration), platform rules, and context_freshness — for agents that write content themselves instead of calling /drafts/generate. Free: the caller's model pays the inference. The separate `patterns` array is DEPRECATED (patterns now live in the system_prompt PROVEN PATTERNS section); it is kept one release for compatibility and flagged via `patterns_deprecated: true`.",
         parameters: [
           { name: "type", in: "query", schema: { type: "string", enum: ["post", "reply"], default: "post" } },
         ],
         responses: {
-          "200": { description: "{ voice_type, system_prompt, patterns, rules }" },
+          "200": { description: "{ voice_type, system_prompt, patterns (deprecated), patterns_deprecated, context_freshness, rules }" },
+        },
+      },
+    },
+    "/insights/tuneup": {
+      post: {
+        tags: ["Voice"],
+        summary: "Run a Voice Tune-Up",
+        description:
+          "Runs the full analyze loop — refresh voice examples → extract proven patterns (Pro; skipped gracefully otherwise) → analyze niche & positioning — over the user's complete post pool, then returns the Voice Report: niche, positioning, top patterns, top posts, cadence vs strategy, recurring voice-check deviations with settings suggestions, feedback themes, inspiration alignment, and context freshness.",
+        "x-credits": 5,
+        responses: {
+          "200": { description: "{ report }" },
+          "402": { $ref: "#/components/responses/InsufficientCredits" },
+          "422": { description: "Not enough posts to analyze (credits refunded)" },
+        },
+      },
+    },
+    "/voice/check": {
+      post: {
+        tags: ["Voice"],
+        summary: "Voice-check a draft (the tuner)",
+        description:
+          "Score a draft against the user's tuned voice — assembled voice prompt, niche positioning, and proven patterns. Returns a 0-100 match score, what the draft gets right, where it deviates, and a suggested edit.",
+        "x-credits": 3,
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["text"],
+                properties: {
+                  text: { type: "string", minLength: 5, description: "The draft text to check" },
+                  voice_type: { type: "string", enum: ["post", "reply"], default: "post" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "{ voice_type, score, matches, deviations, suggested_edit }" },
+          "402": { $ref: "#/components/responses/InsufficientCredits" },
         },
       },
     },
@@ -663,7 +705,7 @@ export const openApiSpec = {
       get: {
         tags: ["Niche"],
         summary: "Get niche profile",
-        description: "The user's analyzed niche: summary, content pillars, and topic clusters. `profile` is null if not yet analyzed.",
+        description: "The user's analyzed niche: summary, content pillars, topic clusters, and positioning (target audience, unique angle, positioning statement). `profile` is null if not yet analyzed.",
         responses: { "200": { description: "Niche profile or null" } },
       },
     },

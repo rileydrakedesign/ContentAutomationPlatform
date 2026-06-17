@@ -99,6 +99,8 @@ The URL surcharge mirrors X's API pricing, which bills posts containing links at
 | `get_strategy` / `update_strategy` | Read/set weekly content strategy | `strategy:read` / `strategy:write` |
 | `get_niche` | Analyzed niche profile | `niche:read` |
 | `get_writing_context` | **Preferred:** the user's voice prompt + patterns + rules so the calling model writes the content itself (free) | `voice:read` |
+| `check_draft` | Score a draft 0-100 against the user's tuned voice + proven patterns; returns matches, deviations, suggested edit (3 credits) | `voice:read` |
+| `run_tuneup` | Run the full Voice Tune-Up (refresh examples → extract patterns → analyze niche & positioning) and return the Voice Report (5 credits) | `voice:write` |
 | `generate_post` / `generate_reply` | Server-side generation fallback (options only — never publishes) | `drafts:generate` |
 | `send_feedback` | Like/dislike feedback on generations | `drafts:write` |
 | `list_drafts` / `get_draft` / `create_draft` / `update_draft` / `delete_draft` | Draft CRUD | `drafts:read` / `drafts:write` |
@@ -118,10 +120,12 @@ The URL surcharge mirrors X's API pricing, which bills posts containing links at
 2. `get_writing_context` → the agent writes the post/reply itself in the
    user's voice (server-side `generate_post`/`generate_reply` remain as a
    3-credit fallback). For replies, `get_tweet` first for context.
-3. Show drafts to the user; `create_draft` to save, `send_feedback` on reactions.
-4. `publish_post` / `publish_reply` after explicit user confirmation, or
+3. `check_draft` → score the draft against the tuned voice and apply the
+   suggested edit until it matches.
+4. Show drafts to the user; `create_draft` to save, `send_feedback` on reactions.
+5. `publish_post` / `publish_reply` after explicit user confirmation, or
    `schedule_post` for later.
-5. `get_analytics`, `get_best_times`, `list_patterns`, `get_strategy` to plan.
+6. `get_analytics`, `get_best_times`, `list_patterns`, `get_strategy` to plan.
 
 ## Reliability behavior
 
@@ -159,7 +163,7 @@ Local API: set `CONTENT_API_URL=http://localhost:3000`.
 
 - `src/client.ts` — HTTP client: auth, timeouts, retries/backoff, 429 handling,
   credit-header capture, error hints. No MCP imports.
-- `src/tools.ts` — `registerTools(server, api)`: all 32 tools, hardened zod
+- `src/tools.ts` — `registerTools(server, api)`: all 35 tools, hardened zod
   schemas. No transport assumptions.
 - `src/server.ts` — builds the `McpServer` (instructions + tool registration).
 - `src/stdio.ts` — stdio entrypoint with startup health check.

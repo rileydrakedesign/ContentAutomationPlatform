@@ -80,9 +80,9 @@ export default function AgentForXLanding() {
               animationFillMode: "backwards",
             }}
           >
-            ai agents that live{" "}
+            ai content tuned to{" "}
             <span className="gradient-text">
-              inside your x timeline
+              your voice on x
             </span>
           </h1>
 
@@ -94,8 +94,8 @@ export default function AgentForXLanding() {
               animationFillMode: "backwards",
             }}
           >
-            save posts that inspire you with one click. generate replies in
-            your voice. let patterns compound your growth.
+            analyze your niche. tune your voice. generate content that sounds
+            like you — and performs like your best posts.
           </p>
 
           {/* CTAs */}

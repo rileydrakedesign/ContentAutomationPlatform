@@ -1,5 +1,5 @@
 /**
- * Hosted MCP endpoint (streamable HTTP) — the same 32 tools as the
+ * Hosted MCP endpoint (streamable HTTP) — the same 35 tools as the
  * @agentsforx/mcp stdio package, served from the app itself so claude.ai,
  * Claude Code (`--transport http`), and other remote MCP clients can connect
  * without a local install.

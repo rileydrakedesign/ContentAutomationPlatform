@@ -102,6 +102,14 @@ export function PromptPreviewTab() {
               </p>
               <p className="text-xs text-[var(--color-text-muted)] mt-1">Inspiration</p>
             </div>
+            {assembled.breakdown.patterns_tokens > 0 && (
+              <div className="bg-[var(--color-bg-elevated)]/50 rounded-lg p-4">
+                <p className="text-xl font-semibold text-sky-400">
+                  {assembled.breakdown.patterns_tokens.toLocaleString()}
+                </p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">Proven Patterns</p>
+              </div>
+            )}
             {assembled.breakdown.feedback_tokens > 0 && (
               <div className="bg-[var(--color-bg-elevated)]/50 rounded-lg p-4">
                 <p className="text-xl font-semibold text-rose-400">

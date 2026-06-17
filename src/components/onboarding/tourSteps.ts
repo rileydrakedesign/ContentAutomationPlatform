@@ -36,7 +36,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: "dashboard-header",
     title: "Welcome to Agents for X",
     description:
-      "This is your command center. Everything you need to grow on X starts right here.",
+      "This is your command center. Analyze your niche, tune your voice, and generate content that sounds like you — it all starts right here.",
     placement: "bottom",
     skippable: false,
     navigate: "/",
@@ -78,9 +78,9 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "voice",
     target: "voice-header",
-    title: "Configure Your Voice",
+    title: "Tune Your Voice",
     description:
-      "Add example posts, tune the dials, or upload a CSV to teach the AI your style. Click Next when you're ready to continue.",
+      "Add voice examples, tune the dials, or upload a CSV — generation is honed on your proven patterns, and Voice check scores any draft against your tuned voice. Click Next when you're ready to continue.",
     placement: "right",
     skippable: true,
     navigate: "/voice",
@@ -94,7 +94,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: "quick-actions",
     title: "You're all set!",
     description:
-      "Start creating content, head to X to save inspiration, or explore your dashboard. The more you use it, the smarter it gets.",
+      "Generate content that sounds like you, run a Voice Tune-Up from Insights, or explore your dashboard. The more you use it, the sharper your voice gets.",
     placement: "bottom",
     skippable: false,
     navigate: "/",

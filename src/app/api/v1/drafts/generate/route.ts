@@ -105,22 +105,11 @@ export const POST = withApiAuth(["drafts:generate"], async ({ auth, request }) =
 
   const aiProvider: AIProvider = (voiceSettings?.ai_model as AIProvider) || "openai";
 
-  // Fetch voice examples
-  const { data: voiceExamples } = await supabase
-    .from("user_voice_examples")
-    .select("content_text")
-    .eq("user_id", auth.userId)
-    .eq("is_excluded", false)
-    .eq("content_type", voiceType)
-    .order("engagement_score", { ascending: false })
-    .limit(5);
-
-  const patternInstructions = patterns.length > 0
-    ? `Apply these patterns:\n${patterns.map(p => `- ${p.pattern_name}: ${p.pattern_value}`).join("\n")}`
-    : "";
-
-  const examplePosts = voiceExamples?.length
-    ? `Here are examples of the user's writing style:\n${voiceExamples.map((e, i) => `Example ${i + 1}: ${e.content_text}`).join("\n\n")}`
+  // Voice examples and default patterns come from the assembled system
+  // prompt (one canonical tuned context). The user prompt only carries
+  // explicit per-request steering: caller-selected pattern IDs.
+  const patternInstructions = patternIds.length > 0 && patterns.length > 0
+    ? `Apply these patterns the user selected:\n${patterns.map(p => `- ${p.pattern_name}: ${p.pattern_value}`).join("\n")}`
     : "";
 
   const inspirationInstructions = inspirationPost
@@ -141,7 +130,6 @@ ${replyTo!.text}
 Each reply must be a single tweet under 280 characters. Be conversational and add value — agree, build on it, or respectfully push back. Do not restate their post. No hashtags.
 ${inspirationInstructions}
 ${patternInstructions}
-${examplePosts}
 
 Return a JSON array with ${count} options. Each option should have:
 - "content": The reply text
@@ -159,7 +147,6 @@ Return ONLY the JSON array, no other text.`;
 ${formatInstructions}
 ${inspirationInstructions}
 ${patternInstructions}
-${examplePosts}
 
 Return a JSON array with ${count} options. Each option should have:
 - "content": The tweet text (or array of tweets for threads)

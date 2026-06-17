@@ -2,6 +2,7 @@ import { withApiAuth, apiSuccess, apiOptions } from "@/lib/api/v1-handler";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/x-api";
 import { getCredits, effectivePlan } from "@/lib/billing/credits";
+import { getContextFreshness } from "@/lib/analysis/freshness";
 
 export const OPTIONS = apiOptions;
 
@@ -30,9 +31,10 @@ export const GET = withApiAuth([], async ({ auth }) => {
     }
   }
 
-  const [credits, plan] = await Promise.all([
+  const [credits, plan, freshness] = await Promise.all([
     getCredits(auth.userId),
     effectivePlan(auth.userId),
+    getContextFreshness(supabase, auth.userId),
   ]);
 
   return apiSuccess({
@@ -54,5 +56,8 @@ export const GET = withApiAuth([], async ({ auth }) => {
       monthly_allowance: credits.monthlyAllowance,
       resets_at: credits.resetsAt,
     },
+    // Freshness of the tuned context vs the latest analytics — when
+    // retune_recommended is true, suggest run_tuneup to the user.
+    context_freshness: freshness,
   });
 });

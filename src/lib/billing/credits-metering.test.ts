@@ -42,6 +42,7 @@ import {
   checkDailyActionCap,
   withCreditHeaders,
   publishCreditCost,
+  CREDIT_COSTS,
 } from "./credits";
 
 const USER = "00000000-0000-0000-0000-000000000001";
@@ -160,6 +161,29 @@ describe("partial-thread refund math", () => {
     expect(refund).toBe(30 + 3);
     // The posted prefix stays charged:
     expect(publishCreditCost(tweets) - refund).toBe(3);
+  });
+});
+
+describe("voice check metering", () => {
+  it("prices voice.check at 3 credits, consistent with generation", () => {
+    expect(CREDIT_COSTS["voice.check"]).toBe(3);
+    expect(CREDIT_COSTS["voice.check"]).toBe(CREDIT_COSTS["drafts.generate"]);
+  });
+
+  it("prices insights.tuneup at 5 credits (multiple model calls)", () => {
+    expect(CREDIT_COSTS["insights.tuneup"]).toBe(5);
+  });
+
+  it("charges and reports the voice.check debit", async () => {
+    const result = await requireCredits(USER, CREDIT_COSTS["voice.check"], "voice.check");
+    expect(result).toEqual({ charged: 3, remaining: 97 });
+
+    const debitCall = rpcMock.mock.calls.find(([fn]) => fn === "debit_credits");
+    expect(debitCall?.[1]).toMatchObject({
+      p_user_id: USER,
+      p_amount: 3,
+      p_action: "voice.check",
+    });
   });
 });
 

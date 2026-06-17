@@ -40,6 +40,18 @@ interface FeedbackItem {
   metadata: Record<string, unknown>;
 }
 
+export interface PatternForPrompt {
+  pattern_type: string;
+  pattern_name: string;
+  pattern_value: string;
+  multiplier: number;
+}
+
+export interface StrategyForPrompt {
+  posts_per_week?: number;
+  pillar_targets?: Array<{ pillar: string; posts_per_week: number }>;
+}
+
 interface AssemblyContext {
   settings: Partial<UserVoiceSettings>;
   examples: UserVoiceExample[];
@@ -47,6 +59,8 @@ interface AssemblyContext {
   feedback?: FeedbackItem[];
   mode: VoiceType;
   nicheProfile?: NicheProfile | null;
+  patterns?: PatternForPrompt[];
+  strategy?: StrategyForPrompt | null;
 }
 
 /**
@@ -134,6 +148,44 @@ function buildControlsSection(settings: Partial<UserVoiceSettings>, mode: VoiceT
 Apply these preferences to all ${contentType}:
 
 ${controls.join('\n')}`;
+}
+
+/**
+ * Precedence note — makes the layering explicit so no fixed layer outranks
+ * the user's actual voice.
+ */
+function buildPrecedenceNote(mode: VoiceType): string {
+  return `## PRECEDENCE
+
+When instructions conflict, apply them in this order:
+1. The user's real ${mode} examples (highest authority — match how they actually write)
+2. The user's voice controls, guardrails, and special notes
+3. The base scaffold above (lowest authority)`;
+}
+
+/**
+ * Build guardrails section — user-visible, user-editable style law
+ * (defaults seeded from DEFAULT_VOICE_SETTINGS, editable on the voice page).
+ */
+function buildGuardrailsSection(settings: Partial<UserVoiceSettings>): string {
+  const g = settings.guardrails ?? DEFAULT_VOICE_SETTINGS.guardrails;
+  const lines: string[] = [];
+
+  if (g.avoid_words?.length) {
+    lines.push(`Never use these words: ${g.avoid_words.join(', ')}.`);
+  }
+  if (g.avoid_topics?.length) {
+    lines.push(`Avoid these topics: ${g.avoid_topics.join(', ')}.`);
+  }
+  for (const rule of g.custom_rules ?? []) {
+    if (rule.trim()) lines.push(rule.trim());
+  }
+
+  if (lines.length === 0) return '';
+
+  return `## YOUR GUARDRAILS
+
+${lines.map((l) => `- ${l}`).join('\n')}`;
 }
 
 /**
@@ -340,16 +392,35 @@ function buildFeedbackSection(
 /**
  * Build niche context section (150-token budget).
  * Only injected when the profile is sufficiently populated and the toggle is on.
+ * Includes the positioning statement and content-strategy pillar targets when present.
  */
 function buildNicheSection(
   nicheProfile: NicheProfile | null | undefined,
-  useNicheContext: boolean
+  useNicheContext: boolean,
+  strategy?: StrategyForPrompt | null
 ): { section: string; tokensUsed: number } {
-  if (!useNicheContext || !nicheProfile) {
-    return { section: '', tokensUsed: 0 };
-  }
-  if (!nicheProfile.niche_summary || nicheProfile.content_pillars.length < 2) {
-    return { section: '', tokensUsed: 0 };
+  const pillarTargetsArr = strategy?.pillar_targets ?? [];
+  const strategyTargetsLine =
+    pillarTargetsArr.length > 0
+      ? `Weekly pillar targets: ${pillarTargetsArr
+          .map((t) => `${t.pillar} (${t.posts_per_week}/wk)`)
+          .join(', ')}.`
+      : '';
+
+  const nichePopulated =
+    useNicheContext &&
+    nicheProfile &&
+    nicheProfile.niche_summary &&
+    nicheProfile.content_pillars.length >= 2;
+
+  // Strategy is not gated behind the niche profile: a user with pillar
+  // targets but no analyzed niche still gets their strategy context.
+  if (!nichePopulated) {
+    if (!strategyTargetsLine) {
+      return { section: '', tokensUsed: 0 };
+    }
+    const section = `## YOUR CONTENT STRATEGY\n\n${strategyTargetsLine}`;
+    return { section, tokensUsed: estimateTokens(section) };
   }
 
   const topClusters = [...nicheProfile.topic_clusters]
@@ -363,20 +434,74 @@ function buildNicheSection(
           .map((c) => `${c.name} (${c.share_pct}% of posts)`)
           .join(', ')}.`
       : '';
+  const positioningLine = nicheProfile.positioning?.positioning_statement
+    ? `Positioning: ${nicheProfile.positioning.positioning_statement}`
+    : '';
 
-  const section = `## YOUR CONTENT NICHE
+  const body = [
+    nicheProfile.niche_summary,
+    positioningLine,
+    pillarsLine + (clustersLine ? `\n${clustersLine}` : ''),
+    strategyTargetsLine,
+  ]
+    .filter(Boolean)
+    .join('\n');
 
-${nicheProfile.niche_summary}
-${pillarsLine}${clustersLine ? `\n${clustersLine}` : ''}`;
+  const section = `## YOUR CONTENT NICHE\n\n${body}`;
 
   return { section, tokensUsed: estimateTokens(section) };
+}
+
+/**
+ * Build proven-patterns section (~150-token budget, post mode only).
+ * Top enabled extracted patterns ordered by engagement multiplier.
+ * Intensity follows the optimization_authenticity dial: a user who chose
+ * authenticity over engagement tactics gets no pattern injection at all.
+ */
+function buildPatternsSection(
+  patterns: PatternForPrompt[] | undefined,
+  mode: VoiceType,
+  optimizationAuthenticity: number,
+  maxTokens: number = 150
+): { section: string; tokensUsed: number } {
+  if (mode !== 'post' || !patterns || patterns.length === 0) {
+    return { section: '', tokensUsed: 0 };
+  }
+  // Dial < 30 means "write authentically, avoid engagement tricks" — pattern
+  // injection would contradict the user's own setting.
+  if (optimizationAuthenticity < 30) {
+    return { section: '', tokensUsed: 0 };
+  }
+
+  const sorted = [...patterns].sort((a, b) => (b.multiplier || 0) - (a.multiplier || 0));
+
+  const softened = optimizationAuthenticity <= 70;
+  const header = softened
+    ? '## PROVEN PATTERNS — style reference only\n\nThese patterns come from this user\'s highest-performing posts (multiplier = engagement vs their average). Treat them as background information; only apply one when it fits the user\'s authentic voice perfectly:\n'
+    : '## PROVEN PATTERNS — apply where natural, never force\n\nThese patterns come from this user\'s highest-performing posts (multiplier = engagement vs their average):\n';
+  let tokensUsed = estimateTokens(header);
+  const lines: string[] = [];
+
+  for (const p of sorted) {
+    const line = `- ${p.pattern_name} (${(p.multiplier || 1).toFixed(1)}x): ${p.pattern_value}`;
+    const lineTokens = estimateTokens(line + '\n');
+    if (tokensUsed + lineTokens > maxTokens) break;
+    lines.push(line);
+    tokensUsed += lineTokens;
+  }
+
+  if (lines.length === 0) {
+    return { section: '', tokensUsed: 0 };
+  }
+
+  return { section: `${header}${lines.join('\n')}`, tokensUsed };
 }
 
 /**
  * Assemble the complete prompt with token budgeting
  */
 export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
-  const { settings, examples, inspirations, feedback, mode, nicheProfile } = context;
+  const { settings, examples, inspirations, feedback, mode, nicheProfile, patterns, strategy } = context;
 
   // Use defaults for missing settings
   const effectiveSettings = { ...DEFAULT_VOICE_SETTINGS, ...settings };
@@ -392,8 +517,21 @@ export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
   // Build niche context section (150-token budget, gated on toggle)
   const nicheResult = buildNicheSection(
     nicheProfile,
-    effectiveSettings.use_niche_context ?? true
+    effectiveSettings.use_niche_context ?? true,
+    strategy
   );
+
+  // Build proven-patterns section (~150-token budget, post mode only,
+  // intensity gated on the authenticity dial)
+  const patternsResult = buildPatternsSection(
+    patterns,
+    mode,
+    effectiveSettings.optimization_authenticity ?? 50
+  );
+
+  // Precedence note + guardrails (user-visible style law)
+  const precedenceNote = buildPrecedenceNote(mode);
+  const guardrailsSection = buildGuardrailsSection(effectiveSettings);
 
   // Build special notes section
   const specialNotesSection = buildSpecialNotesSection(effectiveSettings);
@@ -415,11 +553,17 @@ export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
   // Build feedback section
   const feedbackResult = buildFeedbackSection(feedback || []);
 
-  // Assemble final prompt — niche context sits between controls and examples
+  // Assemble final prompt — precedence note right after the base scaffold,
+  // then user law (controls, guardrails), then context (niche/strategy,
+  // patterns, notes), then the user's actual voice (examples last-but-one so
+  // they sit closest to the task).
   const sections = [
     basePrompt,
+    precedenceNote,
     controlsSection,
+    guardrailsSection,
     nicheResult.section,
+    patternsResult.section,
     specialNotesSection,
     examplesResult.section,
     inspirationResult.section,
@@ -434,8 +578,11 @@ export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
     total_tokens: totalTokens,
     breakdown: {
       base_prompt_tokens: baseTokens,
-      controls_tokens: controlsTokens,
+      // Includes the precedence note and guardrails sections (user law)
+      controls_tokens:
+        controlsTokens + estimateTokens(precedenceNote) + estimateTokens(guardrailsSection),
       niche_tokens: nicheResult.tokensUsed,
+      patterns_tokens: patternsResult.tokensUsed,
       voice_examples_tokens: examplesResult.tokensUsed,
       inspiration_tokens: inspirationResult.tokensUsed,
       feedback_tokens: feedbackResult.tokensUsed,
@@ -496,12 +643,27 @@ export async function getAssembledPromptForUser(
     .order('created_at', { ascending: false })
     .limit(10);
 
-  // Fetch niche profile (only if toggle is on in settings — still fetch to avoid extra round-trips)
-  const { data: nicheProfile } = await supabase
-    .from('user_niche_profile')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
+  // Fetch niche profile, enabled patterns, and content strategy in parallel
+  // (niche profile is fetched even when the toggle is off to avoid extra round-trips)
+  const [{ data: nicheProfile }, { data: patterns }, { data: strategy }] = await Promise.all([
+    supabase
+      .from('user_niche_profile')
+      .select('*')
+      .eq('user_id', userId)
+      .single(),
+    supabase
+      .from('extracted_patterns')
+      .select('pattern_type, pattern_name, pattern_value, multiplier')
+      .eq('user_id', userId)
+      .eq('is_enabled', true)
+      .order('multiplier', { ascending: false })
+      .limit(10),
+    supabase
+      .from('content_strategy')
+      .select('posts_per_week, pillar_targets')
+      .eq('user_id', userId)
+      .maybeSingle(),
+  ]);
 
   const assembled = assemblePrompt({
     settings: settings || {},
@@ -510,6 +672,8 @@ export async function getAssembledPromptForUser(
     feedback: (feedback as FeedbackItem[]) || [],
     mode: voiceType,
     nicheProfile: nicheProfile || null,
+    patterns: (patterns as PatternForPrompt[]) || [],
+    strategy: (strategy as StrategyForPrompt) || null,
   });
 
   return assembled.system_prompt;

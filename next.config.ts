@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   async headers() {
@@ -76,4 +77,20 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: "agents-for-x",
+  project: "javascript-nextjs",
+
+  // Auth token for source map upload — set SENTRY_AUTH_TOKEN in CI/Vercel only.
+  // No-op locally when unset, so dev builds skip the upload step.
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Only print upload logs in CI; keep local builds quiet.
+  silent: !process.env.CI,
+
+  // Upload a wider set of client source maps for prettier stack traces.
+  widenClientFileUpload: true,
+
+  // Tree-shake Sentry logger statements to shrink the client bundle.
+  disableLogger: true,
+});

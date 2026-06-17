@@ -217,7 +217,7 @@ export function InsightsHub({ posts, uploadedAt, onUploadClick, compact }: Insig
                 Insights Hub
               </h3>
               <p className={`text-${compact ? "xs" : "sm"} text-[var(--color-text-muted)] ${compact ? "" : "mb-4 max-w-[280px] mx-auto"}`}>
-                Upload your X analytics CSV to unlock insights
+                Upload your X analytics CSV to analyze your niche and tune your voice
               </p>
             </div>
             {!compact && (

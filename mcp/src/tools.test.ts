@@ -10,8 +10,8 @@ const EXPECTED_TOOLS = [
   "whoami", "health", "get_credits",
   "get_voice_settings", "update_voice_settings",
   "get_strategy", "update_strategy", "get_niche",
-  // generation
-  "get_writing_context", "generate_post", "generate_reply", "send_feedback",
+  // generation & tuning
+  "get_writing_context", "check_draft", "run_tuneup", "generate_post", "generate_reply", "send_feedback",
   // drafts
   "list_drafts", "get_draft", "create_draft", "update_draft", "delete_draft",
   // publishing
@@ -69,7 +69,7 @@ describe("tool registry", () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([...EXPECTED_TOOLS].sort());
-    expect(names).toHaveLength(33);
+    expect(names).toHaveLength(35);
   });
 
   it("steers agents to client-side writing over server-side generation", async () => {
@@ -84,6 +84,8 @@ describe("tool registry", () => {
     const { tools } = await client.listTools();
     const byName = new Map(tools.map((t) => [t.name, t.description ?? ""]));
     expect(byName.get("generate_post")).toMatch(/3 credits/);
+    expect(byName.get("check_draft")).toMatch(/3 credits/);
+    expect(byName.get("run_tuneup")).toMatch(/5 credits/);
     expect(byName.get("publish_post")).toMatch(/30 if the text contains a URL/);
     expect(byName.get("publish_thread")).toMatch(/3 credits per tweet/);
     expect(byName.get("schedule_post")).toMatch(/refunded if cancelled/);
@@ -211,6 +213,31 @@ describe("call routing", () => {
       replies_per_week: 10,
       pillar_targets: [{ pillar: "AI", posts_per_week: 2 }],
     });
+  });
+
+  it("check_draft posts the draft to the voice check endpoint", async () => {
+    await client.callTool({
+      name: "check_draft",
+      arguments: { text: "shipping the new tuner today", voiceType: "post" },
+    });
+    expect(api.post).toHaveBeenCalledWith("/api/v1/voice/check", {
+      text: "shipping the new tuner today",
+      voice_type: "post",
+    });
+  });
+
+  it("run_tuneup posts to the v1 tuneup endpoint", async () => {
+    await client.callTool({ name: "run_tuneup", arguments: {} });
+    expect(api.post).toHaveBeenCalledWith("/api/v1/insights/tuneup");
+  });
+
+  it("check_draft rejects too-short drafts", async () => {
+    const result = await client.callTool({
+      name: "check_draft",
+      arguments: { text: "hi" },
+    });
+    expect(result.isError).toBe(true);
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it("get_tweet URL-encodes the id", async () => {

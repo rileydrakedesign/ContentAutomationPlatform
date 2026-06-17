@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Chrome,
   PlugZap,
@@ -12,6 +13,7 @@ import {
   Sparkles,
   MessageSquare,
   Bookmark,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
@@ -41,11 +43,25 @@ const STEPS: Step[] = [
 /* ------------------------------------------------------------------ */
 
 export function OnboardingModal({ onComplete }: { onComplete: () => void }) {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
+  const [hasAnalytics, setHasAnalytics] = useState<boolean | null>(null);
+  const [tuningUp, setTuningUp] = useState(false);
 
   const step = STEPS[currentStep];
   const isFirst = currentStep === 0;
   const isLast = currentStep === STEPS.length - 1;
+
+  // Check whether the user has analytics data so the final step can offer
+  // a guided first Voice Tune-Up instead of an empty profile.
+  useEffect(() => {
+    fetch("/api/analytics/csv")
+      .then((res) => res.json())
+      .then((data) =>
+        setHasAnalytics(Boolean(data.data) && (data.data.posts?.length ?? 0) > 0)
+      )
+      .catch(() => setHasAnalytics(false));
+  }, []);
 
   const next = useCallback(() => {
     if (isLast) return;
@@ -68,6 +84,41 @@ export function OnboardingModal({ onComplete }: { onComplete: () => void }) {
     }
     onComplete();
   }, [onComplete]);
+
+  /** Run the first Voice Tune-Up, then close the modal and open the Voice Report. */
+  const runFirstTuneup = useCallback(async () => {
+    setTuningUp(true);
+    try {
+      const res = await fetch("/api/insights/tuneup", { method: "POST" });
+      if (!res.ok) {
+        console.error("First Voice Tune-Up failed with status:", res.status);
+      } else {
+        // Hand the freshly generated Voice Report to the Insights page so it
+        // renders immediately on arrival instead of being discarded.
+        const data = await res.json();
+        if (data?.report) {
+          try {
+            sessionStorage.setItem("pending_voice_report", JSON.stringify(data.report));
+          } catch {
+            // Storage full/unavailable — the tune-up still persisted its results.
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to run first Voice Tune-Up:", e);
+    } finally {
+      setTuningUp(false);
+      // Success or failure, land the user on Insights where the Voice Report lives.
+      await finish();
+      router.push("/insights");
+    }
+  }, [finish, router]);
+
+  /** Close the modal and go to the dashboard (where the CSV upload lives). */
+  const finishToDashboard = useCallback(async () => {
+    await finish();
+    router.push("/");
+  }, [finish, router]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -108,14 +159,20 @@ export function OnboardingModal({ onComplete }: { onComplete: () => void }) {
           {step.id === "extension" && <ExtensionStep />}
           {step.id === "connect" && <ConnectStep />}
           {step.id === "voice" && <VoiceStep />}
-          {step.id === "ready" && <ReadyStep />}
+          {step.id === "ready" && <ReadyStep hasAnalytics={hasAnalytics} />}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between px-8 py-5 border-t border-[var(--color-border-subtle)]">
           <div>
             {!isFirst && (
-              <Button variant="ghost" size="sm" onClick={back} icon={<ArrowLeft className="w-3.5 h-3.5" />}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={back}
+                disabled={tuningUp}
+                icon={<ArrowLeft className="w-3.5 h-3.5" />}
+              >
                 Back
               </Button>
             )}
@@ -127,9 +184,39 @@ export function OnboardingModal({ onComplete }: { onComplete: () => void }) {
               </Button>
             )}
             {isLast ? (
-              <Button variant="primary" size="md" glow onClick={finish} icon={<Sparkles className="w-4 h-4" />}>
-                Go to Dashboard
-              </Button>
+              hasAnalytics ? (
+                <>
+                  <Button variant="ghost" size="sm" onClick={finish} disabled={tuningUp}>
+                    Go to Dashboard
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    glow
+                    onClick={runFirstTuneup}
+                    disabled={tuningUp}
+                    icon={
+                      tuningUp ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )
+                    }
+                  >
+                    {tuningUp ? "Tuning your voice…" : "Run your first Voice Tune-Up"}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="md"
+                  glow
+                  onClick={finishToDashboard}
+                  icon={<Upload className="w-4 h-4" />}
+                >
+                  Go to Dashboard
+                </Button>
+              )
             ) : (
               <Button variant="primary" size="md" onClick={next} icon={<ArrowRight className="w-4 h-4" />} iconPosition="right">
                 Continue
@@ -156,25 +243,26 @@ function WelcomeStep() {
         Welcome to Agents for X
       </h2>
       <p className="text-[var(--color-text-secondary)] mt-3 max-w-md leading-relaxed">
-        Your AI-powered growth assistant that lives inside your X timeline.
-        Let&apos;s get you set up in under 2 minutes.
+        Analyze your niche, tune your voice, and generate content that sounds
+        like you — and performs like your best posts. Let&apos;s get you set up
+        in under 2 minutes.
       </p>
 
       <div className="grid grid-cols-3 gap-4 mt-8 w-full max-w-lg">
         <FeatureCard
           icon={<Bookmark className="w-5 h-5" />}
-          label="Save posts"
-          desc="One-click from X"
+          label="Analyze your niche"
+          desc="Audience + positioning"
         />
         <FeatureCard
           icon={<MessageSquare className="w-5 h-5" />}
-          label="AI replies"
-          desc="In your voice"
+          label="Tune your voice"
+          desc="Examples + patterns"
         />
         <FeatureCard
           icon={<Sparkles className="w-5 h-5" />}
-          label="Grow faster"
-          desc="Data-driven"
+          label="Generate content"
+          desc="Sounds like you"
         />
       </div>
     </div>
@@ -263,7 +351,7 @@ function ConnectStep() {
         <BulletItem
           icon={<CheckCircle2 className="w-4 h-4 text-[var(--color-success-400)]" />}
           title="Sync your timeline"
-          desc="Import your recent posts so the AI can learn your voice"
+          desc="Import your recent posts to fuel niche analysis and voice tuning"
         />
       </div>
 
@@ -292,15 +380,16 @@ function VoiceStep() {
         </div>
         <div>
           <h2 className="text-xl font-semibold text-[var(--color-text-primary)] text-heading">
-            Configure Your Voice
+            Tune Your Voice
           </h2>
-          <p className="text-xs text-[var(--color-text-muted)]">So AI output sounds like you</p>
+          <p className="text-xs text-[var(--color-text-muted)]">So generated content sounds like you</p>
         </div>
       </div>
 
       <p className="text-sm text-[var(--color-text-secondary)] mt-4 leading-relaxed">
-        The voice system is what makes replies and drafts sound like <em>you</em> instead of generic AI.
-        The more examples you add, the better it gets.
+        Voice tuning is what makes drafts and replies sound like <em>you</em> instead of generic AI.
+        It combines your voice examples, your proven patterns, and your positioning — and a Voice check
+        scores any draft against your tuned voice.
       </p>
 
       <div className="space-y-3 mt-6">
@@ -317,7 +406,7 @@ function VoiceStep() {
         <BulletItem
           icon={<Upload className="w-4 h-4 text-[var(--color-text-muted)]" />}
           title="Or upload a CSV"
-          desc="Export your X analytics and upload it to auto-populate examples"
+          desc="Export your X analytics to auto-populate examples and extract your proven patterns"
         />
       </div>
 
@@ -337,7 +426,7 @@ function VoiceStep() {
   );
 }
 
-function ReadyStep() {
+function ReadyStep({ hasAnalytics }: { hasAnalytics: boolean | null }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center text-center">
       <div className="w-16 h-16 rounded-2xl bg-[var(--color-success-500)]/10 flex items-center justify-center mb-6">
@@ -346,15 +435,24 @@ function ReadyStep() {
       <h2 className="text-2xl font-semibold text-[var(--color-text-primary)] text-heading">
         You&apos;re all set
       </h2>
-      <p className="text-[var(--color-text-secondary)] mt-3 max-w-md leading-relaxed">
-        Head to X, start saving posts and generating replies. The more you use it,
-        the better it gets at matching your voice.
-      </p>
+      {hasAnalytics ? (
+        <p className="text-[var(--color-text-secondary)] mt-3 max-w-md leading-relaxed">
+          Your analytics are in. Run your first Voice Tune-Up to analyze your
+          posts, surface your proven patterns, and generate your Voice Report.
+          It takes about half a minute.
+        </p>
+      ) : (
+        <p className="text-[var(--color-text-secondary)] mt-3 max-w-md leading-relaxed">
+          Upload your X analytics CSV or connect your X account, then run your
+          first Voice Tune-Up. It analyzes your posts, surfaces your proven
+          patterns, and generates your Voice Report.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-3 mt-8 w-full max-w-sm text-left">
         <QuickLink label="Open X" desc="Start engaging" href="https://x.com" external />
-        <QuickLink label="Voice Settings" desc="Refine your style" href="/voice" />
-        <QuickLink label="Create Drafts" desc="Write new posts" href="/create" />
+        <QuickLink label="Voice Settings" desc="Tune your voice" href="/voice" />
+        <QuickLink label="Create Drafts" desc="Write in your voice" href="/create" />
         <QuickLink label="Upload CSV" desc="Import analytics" href="/" />
       </div>
     </div>

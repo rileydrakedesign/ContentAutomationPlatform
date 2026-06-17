@@ -159,7 +159,7 @@ export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheP
           </div>
           <div>
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-              Niche Memory
+              Niche &amp; Positioning
             </h3>
             <p className="text-xs text-[var(--color-text-muted)]">
               AI understanding of your content identity
@@ -233,6 +233,32 @@ export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheP
               className="w-full px-3 py-2 text-sm resize-none"
             />
           </div>
+
+          {/* Positioning */}
+          {profile.positioning?.positioning_statement && (
+            <div className="rounded-xl border border-[var(--color-primary-500)]/20 bg-[var(--color-primary-500)]/5 p-4 space-y-2">
+              <span className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
+                Positioning
+              </span>
+              <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                {profile.positioning.positioning_statement}
+              </p>
+              <div className="space-y-1 text-xs text-[var(--color-text-muted)]">
+                {profile.positioning.target_audience && (
+                  <p>
+                    <span className="text-[var(--color-text-secondary)]">Audience:</span>{" "}
+                    {profile.positioning.target_audience}
+                  </p>
+                )}
+                {profile.positioning.unique_angle && (
+                  <p>
+                    <span className="text-[var(--color-text-secondary)]">Unique angle:</span>{" "}
+                    {profile.positioning.unique_angle}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Content pillars */}
           {profile.content_pillars.length > 0 && (

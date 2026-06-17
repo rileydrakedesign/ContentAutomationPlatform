@@ -57,12 +57,38 @@ export async function GET(request: Request) {
       .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false });
 
+    // Fetch niche profile, enabled patterns, and strategy (same context the
+    // real generation path injects)
+    const [{ data: nicheProfile }, { data: patterns }, { data: strategy }] =
+      await Promise.all([
+        supabase
+          .from("user_niche_profile")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("extracted_patterns")
+          .select("pattern_type, pattern_name, pattern_value, multiplier")
+          .eq("user_id", user.id)
+          .eq("is_enabled", true)
+          .order("multiplier", { ascending: false })
+          .limit(10),
+        supabase
+          .from("content_strategy")
+          .select("posts_per_week, pillar_targets")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
+
     // Assemble the prompt
     const assembled = assemblePrompt({
       settings: settings,
       examples: examples || [],
       inspirations: inspirations || [],
       mode: voiceType,
+      nicheProfile: nicheProfile || null,
+      patterns: patterns || [],
+      strategy: strategy || null,
     });
 
     const response: PromptPreviewResponse = {

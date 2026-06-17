@@ -1,122 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { weightedEngagement } from "@/lib/utils/engagement";
-import type { PostAnalytics } from "@/types/analytics";
+import { createClient } from "@supabase/supabase-js";
+import { refreshVoiceExamples } from "@/lib/analysis/voice-refresh";
 
 // Vercel Cron configuration
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-// Estimate tokens (approx 4 chars per token)
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-
-// Calculate engagement score
-function calculateEngagementScore(metrics: Record<string, number>): number {
-  return weightedEngagement(metrics);
-}
-
-// Refresh voice examples for a single user
-async function refreshUserExamples(supabase: SupabaseClient, userId: string): Promise<number> {
-  // Use CSV analytics as the sole source of truth for "my posts"
-  const { data: row, error: postsError } = await supabase
-    .from("user_analytics")
-    .select("posts")
-    .eq("user_id", userId)
-    .order("uploaded_at", { ascending: false })
-    .limit(1)
-    .single();
-
-  if (postsError || !row?.posts || !Array.isArray(row.posts)) {
-    return 0;
-  }
-
-  const onlyPosts = (row.posts as PostAnalytics[]).filter((p) => p && p.is_reply === false);
-  if (onlyPosts.length === 0) return 0;
-
-  // Sort by impressions
-  const scoredPosts = [...onlyPosts]
-    .map((post) => ({
-      ...post,
-      engagement_score: Number(post.impressions || 0),
-    }))
-    .sort((a, b) => b.engagement_score - a.engagement_score);
-
-  // Get existing pinned examples (preserve them)
-  const { data: pinnedExamples } = await supabase
-    .from("user_voice_examples")
-    .select("content_text")
-    .eq("user_id", userId)
-    .eq("content_type", "post")
-    .eq("source", "pinned")
-    .eq("is_excluded", false);
-
-  const pinnedTexts = new Set(
-    pinnedExamples?.map((e) => String(e.content_text || "")).filter(Boolean) || []
-  );
-
-  // Get excluded post IDs
-  const { data: excludedExamples } = await supabase
-    .from("user_voice_examples")
-    .select("content_text")
-    .eq("user_id", userId)
-    .eq("content_type", "post")
-    .eq("is_excluded", true);
-
-  const excludedTexts = new Set(
-    excludedExamples?.map((e) => String(e.content_text || "")).filter(Boolean) || []
-  );
-
-  // Select top 10 posts not already pinned or excluded
-  const autoSelected = scoredPosts
-    .filter((p) => {
-      const text = String(p.text || "");
-      return text && !pinnedTexts.has(text) && !excludedTexts.has(text);
-    })
-    .slice(0, 10);
-
-  // Remove old auto-selected examples
-  await supabase
-    .from("user_voice_examples")
-    .delete()
-    .eq("user_id", userId)
-    .eq("source", "auto");
-
-  // Insert new auto-selected examples
-  if (autoSelected.length > 0) {
-    const examples = autoSelected.map((post, index) => ({
-      user_id: userId,
-      captured_post_id: null,
-      content_text: String(post.text || ""),
-      content_type: "post",
-      source: "auto",
-      is_excluded: false,
-      metrics_snapshot: { impressions: Number(post.impressions || 0) },
-      engagement_score: Number(post.engagement_score || 0),
-      token_count: estimateTokens(String(post.text || "")),
-      selection_reason:
-        index === 0 ? "highest impressions" : `top ${index + 1} by impressions`,
-    }));
-
-    await supabase.from("user_voice_examples").insert(examples);
-  }
-
-  // Update last refresh timestamp
-  await supabase
-    .from("user_voice_settings")
-    .upsert(
-      {
-        user_id: userId,
-        last_refresh_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" }
-    );
-
-  return autoSelected.length;
-}
 
 // GET /api/cron/voice-refresh - Weekly cron job to refresh voice examples
 export async function GET(request: NextRequest) {
@@ -166,8 +55,8 @@ export async function GET(request: NextRequest) {
 
     for (const setting of settings) {
       try {
-        const count = await refreshUserExamples(supabase, setting.user_id);
-        results.push({ userId: setting.user_id, examplesUpdated: count });
+        const result = await refreshVoiceExamples(supabase, setting.user_id);
+        results.push({ userId: setting.user_id, examplesUpdated: result.examples_updated });
         totalRefreshed++;
       } catch (err) {
         console.error(`[voice-refresh] Failed for user ${setting.user_id}:`, err);

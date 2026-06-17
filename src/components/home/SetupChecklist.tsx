@@ -50,7 +50,7 @@ export function SetupChecklist({
     {
       id: "csv",
       title: "Upload X analytics CSV",
-      desc: "Unlock best-times + performance insights without X API calls.",
+      desc: "Powers niche analysis, voice tuning, and performance insights.",
       done: !!csvStatus?.uploaded_at,
       cta: {
         label: csvStatus?.uploaded_at ? "Re-upload" : "Upload",
@@ -87,7 +87,7 @@ export function SetupChecklist({
                 </h2>
               </div>
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                You&apos;re good to go. Create drafts, ship, and iterate.
+                Your voice is tuned. Generate content that sounds like you, ship, and iterate.
               </p>
             </div>
             <Link href="/create">
@@ -115,7 +115,7 @@ export function SetupChecklist({
               </h2>
             </div>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              Do these once. After that, the dashboard becomes your daily cockpit.
+              Do these once — they fuel your niche analysis and voice tuning.
             </p>
           </div>
           <Link href="/settings">

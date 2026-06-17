@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 export const OPTIONS = apiOptions;
 
-// GET /api/v1/patterns — List extracted growth patterns. 0 credits (DB read).
+// GET /api/v1/patterns — List extracted proven patterns. 0 credits (DB read).
 export const GET = withApiAuth(["patterns:read"], async ({ auth, request }) => {
   const supabase = createAdminClient();
   const url = new URL(request.url);

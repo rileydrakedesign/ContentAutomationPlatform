@@ -10,6 +10,8 @@ import { apiError } from "@/lib/api/response";
 // URL vs $0.015 for a plain one (pay-per-use pricing, Feb 2026).
 export const CREDIT_COSTS = {
   "drafts.generate": 3,
+  "voice.check": 3,
+  "insights.tuneup": 5,
   "publish.tweet": 3,
   "publish.tweet_with_url": 30,
   "tweets.read": 1,

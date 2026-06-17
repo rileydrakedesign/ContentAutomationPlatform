@@ -1,7 +1,8 @@
 import { withApiAuth, apiSuccess, apiOptions } from "@/lib/api/v1-handler";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import type { PostAnalytics, DayOfWeekAnalytics, DayOfWeekStats } from "@/types/analytics";
+import type { DayOfWeekAnalytics, DayOfWeekStats } from "@/types/analytics";
+import { getAnalyzablePosts } from "@/lib/analysis/posts-pool";
 import {
   CREDIT_COSTS,
   requireCredits,
@@ -19,7 +20,8 @@ function getConfidence(postCount: number): "high" | "medium" | "low" {
   return "low";
 }
 
-// GET /api/v1/analytics/best-times — Best posting days from CSV analytics.
+// GET /api/v1/analytics/best-times — Best posting days from the canonical
+// analyzable-post pool (CSV + captured + synced, one engagement currency).
 // 1 credit (DB read, same rate as /analytics).
 export const GET = withApiAuth(["analytics:read"], async ({ auth }) => {
   const charge = await requireCredits(
@@ -30,16 +32,8 @@ export const GET = withApiAuth(["analytics:read"], async ({ auth }) => {
   if (charge instanceof NextResponse) return charge;
 
   const supabase = createAdminClient();
-  const { data: row, error } = await supabase
-    .from("user_analytics")
-    .select("posts")
-    .eq("user_id", auth.userId)
-    .maybeSingle();
-
-  if (error) throw error;
-
-  const allPosts: PostAnalytics[] = row?.posts || [];
-  const validPosts = allPosts.filter((p) => p.date && !p.is_reply);
+  const allPosts = await getAnalyzablePosts(supabase, auth.userId);
+  const validPosts = allPosts.filter((p) => p.posted_at);
 
   if (validPosts.length < MINIMUM_POSTS) {
     const response: DayOfWeekAnalytics = {
@@ -57,7 +51,7 @@ export const GET = withApiAuth(["analytics:read"], async ({ auth }) => {
   >();
 
   for (const post of validPosts) {
-    const postDate = new Date(post.date);
+    const postDate = new Date(post.posted_at);
     if (isNaN(postDate.getTime())) continue;
     const dow = postDate.getDay();
     const existing = dayMap.get(dow);
@@ -66,18 +60,18 @@ export const GET = withApiAuth(["analytics:read"], async ({ auth }) => {
     if (existing) {
       existing.count++;
       existing.engagement += eng;
-      existing.impressions += post.impressions || 0;
-      existing.likes += post.likes || 0;
-      existing.reposts += post.reposts || 0;
-      existing.replies += post.replies || 0;
+      existing.impressions += post.metrics.impressions;
+      existing.likes += post.metrics.likes;
+      existing.reposts += post.metrics.reposts;
+      existing.replies += post.metrics.replies;
     } else {
       dayMap.set(dow, {
         count: 1,
         engagement: eng,
-        impressions: post.impressions || 0,
-        likes: post.likes || 0,
-        reposts: post.reposts || 0,
-        replies: post.replies || 0,
+        impressions: post.metrics.impressions,
+        likes: post.metrics.likes,
+        reposts: post.metrics.reposts,
+        replies: post.metrics.replies,
       });
     }
   }

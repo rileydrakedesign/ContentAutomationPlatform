@@ -30,7 +30,7 @@ export function StyleSelector({
         <div className="p-4 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-center">
           <p className="text-sm text-[var(--color-text-muted)]">No analyzed inspiration posts yet</p>
           <p className="text-xs text-[var(--color-text-muted)] mt-1">
-            Add inspiration posts in the Library to use for style reference
+            Add inspiration posts on the Inspiration page to use for style reference
           </p>
         </div>
       </div>
