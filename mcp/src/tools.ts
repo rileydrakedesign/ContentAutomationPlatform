@@ -186,7 +186,7 @@ export function registerTools(server: McpServer, api: ApiClient): void {
     {
       title: "Get niche profile",
       description:
-        "Read the user's analyzed niche profile: summary, content pillars, and topic clusters. Returns null if not yet analyzed. Free.",
+        "Read the user's analyzed niche profile: summary, content pillars, topic clusters, and positioning (target audience, unique angle, positioning statement). Returns null if not yet analyzed. Free.",
       inputSchema: {},
     },
     () => run(() => api.get("/api/v1/niche"))
@@ -198,7 +198,7 @@ export function registerTools(server: McpServer, api: ApiClient): void {
     {
       title: "Get writing context (write it yourself)",
       description:
-        "PREFERRED way to create content: fetch the user's full writing context — their assembled voice system prompt (tone dials, guardrails, real examples of their writing, inspiration) plus their highest-performing growth patterns and the platform rules — then WRITE THE POST OR REPLY YOURSELF following it. You are a more capable writer than the server-side generator. Free. After writing, show the user, then create_draft / publish / schedule.",
+        "PREFERRED way to create content: fetch the user's full writing context — their assembled voice system prompt (tone dials, guardrails, real examples of their writing, inspiration) plus their highest-performing proven patterns and the platform rules — then WRITE THE POST OR REPLY YOURSELF following it. You are a more capable writer than the server-side generator. Free. After writing, show the user, then create_draft / publish / schedule.",
       inputSchema: {
         voiceType: z
           .enum(["post", "reply"])
@@ -207,6 +207,35 @@ export function registerTools(server: McpServer, api: ApiClient): void {
       },
     },
     ({ voiceType }) => run(() => api.get("/api/v1/voice/context", { type: voiceType }))
+  );
+
+  server.registerTool(
+    "check_draft",
+    {
+      title: "Voice-check a draft (the tuner)",
+      description:
+        "Score a draft post or reply against the user's tuned voice — their assembled voice prompt, niche positioning, and proven patterns. Returns a 0-100 score, what the draft gets right, where it deviates, and a suggested edit. Use before create_draft or publishing to make sure the content sounds like the user and matches what performs for them. Costs 3 credits.",
+      inputSchema: {
+        text: z.string().min(5).describe("The draft text to check."),
+        voiceType: z
+          .enum(["post", "reply"])
+          .default("post")
+          .describe("Which voice to judge against: 'post' or 'reply'."),
+      },
+    },
+    ({ text, voiceType }) =>
+      run(() => api.post("/api/v1/voice/check", { text, voice_type: voiceType }))
+  );
+
+  server.registerTool(
+    "run_tuneup",
+    {
+      title: "Run a Voice Tune-Up",
+      description:
+        "Run the full analyze half of the loop: refresh voice examples → extract proven patterns → analyze niche & positioning, all over the user's complete post history, then return the Voice Report (niche, positioning, top patterns, top posts, cadence vs strategy, recurring voice-check deviations with settings suggestions, feedback themes, inspiration alignment, freshness). Use when whoami or get_writing_context reports retune_recommended, or when the user asks to re-analyze. Costs 5 credits (multiple model calls).",
+      inputSchema: {},
+    },
+    () => run(() => api.post("/api/v1/insights/tuneup"))
   );
 
   server.registerTool(
@@ -595,7 +624,9 @@ export function registerTools(server: McpServer, api: ApiClient): void {
     {
       title: "Search recent tweets",
       description:
-        "Search public tweets from the last 7 days (X search syntax, e.g. 'from:user', '\"exact phrase\"', 'topic -is:retweet'). Requires a Pro plan. Costs 1 credit per result returned (minimum 5) — keep maxResults low.",
+        "Search public tweets from the last 7 days (X search syntax, e.g. 'from:user', '\"exact phrase\"', 'topic -is:retweet'). Requires a Pro plan. Costs 1 credit per result returned (minimum 5) — keep maxResults low. " +
+        "Each result carries reply-eligibility fields so you can filter to repliable posts with no extra API calls: reply_allowed (boolean), reply_eligibility (open | open_mentioned | restricted | unknown), is_auth_mentioned (boolean), and the raw reply_settings from X. " +
+        "reply_allowed=true is best-effort, NOT a guarantee — a reply can still fail with HTTP 403 ('Reply to this conversation is not allowed') if the author blocked us or spam heuristics trip, so publish_reply must still handle that gracefully. Prefer reply_allowed but consult raw reply_settings for edge cases.",
       inputSchema: {
         query: z.string().min(1).describe("X search query."),
         maxResults: z.number().int().min(10).max(25).default(10),
@@ -609,7 +640,7 @@ export function registerTools(server: McpServer, api: ApiClient): void {
   server.registerTool(
     "list_patterns",
     {
-      title: "List growth patterns",
+      title: "List proven patterns",
       description:
         "List patterns extracted from the user's top posts (hooks, formats, topics, engagement triggers) with engagement multipliers. Pass their IDs to generate_post to steer generation. Free.",
       inputSchema: {

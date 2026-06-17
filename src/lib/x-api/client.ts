@@ -21,6 +21,12 @@ export interface XTweetV2 {
   created_at?: string;
   author_id?: string;
   referenced_tweets?: Array<{ type: string; id: string }>;
+  // Who the author allows to reply. Raw X enum: everyone | mentionedUsers |
+  // following | subscribers | other. Absent on older/unhydrated payloads.
+  reply_settings?: string;
+  entities?: {
+    mentions?: Array<{ username: string; id?: string; start?: number; end?: number }>;
+  };
   public_metrics?: {
     retweet_count: number;
     reply_count: number;
@@ -391,7 +397,10 @@ export async function searchRecentTweets(
     accessToken,
     {
       query,
-      "tweet.fields": "created_at,public_metrics",
+      // reply_settings + entities (with author_id expansion) let the consumer
+      // determine reply eligibility per post without extra API calls. These
+      // fields are free on all paid v2 tiers.
+      "tweet.fields": "created_at,public_metrics,reply_settings,entities",
       "expansions": "author_id",
       "user.fields": "username,name",
       max_results: Math.max(10, Math.min(maxResults, 100)).toString(),
