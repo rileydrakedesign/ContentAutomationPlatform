@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
-import { getTweetsBatch, getValidAccessToken } from "@/lib/x-api";
-import { getUserSubscription } from "@/lib/stripe/subscription";
-import { PLANS, isSubscriptionActive } from "@/types/subscription";
+import { refreshOwnPostMetrics } from "@/lib/analysis/own-posts-refresh";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-// GET /api/cron/metrics-refresh - Batch refresh engagement metrics on captured posts
+// GET /api/cron/metrics-refresh - Batch refresh engagement metrics on the
+// user's own captured posts (everything published through any surface).
+//
+// Refreshing the user's OWN posts is not plan-gated — it is the seam that
+// closes the analytics flywheel, and the only thing keeping the loop fresh for
+// free users. The daily-ops cron drives this on a daily cadence; this route
+// stays for manual / on-demand triggering.
 export async function GET(request: NextRequest) {
   try {
     // Verify cron secret
@@ -43,65 +47,8 @@ export async function GET(request: NextRequest) {
 
     for (const conn of connections) {
       try {
-        // API sync is a paid-plan feature — apply the same gate as the UI
-        const sub = await getUserSubscription(conn.user_id);
-        const plan = isSubscriptionActive(sub)
-          ? PLANS[sub.plan_id] || PLANS.free
-          : PLANS.free;
-        if (!plan.limits.xApiSync) continue;
-
-        const { accessToken } = await getValidAccessToken(conn.user_id);
-
-        // Get captured posts with x_post_id, oldest-updated first
-        const { data: posts } = await supabase
-          .from("captured_posts")
-          .select("id, x_post_id")
-          .eq("user_id", conn.user_id)
-          .not("x_post_id", "is", null)
-          .order("updated_at", { ascending: true })
-          .limit(200);
-
-        if (!posts || posts.length === 0) continue;
-
-        // Batch IDs into groups of 100
-        const ids = posts.map((p) => p.x_post_id).filter(Boolean);
-        const batches: string[][] = [];
-        for (let i = 0; i < ids.length; i += 100) {
-          batches.push(ids.slice(i, i + 100));
-        }
-
-        // Build a map of x_post_id -> fresh metrics
-        const metricsMap = new Map<string, Record<string, number>>();
-
-        for (const batch of batches) {
-          const tweets = await getTweetsBatch(accessToken, batch);
-
-          for (const tweet of tweets) {
-            metricsMap.set(tweet.id, {
-              likes: tweet.public_metrics?.like_count || 0,
-              retweets: tweet.public_metrics?.retweet_count || 0,
-              replies: tweet.public_metrics?.reply_count || 0,
-              quotes: tweet.public_metrics?.quote_count || 0,
-              views: tweet.public_metrics?.impression_count ?? 0,
-            });
-          }
-        }
-
-        // Update each post with fresh metrics
-        for (const post of posts) {
-          const freshMetrics = metricsMap.get(post.x_post_id);
-          if (!freshMetrics) continue;
-
-          await supabase
-            .from("captured_posts")
-            .update({
-              metrics: freshMetrics,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", post.id);
-
-          totalUpdated++;
-        }
+        const { updated } = await refreshOwnPostMetrics(supabase, conn.user_id);
+        totalUpdated += updated;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[metrics-refresh] Failed for user ${conn.user_id}:`, msg);

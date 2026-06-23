@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { qstash } from "@/lib/qstash/client";
 
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to cancel scheduled post:", error);
+    Sentry.captureException(error, { tags: { route: "publish/cancel" } });
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

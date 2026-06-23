@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
@@ -92,6 +93,7 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error("Failed to fetch patterns:", error);
+    Sentry.captureException(error, { tags: { route: "patterns" } });
     return NextResponse.json(
       { error: "Failed to fetch patterns" },
       { status: 500, headers: corsHeaders }

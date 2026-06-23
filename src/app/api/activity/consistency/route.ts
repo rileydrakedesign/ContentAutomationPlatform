@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import type { PostAnalytics } from "@/types/analytics";
 
@@ -93,6 +94,7 @@ export async function GET() {
     return NextResponse.json({ days });
   } catch (error) {
     console.error("Failed to compute consistency activity:", error);
+    Sentry.captureException(error, { tags: { route: "activity/consistency" } });
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

@@ -15,6 +15,7 @@ import { extractPatternsForUser } from "./pattern-extract";
 import { analyzeNicheForUser } from "./niche-analyze";
 import { getAnalyzablePosts } from "./posts-pool";
 import { getContextFreshness, type ContextFreshness } from "./freshness";
+import type { NicheProfile } from "@/types/niche";
 
 export interface DeviationSuggestion {
   category: string;
@@ -155,8 +156,35 @@ export async function runVoiceTuneup(
     return { ok: false, status: niche.status, error: niche.error };
   }
 
-  // ── 4. Assemble the Voice Report ───────────────────────────
+  // ── 4. Assemble the Voice Report from the now-updated stored state ──
+  // The assembly reads only persisted tables, so the exact same builder backs
+  // the free, read-only GET /api/insights/report (view the latest report
+  // without re-running the 5-credit tune-up).
+  const report = await assembleVoiceReportFromStoredState(supabase, userId, {
+    examples_updated: refresh.examples_updated,
+    patterns_extracted: patternsExtracted,
+    pattern_extraction_skipped: patternExtractionSkipped,
+    posts_analyzed: niche.posts_analyzed,
+  });
+
+  return { ok: true, report };
+}
+
+/**
+ * Assemble the Voice Report purely from already-stored state (niche profile,
+ * enabled patterns w/ provenance, top posts from the canonical pool, cadence vs
+ * strategy, recurring voice-check deviations, feedback themes, inspiration
+ * alignment, freshness). No model calls, no writes — this is the read half that
+ * both runVoiceTuneup (after it writes) and the free GET endpoint share, so the
+ * persisted report never drifts from the live tables.
+ */
+export async function assembleVoiceReportFromStoredState(
+  supabase: SupabaseClient,
+  userId: string,
+  steps: VoiceTuneupReport["steps"]
+): Promise<VoiceTuneupReport> {
   const [
+    { data: nicheProfileRow },
     { data: topPatterns },
     { data: strategy },
     pool,
@@ -166,8 +194,16 @@ export async function runVoiceTuneup(
     freshness,
   ] = await Promise.all([
     supabase
+      .from("user_niche_profile")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    supabase
       .from("extracted_patterns")
-      .select("id, pattern_type, pattern_name, pattern_value, multiplier, sample_count")
+      // Include applies_to_generation so the Voice Report can label
+      // timing/post-type/visual patterns as insight-only (shown, not applied
+      // to generation). The report deliberately does NOT filter these out.
+      .select("id, pattern_type, pattern_name, pattern_value, multiplier, sample_count, source_post_examples, applies_to_generation")
       .eq("user_id", userId)
       .eq("is_enabled", true)
       .order("multiplier", { ascending: false })
@@ -198,7 +234,9 @@ export async function runVoiceTuneup(
     getContextFreshness(supabase, userId),
   ]);
 
-  // Top posts + posting cadence from the same pool the analyses used
+  const profile = (nicheProfileRow as NicheProfile | null) ?? null;
+
+  // Top posts + posting cadence from the canonical pool
   const topPosts = pool.slice(0, 5).map((p) => ({
     text: p.text,
     engagement_score: Math.round(p.engagement_score),
@@ -226,9 +264,9 @@ export async function runVoiceTuneup(
   const dislikes = (feedbackRows ?? []).filter((f) => f.feedback_type === "dislike");
   const snippet = (s: string) => (s.length > 120 ? `${s.slice(0, 117)}...` : s);
 
-  // Inspiration alignment vs the fresh niche (closed loop for the Library)
-  const pillars = (niche.profile.content_pillars ?? []).map((p) => p.toLowerCase());
-  const clusterKeywords = (niche.profile.topic_clusters ?? [])
+  // Inspiration alignment vs the stored niche (closed loop for the Library)
+  const pillars = (profile?.content_pillars ?? []).map((p) => p.toLowerCase());
+  const clusterKeywords = (profile?.topic_clusters ?? [])
     .flatMap((c) => c.keywords ?? [])
     .map((k) => k.toLowerCase())
     .filter((k) => k.length >= 4);
@@ -251,38 +289,87 @@ export async function runVoiceTuneup(
         }`;
 
   return {
-    ok: true,
-    report: {
-      niche_summary: niche.profile.niche_summary,
-      positioning: niche.profile.positioning,
-      content_pillars: niche.profile.content_pillars,
-      top_patterns: topPatterns ?? [],
-      top_posts: topPosts,
-      cadence: {
-        posts_last_28_days: postsLast28,
-        avg_posts_per_week: avgPostsPerWeek,
-        target_posts_per_week: strategy?.posts_per_week ?? null,
-        pillar_targets: strategy?.pillar_targets ?? [],
-      },
-      recurring_deviations: recurringDeviations,
-      feedback_themes: {
-        likes: likes.length,
-        dislikes: dislikes.length,
-        recent_disliked: dislikes.slice(0, 3).map((f) => snippet(String(f.content_text || ""))),
-        recent_liked: likes.slice(0, 3).map((f) => snippet(String(f.content_text || ""))),
-      },
-      inspiration_alignment: {
-        total: inspirationTexts.length,
-        aligned: alignedCount,
-        note: inspirationNote,
-      },
-      context_freshness: freshness,
-      steps: {
-        examples_updated: refresh.examples_updated,
-        patterns_extracted: patternsExtracted,
-        pattern_extraction_skipped: patternExtractionSkipped,
-        posts_analyzed: niche.posts_analyzed,
-      },
+    niche_summary: profile?.niche_summary ?? null,
+    positioning: profile?.positioning ?? null,
+    content_pillars: profile?.content_pillars ?? [],
+    top_patterns: topPatterns ?? [],
+    top_posts: topPosts,
+    cadence: {
+      posts_last_28_days: postsLast28,
+      avg_posts_per_week: avgPostsPerWeek,
+      target_posts_per_week: strategy?.posts_per_week ?? null,
+      pillar_targets: strategy?.pillar_targets ?? [],
     },
+    recurring_deviations: recurringDeviations,
+    feedback_themes: {
+      likes: likes.length,
+      dislikes: dislikes.length,
+      recent_disliked: dislikes.slice(0, 3).map((f) => snippet(String(f.content_text || ""))),
+      recent_liked: likes.slice(0, 3).map((f) => snippet(String(f.content_text || ""))),
+    },
+    inspiration_alignment: {
+      total: inspirationTexts.length,
+      aligned: alignedCount,
+      note: inspirationNote,
+    },
+    context_freshness: freshness,
+    steps,
+  };
+}
+
+/**
+ * Whether enough analyzed state exists to show a Voice Report without running a
+ * tune-up. Used by the read-only GET to decide between returning a report and
+ * telling the client to run the first tune-up.
+ */
+export async function hasStoredVoiceReport(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<boolean> {
+  const [{ data: niche }, { count: patternCount }] = await Promise.all([
+    supabase
+      .from("user_niche_profile")
+      .select("niche_summary")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    supabase
+      .from("extracted_patterns")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("is_enabled", true),
+  ]);
+  return Boolean(niche?.niche_summary) || (patternCount ?? 0) > 0;
+}
+
+/**
+ * Compute the "steps" summary for a read-only report from stored counts (the
+ * GET path has no run-time step values — derive plausible ones from state).
+ */
+export async function deriveReportSteps(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<VoiceTuneupReport["steps"]> {
+  const [{ count: exampleCount }, { count: patternCount }, { data: niche }] = await Promise.all([
+    supabase
+      .from("user_voice_examples")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("is_excluded", false),
+    supabase
+      .from("extracted_patterns")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("is_enabled", true),
+    supabase
+      .from("user_niche_profile")
+      .select("total_posts_analyzed")
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
+  return {
+    examples_updated: exampleCount ?? 0,
+    patterns_extracted: patternCount ?? 0,
+    pattern_extraction_skipped: null,
+    posts_analyzed: niche?.total_posts_analyzed ?? 0,
   };
 }

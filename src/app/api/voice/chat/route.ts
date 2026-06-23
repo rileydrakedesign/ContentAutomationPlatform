@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
@@ -289,6 +290,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ messages: data.messages || [] });
   } catch (error) {
     console.error("Failed to fetch chat history:", error);
+    Sentry.captureException(error, { tags: { route: "voice/chat" } });
     return NextResponse.json(
       { error: "Failed to fetch chat history" },
       { status: 500 }
@@ -483,6 +485,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Failed to process chat message:", error);
+    Sentry.captureException(error, { tags: { route: "voice/chat" } });
     return NextResponse.json(
       { error: "Failed to process message" },
       { status: 500 }
@@ -502,7 +505,7 @@ async function handleVoiceDescription(
   }));
 
   const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5.4-nano",
     messages: [
       { role: "system", content: PROPOSE_CHANGES_PROMPT },
       {
@@ -540,7 +543,7 @@ async function handleChangesModification(
   }));
 
   const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5.4-nano",
     messages: [
       { role: "system", content: PROCESS_MODIFICATION_PROMPT },
       {
@@ -601,7 +604,7 @@ async function handleAcceptChanges(
 
   // Create the transition message to guardrails stage
   const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5.4-nano",
     messages: [
       { role: "system", content: COLLECT_GUARDRAILS_PROMPT },
       { role: "user", content: "User accepted the proposed changes." },
@@ -723,7 +726,7 @@ async function handleGuardrailsComplete(
       : COLLECT_SAMPLE_INPUT_PROMPT_REPLY;
 
   const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5.4-nano",
     messages: [
       { role: "system", content: prompt },
       {
@@ -804,7 +807,7 @@ async function handleSubmitSampleInput(
   };
 
   const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5.4-nano",
     messages: [
       { role: "system", content: prompt },
       {
@@ -878,7 +881,7 @@ async function handleSampleFeedback(
   }));
 
   const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5.4-nano",
     messages: [
       { role: "system", content: PROCESS_FEEDBACK_PROMPT },
       {
@@ -933,6 +936,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to clear chat history:", error);
+    Sentry.captureException(error, { tags: { route: "voice/chat" } });
     return NextResponse.json(
       { error: "Failed to clear chat history" },
       { status: 500 }

@@ -9,6 +9,11 @@ Generation runs through your saved voice settings, examples, and inspiration
 posts on the server, so the agent doesn't need to know your style — it just asks
 for content and gets it in your voice.
 
+> **Full documentation** lives in [`docs/`](../docs/README.md): MCP
+> [overview](../docs/mcp/overview.md) · [setup](../docs/mcp/setup.md) ·
+> [tool tour](../docs/mcp/tools.md) · [generated tool reference](../docs/mcp/tools.generated.md) ·
+> [workflows](../docs/mcp/workflows.md) · [troubleshooting](../docs/mcp/troubleshooting.md).
+
 ## Quick start
 
 ### 1. Create an API key
@@ -67,52 +72,26 @@ claude mcp add --transport http agentsforx https://app.agentsforx.com/api/v1/mcp
 ## Credits
 
 Actions that cost real money are metered in **credits** (1 credit = $0.01).
-Your plan includes a monthly allowance (Free 100 / Pro 2,000); top-up packs
-never expire while subscribed. Metered tool results end with a
+Your plan includes a monthly allowance (Free 100 / Pro 2,000 / Agent 7,500);
+top-up packs never expire while subscribed. Metered tool results end with a
 `credits: charged X, remaining Y` line, and a `402` error means the balance is
-empty.
+empty. Posts containing a URL cost **30** instead of 3 (X bills link posts at
+~13×).
 
-| Tool | Credits |
-|---|---|
-| `generate_post`, `generate_reply` | 3 |
-| `publish_post`, `publish_reply` | 3 — **30 if the text contains a URL** |
-| `publish_thread` | 3 per tweet (30 per URL tweet) |
-| `schedule_post` | same as publish, debited at schedule time, refunded on cancel |
-| `get_tweet` | 1 |
-| `get_analytics`, `get_best_times` | 1 |
-| `search_tweets` | 1 per result returned (min 5) |
-| `sync_analytics` | 15 |
-| `add_inspiration` | 3 |
-| everything else | free |
+Per-action prices are in [`docs/api/credits.md`](../docs/api/credits.md) (and on
+each tool in [`docs/mcp/tools.generated.md`](../docs/mcp/tools.generated.md)).
 
-The URL surcharge mirrors X's API pricing, which bills posts containing links at
-~13x the plain-post rate.
+## Tools (36)
 
-## Tools (33)
+The full per-tool reference — every input, type, constraint, credit cost, and the
+REST endpoint each maps to — is **generated** from the Zod schemas in
+[`src/tools.ts`](src/tools.ts) and lives at
+[`docs/mcp/tools.generated.md`](../docs/mcp/tools.generated.md) (regenerate with
+`npm run gen-docs`). For a grouped narrative tour, see
+[`docs/mcp/tools.md`](../docs/mcp/tools.md).
 
-| Tool | What it does | Scope |
-|---|---|---|
-| `whoami` | X connection health, scopes, plan, credits | — |
-| `health` | Connectivity check | — |
-| `get_credits` | Plan + credit balances | — |
-| `get_voice_settings` / `update_voice_settings` | Read/update voice dials, guardrails, AI model | `voice:read` / `voice:write` |
-| `get_strategy` / `update_strategy` | Read/set weekly content strategy | `strategy:read` / `strategy:write` |
-| `get_niche` | Analyzed niche profile | `niche:read` |
-| `get_writing_context` | **Preferred:** the user's voice prompt + patterns + rules so the calling model writes the content itself (free) | `voice:read` |
-| `check_draft` | Score a draft 0-100 against the user's tuned voice + proven patterns; returns matches, deviations, suggested edit (3 credits) | `voice:read` |
-| `run_tuneup` | Run the full Voice Tune-Up (refresh examples → extract patterns → analyze niche & positioning) and return the Voice Report (5 credits) | `voice:write` |
-| `generate_post` / `generate_reply` | Server-side generation fallback (options only — never publishes) | `drafts:generate` |
-| `send_feedback` | Like/dislike feedback on generations | `drafts:write` |
-| `list_drafts` / `get_draft` / `create_draft` / `update_draft` / `delete_draft` | Draft CRUD | `drafts:read` / `drafts:write` |
-| `publish_post` / `publish_thread` / `publish_reply` | Publish to X **immediately** | `publish:write` |
-| `schedule_post` | Schedule for later (Pro) | `publish:write` |
-| `list_queue` / `cancel_scheduled` / `list_published` | Queue management & history | `publish:read` / `publish:write` |
-| `get_analytics` / `get_best_times` | Engagement analytics | `analytics:read` |
-| `sync_analytics` | Delta-sync timeline from X (Pro) | `analytics:read` |
-| `get_tweet` | Fetch a tweet by ID/URL (reply context) | `analytics:read` |
-| `search_tweets` | Search recent public tweets (Pro) | `search:read` |
-| `list_patterns` / `toggle_pattern` | Growth patterns | `patterns:read` / `patterns:write` |
-| `list_inspiration` / `add_inspiration` | Inspiration library | `inspiration:read` / `inspiration:write` |
+Both transports (this stdio package and the hosted `/api/v1/mcp` gateway) register
+the identical set via the shared `registerTools()`.
 
 ### Typical flow
 
@@ -163,7 +142,7 @@ Local API: set `CONTENT_API_URL=http://localhost:3000`.
 
 - `src/client.ts` — HTTP client: auth, timeouts, retries/backoff, 429 handling,
   credit-header capture, error hints. No MCP imports.
-- `src/tools.ts` — `registerTools(server, api)`: all 35 tools, hardened zod
+- `src/tools.ts` — `registerTools(server, api)`: all 36 tools, hardened zod
   schemas. No transport assumptions.
 - `src/server.ts` — builds the `McpServer` (instructions + tool registration).
 - `src/stdio.ts` — stdio entrypoint with startup health check.

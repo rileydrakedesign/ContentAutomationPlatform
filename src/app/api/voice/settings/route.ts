@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { UpdateVoiceSettingsRequest, DEFAULT_VOICE_SETTINGS, VoiceType } from "@/types/voice";
 
@@ -83,6 +84,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(settings);
   } catch (error) {
     console.error("Failed to fetch voice settings:", error);
+    Sentry.captureException(error, { tags: { route: "voice/settings" } });
     return NextResponse.json(
       { error: "Failed to fetch voice settings" },
       { status: 500 }
@@ -303,6 +305,7 @@ export async function PATCH(request: NextRequest) {
     }
   } catch (error) {
     console.error("Failed to update voice settings:", error);
+    Sentry.captureException(error, { tags: { route: "voice/settings" } });
     return NextResponse.json(
       { error: "Failed to update voice settings" },
       { status: 500 }

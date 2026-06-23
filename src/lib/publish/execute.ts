@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 import { getValidAccessToken, postTweet } from "@/lib/x-api";
+import { parseAttachedMedia, resolveMediaIdsForPublish } from "@/lib/x-api/media";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 interface ScheduledPost {
@@ -67,13 +68,32 @@ export async function executeScheduledPost(
       throw new Error("Cannot publish: content is empty");
     }
 
+    // Resolve attached media. X media_ids expire, so for a scheduled post we
+    // re-upload from the durable draft-media copy to get fresh ids at publish
+    // time. Media attaches to the first tweet only.
+    const attachedMedia = parseAttachedMedia(payload.media);
+    const mediaIds =
+      attachedMedia.length > 0 && postedIds.length === 0
+        ? await resolveMediaIdsForPublish(supabase, accessToken, attachedMedia, {
+            forceReupload: true,
+          })
+        : [];
+
     // Publish to X, resuming from the first unposted tweet on retry
     let previousId: string | undefined =
       postedIds.length > 0 ? postedIds[postedIds.length - 1] : undefined;
 
+    const replySettings =
+      payload.replySettings === "mentionedUsers" || payload.replySettings === "following"
+        ? (payload.replySettings as "mentionedUsers" | "following")
+        : undefined;
+
     for (let i = postedIds.length; i < tweetTexts.length; i++) {
       const result = await postTweet(accessToken, tweetTexts[i], {
         inReplyToStatusId: previousId,
+        // Only the first tweet of the run carries the media + reply audience.
+        mediaIds: i === 0 && mediaIds.length ? mediaIds : undefined,
+        replySettings: i === 0 ? replySettings : undefined,
       });
       postedIds.push(result.id_str);
       previousId = result.id_str;
@@ -108,6 +128,7 @@ export async function executeScheduledPost(
           triaged_as: "my_post",
           post_timestamp: new Date().toISOString(),
           metrics: {},
+          afx_assisted: true,
         }));
         await supabase.from("captured_posts").insert(rows);
       }

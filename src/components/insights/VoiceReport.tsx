@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import {
   Compass,
@@ -8,6 +10,8 @@ import {
   CalendarDays,
   Info,
   Check,
+  SlidersHorizontal,
+  Share2,
 } from "lucide-react";
 import type { NichePositioning } from "@/types/niche";
 
@@ -22,6 +26,11 @@ export interface VoiceReportData {
     pattern_value: string;
     multiplier: number;
     sample_count: number;
+    source_post_examples?: { text: string; engagement_score: number }[];
+    // When false, the pattern is a real finding (e.g. "Evening Posts" timing,
+    // "Single Post" type, a visual pattern) shown as insight but NOT applied to
+    // text generation — the writer doesn't control it.
+    applies_to_generation?: boolean | null;
   }[];
   top_posts: {
     text: string;
@@ -86,13 +95,54 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
     steps,
   } = report;
 
+  const [shareState, setShareState] = useState<"idle" | "loading" | "copied" | "error">("idle");
+
+  async function handleShare() {
+    setShareState("loading");
+    try {
+      const res = await fetch("/api/insights/share", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) {
+        setShareState("error");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(data.url);
+      } catch {
+        // clipboard blocked — open the link instead
+        window.open(data.url, "_blank");
+      }
+      setShareState("copied");
+      setTimeout(() => setShareState("idle"), 2500);
+    } catch {
+      setShareState("error");
+    }
+  }
+
   return (
     <Card className="p-5 space-y-6">
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-          <Sparkles className="w-4 h-4 text-[var(--color-primary-400)]" />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-[var(--color-primary-400)]" />
+          </div>
+          <h3 className="font-semibold text-[var(--color-text-primary)]">Voice Report</h3>
         </div>
-        <h3 className="font-semibold text-[var(--color-text-primary)]">Voice Report</h3>
+        <button
+          onClick={handleShare}
+          disabled={shareState === "loading"}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[var(--color-primary-400)] hover:bg-[var(--color-primary-500)]/10 transition-colors disabled:opacity-50"
+          title="Get a public, shareable link to this Voice Report"
+        >
+          <Share2 className="w-3.5 h-3.5" />
+          {shareState === "loading"
+            ? "Creating…"
+            : shareState === "copied"
+              ? "Link copied!"
+              : shareState === "error"
+                ? "Try again"
+                : "Share"}
+        </button>
       </div>
 
       {/* Niche summary + positioning */}
@@ -156,20 +206,46 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
                 className="flex items-start justify-between gap-3 p-3 rounded-lg bg-[var(--color-bg-elevated)]/50 border border-[var(--color-border-default)]"
               >
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium text-[var(--color-text-primary)]">
                       {pattern.pattern_name}
                     </span>
                     <span className="px-2 py-0.5 bg-green-500/10 text-green-400 rounded-full text-xs font-medium shrink-0">
                       {pattern.multiplier.toFixed(1)}x
                     </span>
+                    {pattern.applies_to_generation === false && (
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--color-bg-hover)] text-[var(--color-text-muted)] border border-[var(--color-border-default)] shrink-0"
+                        title="A real finding about what performs for you, but not something the writer controls (timing, post type, or visuals) — shown as insight, not applied when generating text."
+                      >
+                        insight only
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-[var(--color-text-secondary)] mt-1">
                     {pattern.pattern_value}
                   </p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                    {pattern.sample_count} samples
-                  </p>
+                  {/* Provenance: demonstrate the depth — show the user's OWN posts
+                      this pattern was mined from, not just a claimed multiplier. */}
+                  {pattern.source_post_examples && pattern.source_post_examples.length > 0 ? (
+                    <div className="mt-2 pl-2 border-l-2 border-[var(--color-primary-500)]/30 space-y-1.5">
+                      <p className="text-[11px] font-medium text-[var(--color-text-muted)]">
+                        Mined from {pattern.sample_count} of your posts — including:
+                      </p>
+                      {pattern.source_post_examples.slice(0, 2).map((ex, i) => (
+                        <div key={i} className="text-[11px] text-[var(--color-text-secondary)]">
+                          <span className="line-clamp-2">&ldquo;{ex.text}&rdquo;</span>
+                          <span className="text-[var(--color-success-400)]">
+                            {ex.engagement_score.toLocaleString()} engagement
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                      {pattern.sample_count} samples
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
@@ -263,6 +339,13 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
                 <p className="text-sm font-medium text-[var(--color-text-primary)] mt-1">
                   {deviation.suggestion}
                 </p>
+                <Link
+                  href="/voice"
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors"
+                >
+                  <SlidersHorizontal className="w-3 h-3" />
+                  Adjust in your voice settings
+                </Link>
               </div>
             ))}
           </div>
@@ -279,10 +362,28 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
             <p className="text-sm text-[var(--color-text-primary)]">
               {feedback_themes.likes} liked · {feedback_themes.dislikes} disliked
             </p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">
+              Your 👍/👎 on generated drafts steers future generations — toward what
+              you liked and away from what you didn&apos;t.
+            </p>
+            {feedback_themes.recent_liked.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs font-medium text-[var(--color-success-400)] mb-1">
+                  Steering toward
+                </p>
+                <ul className="space-y-1">
+                  {feedback_themes.recent_liked.map((snippet, i) => (
+                    <li key={i} className="text-xs text-[var(--color-text-muted)]">
+                      {snippet}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {feedback_themes.recent_disliked.length > 0 && (
               <div className="mt-2">
                 <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                  Recently disliked
+                  Steering away from
                 </p>
                 <ul className="space-y-1">
                   {feedback_themes.recent_disliked.map((snippet, i) => (

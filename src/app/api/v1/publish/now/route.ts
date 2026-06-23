@@ -1,7 +1,9 @@
 import { withApiAuth, apiSuccess, apiError, apiOptions } from "@/lib/api/v1-handler";
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { postTweet, getValidAccessToken } from "@/lib/x-api";
+import { isReplyForbiddenError } from "@/lib/x-api/search-mapping";
 import {
   publishCreditCost,
   containsUrl,
@@ -96,7 +98,17 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
       console.error(
         `v1 publish now: X rejected post for user ${auth.userId}: ${detail}`
       );
+      Sentry.captureException(e, { tags: { route: "v1/publish/now" } });
       await refundCredits(auth.userId, charge.charged, "refund.publish_failed", draftId);
+      // Reply restrictions are undetectable pre-flight; give the agent a clear,
+      // actionable message (credits already refunded above) instead of a raw body.
+      if (isReplyForbiddenError(detail)) {
+        return apiError(
+          "X won't allow a reply here — the author limited who can reply to this post. Credits were refunded.",
+          "reply_forbidden",
+          403
+        );
+      }
       return apiError(`X rejected the post: ${detail}`, "x_api_error", 502);
     }
 
@@ -114,6 +126,7 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
         triaged_as: "my_post",
         post_timestamp: new Date().toISOString(),
         metrics: {},
+        afx_assisted: true,
       });
     } catch (e) {
       console.warn("v1 publish now: backfill failed", e);
@@ -171,6 +184,7 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
     console.error(
       `v1 publish now: X rejected thread for user ${auth.userId} at tweet ${postedIds.length + 1}: ${publishError}`
     );
+    Sentry.captureException(e, { tags: { route: "v1/publish/now" } });
     // Refund the un-posted remainder — the posted prefix did cost us X writes.
     const refund = publishCreditCost(cleaned.slice(postedIds.length));
     await refundCredits(auth.userId, refund, "refund.thread_partial", draftId);
@@ -193,6 +207,7 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
       triaged_as: "my_post",
       post_timestamp: new Date().toISOString(),
       metrics: {},
+      afx_assisted: true,
     }));
     await supabase.from("captured_posts").insert(rows);
   } catch (e) {

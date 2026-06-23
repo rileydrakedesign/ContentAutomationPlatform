@@ -636,6 +636,36 @@ export function registerTools(server: McpServer, api: ApiClient): void {
       run(() => api.get("/api/v1/search", { query, max_results: maxResults }))
   );
 
+  server.registerTool(
+    "find_reply_posts",
+    {
+      title: "Find posts to reply to",
+      description:
+        "Search recent tweets and return ONLY posts the user's account is allowed to reply to (reply_allowed === true) — use this instead of search_tweets when the goal is to find posts to reply to. Same X search syntax as search_tweets. Requires a Pro plan. " +
+        "Credits: X bills per post it returns, so this costs 1 credit per post RETURNED BY X (minimum 5), not per repliable post handed back — restricted posts still count toward cost. Keep maxResults low. " +
+        "Set sort='traction' ONLY when the user asks to prioritize high-momentum posts; it ranks the repliable results by engagement decayed by post age (fresh + rising above old + saturated). Default 'relevance' keeps X's order. " +
+        "Response includes returned_count (what X returned) and repliable_count (what you can reply to). reply_allowed is best-effort — a reply can still 403, so publish_reply must handle that gracefully.",
+      inputSchema: {
+        query: z.string().min(1).describe("X search query."),
+        maxResults: z.number().int().min(10).max(25).default(10),
+        sort: z
+          .enum(["relevance", "traction"])
+          .default("relevance")
+          .describe(
+            "'relevance' keeps X's order; 'traction' ranks repliable posts by momentum. Only use 'traction' when the user asks to prioritize high-engagement posts."
+          ),
+      },
+    },
+    ({ query, maxResults, sort }) =>
+      run(() =>
+        api.get("/api/v1/search/reply-targets", {
+          query,
+          max_results: maxResults,
+          sort,
+        })
+      )
+  );
+
   // ── Patterns & inspiration ─────────────────────────────────────
   server.registerTool(
     "list_patterns",

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 
 // GET /api/captured - List captured posts with filters
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("Failed to fetch captured posts:", error);
+    Sentry.captureException(error, { tags: { route: "captured" } });
     return NextResponse.json(
       { error: "Failed to fetch captured posts" },
       { status: 500 }

@@ -32,6 +32,7 @@ type InspirationForPrompt = {
 import { estimateTokens } from '@/lib/utils/tokens';
 import { REPLY_SYSTEM_PROMPT } from './reply-prompt';
 import { POST_SYSTEM_PROMPT } from './post-prompt';
+import { isGenerationApplicablePattern } from '@/lib/analysis/pattern-applicability';
 
 interface FeedbackItem {
   content_text: string;
@@ -45,6 +46,9 @@ export interface PatternForPrompt {
   pattern_name: string;
   pattern_value: string;
   multiplier: number;
+  // Persisted at extraction time; NULL/undefined falls back to the runtime
+  // applicability heuristic. See pattern-applicability.ts.
+  applies_to_generation?: boolean | null;
 }
 
 export interface StrategyForPrompt {
@@ -157,10 +161,12 @@ ${controls.join('\n')}`;
 function buildPrecedenceNote(mode: VoiceType): string {
   return `## PRECEDENCE
 
-When instructions conflict, apply them in this order:
-1. The user's real ${mode} examples (highest authority — match how they actually write)
-2. The user's voice controls, guardrails, and special notes
-3. The base scaffold above (lowest authority)`;
+When instructions conflict, apply them in this order (highest authority first):
+1. The user's real ${mode} examples — match how they actually write. This is the strongest voice signal; never override it.
+2. The user's voice controls, guardrails, and special notes (user law).
+3. Proven patterns — apply where they fit the authentic voice; never force one if it breaks how the user writes.
+4. Topic, niche, and strategy context — what to write about, not how to sound.
+5. The base scaffold above (lowest authority).`;
 }
 
 /**
@@ -473,7 +479,15 @@ function buildPatternsSection(
     return { section: '', tokensUsed: 0 };
   }
 
-  const sorted = [...patterns].sort((a, b) => (b.multiplier || 0) - (a.multiplier || 0));
+  // Only inject patterns that actually shape the content text. Timing,
+  // post-type (single vs thread), and visual/media patterns are real insights
+  // but not things the writer controls — they'd pollute generation.
+  const applicable = patterns.filter(isGenerationApplicablePattern);
+  if (applicable.length === 0) {
+    return { section: '', tokensUsed: 0 };
+  }
+
+  const sorted = [...applicable].sort((a, b) => (b.multiplier || 0) - (a.multiplier || 0));
 
   const softened = optimizationAuthenticity <= 70;
   const header = softened
@@ -653,11 +667,13 @@ export async function getAssembledPromptForUser(
       .single(),
     supabase
       .from('extracted_patterns')
-      .select('pattern_type, pattern_name, pattern_value, multiplier')
+      .select('pattern_type, pattern_name, pattern_value, multiplier, applies_to_generation')
       .eq('user_id', userId)
       .eq('is_enabled', true)
       .order('multiplier', { ascending: false })
-      .limit(10),
+      // Fetch a few extra: applicability filtering in buildPatternsSection may
+      // drop timing/post-type/visual rows, so over-fetch to still land ~10.
+      .limit(20),
     supabase
       .from('content_strategy')
       .select('posts_per_week, pillar_targets')

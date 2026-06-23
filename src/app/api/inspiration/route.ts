@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { createAuthClient } from "@/lib/supabase/server";
 import { analyzeInspirationPost } from "@/lib/openai";
+import { getUserProvider } from "@/lib/ai";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { requireAiGeneration } from "@/lib/stripe/gate";
 
@@ -76,6 +78,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data, { headers: corsHeaders });
   } catch (error) {
     console.error("Failed to fetch inspiration posts:", error);
+    Sentry.captureException(error, { tags: { route: "inspiration" } });
     return NextResponse.json(
       { error: "Failed to fetch inspiration posts" },
       { status: 500, headers: corsHeaders }
@@ -156,13 +159,14 @@ export async function POST(request: NextRequest) {
     if (insertError) throw insertError;
 
     // Auto-analyze in the background (don't await for faster response)
-    analyzeAndUpdate(supabase, post.id, content.trim()).catch((err) => {
+    analyzeAndUpdate(supabase, post.id, content.trim(), user.id).catch((err) => {
       console.error("Background analysis failed:", err);
     });
 
     return NextResponse.json(post, { status: 201, headers: corsHeaders });
   } catch (error) {
     console.error("Failed to create inspiration post:", error);
+    Sentry.captureException(error, { tags: { route: "inspiration" } });
     return NextResponse.json(
       { error: "Failed to create inspiration post" },
       { status: 500, headers: corsHeaders }
@@ -189,10 +193,12 @@ function extractHandleFromUrl(url?: string): string | null {
 async function analyzeAndUpdate(
   supabase: Awaited<ReturnType<typeof createAuthClient>>,
   postId: string,
-  content: string
+  content: string,
+  userId: string
 ) {
   try {
-    const analysis = await analyzeInspirationPost(content);
+    const provider = await getUserProvider(supabase, userId);
+    const analysis = await analyzeInspirationPost(content, provider);
 
     await supabase
       .from("inspiration_posts")
@@ -205,6 +211,7 @@ async function analyzeAndUpdate(
       .eq("id", postId);
   } catch (error) {
     console.error("Analysis failed for post:", postId, error);
+    Sentry.captureException(error, { tags: { route: "inspiration" } });
 
     await supabase
       .from("inspiration_posts")

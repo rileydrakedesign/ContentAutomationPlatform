@@ -9,6 +9,9 @@ import { InsightsHub } from "./InsightsHub";
 import { BoostOpportunitiesCard } from "./BoostOpportunitiesCard";
 import { StrategyProgress } from "./StrategyProgress";
 import { VoiceHealthCard, RetuneBanner } from "./VoiceHealthCard";
+import { NextBestAction } from "./NextBestAction";
+import { FirstRunAnalysis } from "./FirstRunAnalysis";
+import { OutcomeAttributionCard } from "./OutcomeAttributionCard";
 import { CsvUploadDrawer } from "./CsvUploadDrawer";
 import { SetupChecklist } from "./SetupChecklist";
 import { FreePlanBanner } from "./FreePlanBanner";
@@ -85,8 +88,6 @@ export function HomePage() {
       .catch(console.error);
   };
 
-  const postedCount = analyticsData?.total_posts || 0;
-
   if (loading) {
     return (
       <div className="space-y-6 animate-fade-in">
@@ -135,8 +136,16 @@ export function HomePage() {
       {/* Free Plan Banner */}
       <FreePlanBanner />
 
+      {/* First-session analysis right after connecting X */}
+      <FirstRunAnalysis onComplete={fetchData} onUploadClick={() => setShowUploadDrawer(true)} />
+
       {/* Re-tune recommendation banner */}
       <RetuneBanner />
+
+      {/* Single highest-priority next step in the loop */}
+      <div className="mb-5">
+        <NextBestAction drafts={drafts} xConnected={Boolean(xStatus?.connected)} />
+      </div>
 
       {/* Main Layout: Left stacked items | Right sidebar */}
       <div className="grid grid-cols-[1fr_360px] gap-5">
@@ -151,6 +160,8 @@ export function HomePage() {
           </div>
 
           <VoiceHealthCard />
+
+          <OutcomeAttributionCard />
 
           <StrategyProgress />
 

@@ -29,6 +29,7 @@ export function InsightsPage() {
   const [showUploadDrawer, setShowUploadDrawer] = useState(false);
   const [tuningUp, setTuningUp] = useState(false);
   const [tuneupReport, setTuneupReport] = useState<VoiceReportData | null>(null);
+  const [reportLoading, setReportLoading] = useState(true);
   const [tuneupError, setTuneupError] = useState<{ message: string; upgrade?: boolean } | null>(
     null
   );
@@ -42,14 +43,31 @@ export function InsightsPage() {
 
     // A Voice Report handed off by the onboarding first tune-up — render it
     // immediately instead of making the user re-run.
+    let pendingReport: VoiceReportData | null = null;
     try {
       const pending = sessionStorage.getItem("pending_voice_report");
       if (pending) {
         sessionStorage.removeItem("pending_voice_report");
-        setTuneupReport(JSON.parse(pending) as VoiceReportData);
+        pendingReport = JSON.parse(pending) as VoiceReportData;
+        setTuneupReport(pendingReport);
       }
     } catch {
       // Corrupt/unavailable storage — ignore.
+    }
+
+    // Load the latest persisted Voice Report (free, read-only) so it shows by
+    // default without re-running the 5-credit tune-up. The cold-start handoff
+    // above wins if present (it's the freshest).
+    if (pendingReport) {
+      setReportLoading(false);
+    } else {
+      fetch("/api/insights/report")
+        .then(async (res) => (res.ok ? (await res.json()).report : null))
+        .then((report) => {
+          if (report) setTuneupReport(report as VoiceReportData);
+        })
+        .catch(() => {})
+        .finally(() => setReportLoading(false));
     }
   }, []);
 
@@ -107,7 +125,7 @@ export function InsightsPage() {
           ) : (
             <>
               <Sparkles className="w-4 h-4" />
-              <span>Run Voice Tune-Up</span>
+              <span>{tuneupReport ? "Refresh Voice Tune-Up" : "Run Voice Tune-Up"}</span>
             </>
           )}
         </button>
@@ -153,6 +171,14 @@ export function InsightsPage() {
                 <Loader2 className="w-4 h-4 animate-spin text-[var(--color-primary-400)]" />
                 <span className="text-sm text-[var(--color-text-secondary)]">
                   Analyzing your voice… This usually takes 20–40 seconds.
+                </span>
+              </div>
+            )}
+            {reportLoading && !tuneupReport && !tuningUp && (
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)]">
+                <Loader2 className="w-4 h-4 animate-spin text-[var(--color-primary-400)]" />
+                <span className="text-sm text-[var(--color-text-secondary)]">
+                  Loading your latest Voice Report…
                 </span>
               </div>
             )}

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { assemblePrompt } from "@/lib/openai/prompts/prompt-assembler";
 import { DEFAULT_VOICE_SETTINGS, PromptPreviewResponse, VoiceType } from "@/types/voice";
@@ -101,6 +102,7 @@ export async function GET(request: Request) {
     return NextResponse.json(response);
   } catch (error) {
     console.error("Failed to generate prompt preview:", error);
+    Sentry.captureException(error, { tags: { route: "voice/prompt-preview" } });
     return NextResponse.json(
       { error: "Failed to generate prompt preview" },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAdminClient } from "@/lib/supabase/server";
 
 const BASE_COUNT = 47;
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("waitlist error", err);
+    Sentry.captureException(err, { tags: { route: "waitlist" } });
     return NextResponse.json({ error: "server error" }, { status: 500 });
   }
 }

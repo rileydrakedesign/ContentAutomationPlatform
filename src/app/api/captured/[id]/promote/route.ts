@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { analyzeInspirationPost } from "@/lib/openai/analyze-inspiration";
+import { getUserProvider } from "@/lib/ai";
 import { requireAiGeneration } from "@/lib/stripe/gate";
 
 // POST /api/captured/[id]/promote - Convert captured post to inspiration post
@@ -66,7 +68,7 @@ export async function POST(
       .eq("user_id", user.id);
 
     // Run analysis asynchronously (don't wait for it)
-    analyzeAndUpdate(supabase, inspirationPost.id, capturedPost.text_content);
+    analyzeAndUpdate(supabase, inspirationPost.id, capturedPost.text_content, user.id);
 
     return NextResponse.json({
       success: true,
@@ -75,6 +77,7 @@ export async function POST(
     });
   } catch (error) {
     console.error("Failed to promote post:", error);
+    Sentry.captureException(error, { tags: { route: "captured/[id]/promote" } });
     return NextResponse.json(
       { error: "Failed to promote post to inspiration" },
       { status: 500 }
@@ -86,10 +89,12 @@ export async function POST(
 async function analyzeAndUpdate(
   supabase: Awaited<ReturnType<typeof createAuthClient>>,
   inspirationId: string,
-  content: string
+  content: string,
+  userId: string
 ) {
   try {
-    const analysis = await analyzeInspirationPost(content);
+    const provider = await getUserProvider(supabase, userId);
+    const analysis = await analyzeInspirationPost(content, provider);
 
     await supabase
       .from("inspiration_posts")
@@ -102,6 +107,7 @@ async function analyzeAndUpdate(
       .eq("id", inspirationId);
   } catch (error) {
     console.error("Analysis failed:", error);
+    Sentry.captureException(error, { tags: { route: "captured/[id]/promote" } });
     await supabase
       .from("inspiration_posts")
       .update({

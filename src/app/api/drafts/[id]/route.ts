@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 
 type DraftStatus = "DRAFT" | "POSTED" | "SCHEDULED" | "REJECTED";
@@ -33,6 +34,7 @@ export async function GET(
     return NextResponse.json(draft);
   } catch (error) {
     console.error("Failed to fetch draft:", error);
+    Sentry.captureException(error, { tags: { route: "drafts/[id]" } });
     return NextResponse.json(
       { error: "Failed to fetch draft" },
       { status: 500 }
@@ -97,6 +99,7 @@ export async function PATCH(
     return NextResponse.json(updatedDraft);
   } catch (error) {
     console.error("Failed to update draft:", error);
+    Sentry.captureException(error, { tags: { route: "drafts/[id]" } });
     return NextResponse.json(
       { error: "Failed to update draft" },
       { status: 500 }
@@ -133,6 +136,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete draft:", error);
+    Sentry.captureException(error, { tags: { route: "drafts/[id]" } });
     return NextResponse.json(
       { error: "Failed to delete draft" },
       { status: 500 }

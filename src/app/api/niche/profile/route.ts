@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
 
@@ -37,6 +38,7 @@ export async function GET() {
     return NextResponse.json({ profile }, { status: 200, headers: corsHeaders });
   } catch (error) {
     console.error("Failed to fetch niche profile:", error);
+    Sentry.captureException(error, { tags: { route: "niche/profile" } });
     return NextResponse.json(
       { error: "Failed to fetch niche profile" },
       { status: 500, headers: corsHeaders }
@@ -84,6 +86,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ profile }, { status: 200, headers: corsHeaders });
   } catch (error) {
     console.error("Failed to update niche profile:", error);
+    Sentry.captureException(error, { tags: { route: "niche/profile" } });
     return NextResponse.json(
       { error: "Failed to update niche profile" },
       { status: 500, headers: corsHeaders }

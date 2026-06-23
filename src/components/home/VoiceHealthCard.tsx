@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/Card";
-import { ArrowRight, X } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { apiFetch } from "@/lib/utils/apiFetch";
 import { formatRelativeTime } from "@/lib/utils/formatting";
+import { voiceConfidence } from "@/lib/analysis/voice-confidence";
 
 type StaleComponent = "examples" | "patterns" | "niche";
 
@@ -20,6 +21,7 @@ type VoiceHealthData = {
   };
   examples_count: number;
   patterns_count: number;
+  posts_analyzed: number;
   has_niche: boolean;
   has_positioning: boolean;
   has_strategy: boolean;
@@ -149,9 +151,28 @@ export function VoiceHealthCard({ className }: { className?: string }) {
   return (
     <Card className={className}>
       <CardContent>
-        <h3 className="text-sm font-medium text-[var(--color-text-primary)] mb-3">
-          Voice Health
-        </h3>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
+            Voice Health
+          </h3>
+          {(() => {
+            const conf = voiceConfidence(data.posts_analyzed);
+            const tone =
+              conf.level === "good"
+                ? "bg-emerald-400/10 text-emerald-400"
+                : conf.level === "building"
+                  ? "bg-amber-400/10 text-amber-400"
+                  : "bg-[var(--color-text-muted)]/10 text-[var(--color-text-muted)]";
+            return (
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${tone}`}
+                title={conf.blurb}
+              >
+                {conf.label}
+              </span>
+            );
+          })()}
+        </div>
 
         <div className="space-y-2.5">
           <HealthRow
@@ -205,21 +226,15 @@ export function VoiceHealthCard({ className }: { className?: string }) {
   );
 }
 
-const RETUNE_BANNER_DISMISS_KEY = "voice-retune-banner-dismissed";
-
 export function RetuneBanner() {
   const { data } = useVoiceHealth();
-  const [dismissed, setDismissed] = useState(() => {
-    try {
-      return sessionStorage.getItem(RETUNE_BANNER_DISMISS_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
 
+  // Persistent + honest: this shows exactly while analytics are ahead of the
+  // tuned context. It is NOT dismissible — it self-clears the moment the user
+  // re-tunes (retune_recommended flips false), so it can never lie or be
+  // permanently silenced while the voice is stale.
   if (
     !data ||
-    dismissed ||
     !data.freshness.retune_recommended ||
     !data.freshness.analytics_updated_at
   ) {
@@ -227,15 +242,6 @@ export function RetuneBanner() {
   }
 
   const staleList = data.freshness.stale_components.join(", ");
-
-  const handleDismiss = () => {
-    setDismissed(true);
-    try {
-      sessionStorage.setItem(RETUNE_BANNER_DISMISS_KEY, "1");
-    } catch {
-      // sessionStorage unavailable — useState dismiss still applies
-    }
-  };
 
   return (
     <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 mb-5 flex items-center justify-between gap-4">
@@ -252,13 +258,6 @@ export function RetuneBanner() {
           <span className="text-[var(--color-text-muted)]"> ({staleList} out of date)</span>
         )}
       </p>
-      <button
-        onClick={handleDismiss}
-        aria-label="Dismiss"
-        className="shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
-      >
-        <X size={14} />
-      </button>
     </div>
   );
 }

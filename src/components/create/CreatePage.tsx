@@ -32,6 +32,8 @@ import {
 import { useSubscription } from "@/components/auth/SubscriptionProvider";
 import { AiUsageCounter } from "@/components/ui/AiUsageCounter";
 import { parseGateError } from "@/lib/utils/gate-error";
+import { usePersistentState } from "@/hooks/usePersistentState";
+import { CharCounter } from "@/components/compose/CharCounter";
 
 type DraftType = "X_POST" | "X_THREAD";
 
@@ -57,11 +59,23 @@ export function CreatePage() {
   const initialTab = tabParam === "drafts" ? "drafts" : tabParam === "compose" ? "compose" : "new";
   const inspirationId = searchParams.get("inspiration");
 
-  const [topic, setTopic] = useState("");
-  const [selectedPatterns, setSelectedPatterns] = useState<string[]>([]);
-  const [draftType, setDraftType] = useState<DraftType>("X_POST");
+  // Persist in-progress work so navigating away and back doesn't lose it (#8).
+  const [topic, setTopic] = usePersistentState("create:topic", "");
+  const [selectedPatterns, setSelectedPatterns] = usePersistentState<string[]>(
+    "create:selectedPatterns",
+    []
+  );
+  const [draftType, setDraftType] = usePersistentState<DraftType>("create:draftType", "X_POST");
   const [generating, setGenerating] = useState(false);
-  const [generatedDrafts, setGeneratedDrafts] = useState<GeneratedDraft[]>([]);
+  // Variation history: each generate/regenerate appends one full option so a
+  // regenerate never destroys a good earlier result (handoff #3.4).
+  const [generatedDrafts, setGeneratedDrafts] = usePersistentState<GeneratedDraft[]>(
+    "create:variations",
+    []
+  );
+  const [currentVariation, setCurrentVariation] = usePersistentState("create:currentVariation", 0);
+  const [regenInstructions, setRegenInstructions] = useState("");
+  const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inspirationPost, setInspirationPost] = useState<InspirationPost | null>(null);
   const [loadingInspiration, setLoadingInspiration] = useState(false);
@@ -73,10 +87,13 @@ export function CreatePage() {
 
   const { aiLimitReached, refetch: refetchSubscription } = useSubscription();
 
-  // Compose (manual draft) state
-  const [composeType, setComposeType] = useState<DraftType>("X_POST");
-  const [composeText, setComposeText] = useState("");
-  const [composeThreadTweets, setComposeThreadTweets] = useState<string[]>([""]);
+  // Compose (manual draft) state — persisted so a half-written post survives nav.
+  const [composeType, setComposeType] = usePersistentState<DraftType>("create:composeType", "X_POST");
+  const [composeText, setComposeText] = usePersistentState("create:composeText", "");
+  const [composeThreadTweets, setComposeThreadTweets] = usePersistentState<string[]>(
+    "create:composeThread",
+    [""]
+  );
   const [savingCompose, setSavingCompose] = useState(false);
   const [composeError, setComposeError] = useState<string | null>(null);
 
@@ -117,24 +134,37 @@ export function CreatePage() {
     router.replace(`/create?${params.toString()}`);
   };
 
-  const handleGenerate = async () => {
+  // Shared generation call. `isRegenerate` appends a new variation (steering
+  // away from prior ones, optionally with a one-off instruction); a fresh
+  // generate resets the history.
+  const runGeneration = async (isRegenerate: boolean) => {
     if (!topic.trim() || topic.length < 3) {
       setError("Please enter a topic (at least 3 characters)");
       return;
     }
 
-    setGenerating(true);
+    if (isRegenerate) {
+      setRegenerating(true);
+    } else {
+      setGenerating(true);
+      setGeneratedDrafts([]);
+      setFeedbackMap({});
+    }
     setError(null);
-    setGeneratedDrafts([]);
-    setFeedbackMap({});
 
     try {
       const requestBody: Record<string, unknown> = {
         topic: topic.trim(),
         draftType,
         patternIds: selectedPatterns,
-        generateCount: 3,
+        generateCount: 1,
       };
+
+      if (isRegenerate) {
+        if (regenInstructions.trim()) requestBody.instructions = regenInstructions.trim();
+        const priorTexts = generatedDrafts.map(getDraftText).filter(Boolean);
+        if (priorTexts.length > 0) requestBody.previousVariations = priorTexts;
+      }
 
       // Add inspiration post if available
       if (inspirationPost) {
@@ -162,14 +192,34 @@ export function CreatePage() {
       }
 
       const data = await res.json();
-      setGeneratedDrafts(data.options || []);
+      const newOptions: GeneratedDraft[] = data.options || [];
+      if (newOptions.length === 0) {
+        setError("No content was generated. Try again.");
+        return;
+      }
+
+      if (isRegenerate) {
+        setGeneratedDrafts((prev) => {
+          const next = [...prev, ...newOptions];
+          setCurrentVariation(next.length - 1);
+          return next;
+        });
+        setRegenInstructions("");
+      } else {
+        setGeneratedDrafts(newOptions);
+        setCurrentVariation(0);
+      }
       refetchSubscription();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate");
     } finally {
       setGenerating(false);
+      setRegenerating(false);
     }
   };
+
+  const handleGenerate = () => runGeneration(false);
+  const handleRegenerate = () => runGeneration(true);
 
   const [savingDraft, setSavingDraft] = useState(false);
 
@@ -531,7 +581,7 @@ export function CreatePage() {
                 icon={<Sparkles className="w-5 h-5" />}
                 className="h-14 text-base"
               >
-                {aiLimitReached ? "Daily Limit Reached" : generating ? "Generating..." : "Generate Drafts"}
+                {aiLimitReached ? "Daily Limit Reached" : generating ? "Generating..." : generatedDrafts.length > 0 ? "Start Over" : "Generate Post"}
               </Button>
 
               {/* Error Display */}
@@ -545,104 +595,173 @@ export function CreatePage() {
             </div>
           </div>
 
-          {/* Generated Drafts - Full Width */}
-          {generatedDrafts.length > 0 && (
-            <div className="mt-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <h3 className="text-heading text-lg font-semibold text-[var(--color-text-primary)]">
-                  Generated Drafts
-                </h3>
-                <Badge variant="success">{generatedDrafts.length}</Badge>
-              </div>
+          {/* Generated Post — single full view with regenerate + history */}
+          {generatedDrafts.length > 0 && (() => {
+            const index = Math.min(currentVariation, generatedDrafts.length - 1);
+            const draft = generatedDrafts[index];
+            const c = draft.content as unknown as Record<string, unknown>;
+            const threadItems =
+              Array.isArray(c.tweets) ? (c.tweets as string[]) :
+              Array.isArray(c.posts) ? (c.posts as string[]) :
+              [];
+            const isThread = draftType === "X_THREAD";
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {generatedDrafts.map((draft, index) => (
-                  <Card key={index} hover className="group">
-                    <CardContent>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs font-medium text-[var(--color-text-muted)]">
-                          Option {index + 1}
-                        </span>
-                        {draft.metadata?.hook_type && (
-                          <Badge variant="primary">
-                            {draft.metadata.hook_type}
-                          </Badge>
-                        )}
-                      </div>
-
-                      {(() => {
-                        const c = draft.content as unknown as Record<string, unknown>;
-                        const threadItems =
-                          Array.isArray(c.tweets) ? (c.tweets as string[]) :
-                          Array.isArray(c.posts) ? (c.posts as string[]) :
-                          [];
-
-                        return (
-                          <>
-                            <p className="text-sm text-[var(--color-text-secondary)] line-clamp-4 mb-4 whitespace-pre-wrap">
-                              {draftType === "X_THREAD"
-                                ? (threadItems[0] || "")
-                                : draft.content.text || ""}
-                            </p>
-
-                            {draftType === "X_THREAD" && threadItems.length > 1 && (
-                              <p className="text-xs text-[var(--color-text-muted)] mb-4">
-                                + {threadItems.length - 1} more posts in thread
-                              </p>
-                            )}
-                          </>
-                        );
-                      })()}
-
-                      <div className="flex items-center gap-2 mb-3">
-                        <button
-                          onClick={() => handleFeedback(index, 'like')}
-                          className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${
-                            feedbackMap[index] === 'like'
-                              ? 'border-green-500/50 bg-green-500/10 text-green-400'
-                              : 'border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-secondary)]'
-                          }`}
-                          title="Like this generation"
-                        >
-                          <ThumbsUp className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleFeedback(index, 'dislike')}
-                          className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${
-                            feedbackMap[index] === 'dislike'
-                              ? 'border-red-500/50 bg-red-500/10 text-red-400'
-                              : 'border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-secondary)]'
-                          }`}
-                          title="Dislike this generation"
-                        >
-                          <ThumbsDown className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      <VoiceCheckPanel
-                        text={getDraftText(draft)}
-                        voiceType="post"
-                        onApplyEdit={(newText) => applyVoiceEditToDraft(index, newText)}
-                        className="mb-3"
-                      />
-
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        fullWidth
-                        onClick={() => handleUseDraft(draft)}
-                        disabled={savingDraft}
-                        icon={<ArrowRight className="w-4 h-4" />}
-                        iconPosition="right"
+            return (
+              <div className="mt-8 max-w-2xl mx-auto space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-heading text-lg font-semibold text-[var(--color-text-primary)]">
+                    Generated {isThread ? "Thread" : "Post"}
+                  </h3>
+                  {/* Variation history nav */}
+                  {generatedDrafts.length > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentVariation((i) => Math.max(0, i - 1))}
+                        disabled={index === 0}
+                        className="px-2 py-1 rounded-md border border-[var(--color-border-default)] text-xs text-[var(--color-text-secondary)] disabled:opacity-40 hover:border-[var(--color-border-strong)] transition-colors"
+                        title="Previous variation"
                       >
-                        {savingDraft ? "Saving..." : "Select & Edit"}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                        ←
+                      </button>
+                      <span className="text-xs text-[var(--color-text-muted)]">
+                        Variation {index + 1} of {generatedDrafts.length}
+                      </span>
+                      <button
+                        onClick={() => setCurrentVariation((i) => Math.min(generatedDrafts.length - 1, i + 1))}
+                        disabled={index === generatedDrafts.length - 1}
+                        className="px-2 py-1 rounded-md border border-[var(--color-border-default)] text-xs text-[var(--color-text-secondary)] disabled:opacity-40 hover:border-[var(--color-border-strong)] transition-colors"
+                        title="Next variation"
+                      >
+                        →
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <Card>
+                  <CardContent>
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      {draft.metadata?.hook_type && (
+                        <Badge variant="primary">{draft.metadata.hook_type}</Badge>
+                      )}
+                      {(draft.metadata?.patterns_applied?.length ?? 0) > 0 &&
+                        draft.metadata!.patterns_applied!.map((name, i) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-1 rounded-full border border-[var(--color-success-500)]/30 bg-[var(--color-success-500)]/5 px-2 py-0.5 text-[11px] text-[var(--color-success-400)]"
+                          >
+                            <Wand2 className="w-2.5 h-2.5" />
+                            {name}
+                          </span>
+                        ))}
+                    </div>
+
+                    {/* Full post text — no clamp */}
+                    {isThread ? (
+                      <div className="space-y-3 mb-4">
+                        {threadItems.map((tw, i) => (
+                          <div
+                            key={i}
+                            className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]/40 px-3 py-2"
+                          >
+                            <span className="text-[11px] text-[var(--color-text-muted)]">
+                              {i + 1}/{threadItems.length}
+                            </span>
+                            <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap mt-1">
+                              {tw}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-base text-[var(--color-text-primary)] whitespace-pre-wrap mb-4 leading-relaxed">
+                        {draft.content.text || ""}
+                      </p>
+                    )}
+
+                    {/* Feedback */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <button
+                        onClick={() => handleFeedback(index, 'like')}
+                        className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${
+                          feedbackMap[index] === 'like'
+                            ? 'border-green-500/50 bg-green-500/10 text-green-400'
+                            : 'border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-secondary)]'
+                        }`}
+                        title="Like this generation"
+                      >
+                        <ThumbsUp className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleFeedback(index, 'dislike')}
+                        className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${
+                          feedbackMap[index] === 'dislike'
+                            ? 'border-red-500/50 bg-red-500/10 text-red-400'
+                            : 'border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-secondary)]'
+                        }`}
+                        title="Dislike this generation"
+                      >
+                        <ThumbsDown className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <VoiceCheckPanel
+                      text={getDraftText(draft)}
+                      voiceType="post"
+                      onApplyEdit={(newText) => applyVoiceEditToDraft(index, newText)}
+                      className="mb-3"
+                    />
+
+                    <Button
+                      fullWidth
+                      onClick={() => handleUseDraft(draft)}
+                      disabled={savingDraft}
+                      icon={<ArrowRight className="w-4 h-4" />}
+                      iconPosition="right"
+                    >
+                      {savingDraft ? "Saving..." : "Edit & Publish"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Regenerate with optional one-off instruction */}
+                <Card>
+                  <CardContent className="py-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Wand2 className="w-4 h-4 text-[var(--color-primary-400)]" />
+                      <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                        Regenerate
+                      </h4>
+                    </div>
+                    <input
+                      value={regenInstructions}
+                      onChange={(e) => setRegenInstructions(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !regenerating && !aiLimitReached) handleRegenerate();
+                      }}
+                      placeholder='Optional: "make it punchier", "add a stat", "less formal"…'
+                      className="w-full h-10 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] transition-colors"
+                    />
+                    <Button
+                      variant="secondary"
+                      fullWidth
+                      loading={regenerating}
+                      disabled={regenerating || aiLimitReached}
+                      onClick={handleRegenerate}
+                      icon={<Sparkles className="w-4 h-4" />}
+                    >
+                      {regenerating ? "Regenerating…" : "Regenerate a new variation"}
+                    </Button>
+                    <p className="text-[11px] text-[var(--color-text-muted)]">
+                      Your previous variation is kept — flip between them above. The
+                      instruction is a one-off nudge for this variation; your tuned
+                      voice still applies.
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="compose">
@@ -737,9 +856,7 @@ export function CreatePage() {
                       placeholder="What's on your mind?"
                       className="w-full min-h-[180px] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] transition-colors resize-y"
                     />
-                    <div className={`text-xs text-right ${composeText.length > 25000 ? "text-[var(--color-warning-400)]" : "text-[var(--color-text-muted)]"}`}>
-                      {composeText.length.toLocaleString()} characters
-                    </div>
+                    <CharCounter text={composeText} />
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -773,9 +890,7 @@ export function CreatePage() {
                           placeholder={index === 0 ? "Start your thread..." : "Continue the thread..."}
                           className="w-full min-h-[100px] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] transition-colors resize-y"
                         />
-                        <div className={`text-xs text-right ${tweet.length > 280 ? "text-[var(--color-warning-400)]" : "text-[var(--color-text-muted)]"}`}>
-                          {tweet.length.toLocaleString()} characters
-                        </div>
+                        <CharCounter text={tweet} />
                       </div>
                     ))}
                     {composeThreadTweets.length < 25 && (

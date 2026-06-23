@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
 import { createChatCompletion, AIProvider } from "@/lib/ai";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { requireAiGeneration } from "@/lib/stripe/gate";
+import { isGenerationApplicablePattern } from "@/lib/analysis/pattern-applicability";
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -19,18 +21,7 @@ interface Pattern {
   pattern_name: string;
   pattern_value: string;
   multiplier: number;
-}
-
-interface VoiceSettings {
-  optimization_authenticity: number;
-  tone_formal_casual: number;
-  energy_calm_punchy: number;
-  stance_neutral_opinionated: number;
-  guardrails: {
-    avoid_words: string[];
-    avoid_topics: string[];
-    custom_rules: string[];
-  };
+  applies_to_generation?: boolean | null;
 }
 
 // POST /api/drafts/generate-from-topic - Generate draft from topic with patterns
@@ -55,8 +46,10 @@ export async function POST(request: NextRequest) {
       topic,
       draftType = "X_POST",
       patternIds = [],
-      generateCount: rawGenerateCount = 3,
+      generateCount: rawGenerateCount = 1,
       inspirationPost,
+      instructions,
+      previousVariations,
     } = body as {
       topic: string;
       draftType?: DraftType;
@@ -66,9 +59,17 @@ export async function POST(request: NextRequest) {
         text: string;
         author: string;
       };
+      // One-off steering for a single regeneration ("make it punchier", "add a
+      // stat"). Subordinate to the tuned voice — applied for this request only.
+      instructions?: string;
+      // Texts of variations already shown this session, so a regenerate
+      // produces something genuinely different rather than a near-duplicate.
+      previousVariations?: string[];
     };
 
-    const generateCount = Math.min(Math.max(1, Number(rawGenerateCount) || 3), 10);
+    // Default to a single full-view option (regenerate for more). Still allow
+    // a larger batch when a caller explicitly asks for it.
+    const generateCount = Math.min(Math.max(1, Number(rawGenerateCount) || 1), 10);
 
     if (!topic || topic.trim().length < 3) {
       return NextResponse.json(
@@ -77,29 +78,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch selected patterns
+    // Fetch selected patterns. Both the explicit selection and the default
+    // top-3 are filtered to generation-applicable patterns only — timing,
+    // post-type (single/thread), and visual/media patterns are insights but
+    // not things the text model controls (see pattern-applicability.ts).
+    const wasExplicitSelection = patternIds.length > 0;
     let patterns: Pattern[] = [];
-    if (patternIds.length > 0) {
+    if (wasExplicitSelection) {
       const { data: patternData, error: patternError } = await supabase
         .from("extracted_patterns")
-        .select("id, pattern_type, pattern_name, pattern_value, multiplier")
+        .select("id, pattern_type, pattern_name, pattern_value, multiplier, applies_to_generation")
         .in("id", patternIds)
         .eq("user_id", user.id);
 
       if (patternError) throw patternError;
-      patterns = patternData || [];
+      patterns = (patternData || []).filter(isGenerationApplicablePattern);
     } else {
-      // Get top 3 enabled patterns by default
+      // Get top enabled, generation-applicable patterns by default. Over-fetch
+      // then filter so non-applicable rows don't crowd out the top 3.
       const { data: defaultPatterns, error: defaultError } = await supabase
         .from("extracted_patterns")
-        .select("id, pattern_type, pattern_name, pattern_value, multiplier")
+        .select("id, pattern_type, pattern_name, pattern_value, multiplier, applies_to_generation")
         .eq("user_id", user.id)
         .eq("is_enabled", true)
         .order("multiplier", { ascending: false })
-        .limit(3);
+        .limit(10);
 
       if (defaultError) throw defaultError;
-      patterns = defaultPatterns || [];
+      patterns = (defaultPatterns || []).filter(isGenerationApplicablePattern).slice(0, 3);
     }
 
     // Fetch user's voice settings including AI model preference
@@ -116,8 +122,8 @@ export async function POST(request: NextRequest) {
     // the assembled system prompt (one canonical tuned context). The user
     // prompt only carries explicit per-request steering: user-selected
     // pattern IDs.
-    const patternInstructions = patternIds.length > 0 && patterns.length > 0
-      ? `Apply these patterns the user selected:\n${patterns.map(p => `- ${p.pattern_name}: ${p.pattern_value}`).join('\n')}`
+    const patternInstructions = wasExplicitSelection && patterns.length > 0
+      ? `The user explicitly selected these proven patterns for this post — prioritize applying them (while staying in their authentic voice; never force one if it breaks the voice):\n${patterns.map(p => `- ${p.pattern_name}: ${p.pattern_value}`).join('\n')}`
       : "";
 
     const formatInstructions = draftType === "X_THREAD"
@@ -138,7 +144,23 @@ Keep the post concise but don't artificially limit to 280 characters — longer 
 Study the structure, tone, and hooks used. Create original content on the topic that captures similar energy and format.`
       : "";
 
-    const prompt = `Generate ${generateCount} ${draftType === "X_THREAD" ? "thread" : "tweet"} options about: "${topic}"
+    // One-off per-request steering, subordinate to the tuned voice (mirrors how
+    // generate-reply frames `tone`): applies to THIS generation only and never
+    // overrides how the user actually writes.
+    const instructionLine = instructions && instructions.trim()
+      ? `One-off adjustment for this request only (the user's voice still applies; do not let this override it): ${instructions.trim()}`
+      : "";
+
+    // On regenerate, steer away from variations already shown so the new one is
+    // genuinely different.
+    const priorVariationsBlock = Array.isArray(previousVariations) && previousVariations.length > 0
+      ? `You already produced these variations — make this one meaningfully different in angle, hook, or structure (do not repeat them):\n${previousVariations
+          .slice(0, 4)
+          .map((v, i) => `[${i + 1}] ${String(v).slice(0, 280)}`)
+          .join("\n")}`
+      : "";
+
+    const prompt = `Generate ${generateCount} ${draftType === "X_THREAD" ? "thread" : "tweet"} option${generateCount === 1 ? "" : "s"} about: "${topic}"
 
 ${formatInstructions}
 
@@ -146,7 +168,11 @@ ${inspirationInstructions}
 
 ${patternInstructions}
 
-Return a JSON array with ${generateCount} options. Each option should have:
+${instructionLine}
+
+${priorVariationsBlock}
+
+Return a JSON array with ${generateCount} option${generateCount === 1 ? "" : "s"}. Each option should have:
 - "content": The tweet text (or array of tweets for threads)
 - "hook_type": What type of hook you used
 - "patterns_applied": Array of pattern names you applied
@@ -170,7 +196,11 @@ Return ONLY the JSON array, no other text.`;
           content: prompt,
         },
       ],
-      temperature: 0.8,
+      // Single-option generation leans on first-gen voice fidelity, so run a
+      // touch cooler for tighter adherence to the user's voice; batch
+      // generation stays warmer to keep the options varied. A regenerate with
+      // explicit instructions stays warm enough to actually shift.
+      temperature: generateCount === 1 && !instructions ? 0.7 : 0.85,
       maxTokens: 2000,
       jsonResponse: false, // We parse JSON manually from the response
     });
@@ -217,6 +247,9 @@ Return ONLY the JSON array, no other text.`;
     );
   } catch (error) {
     console.error("Failed to generate from topic:", error);
+    Sentry.captureException(error, {
+      tags: { route: "drafts/generate-from-topic" },
+    });
     return NextResponse.json(
       { error: "Failed to generate content" },
       { status: 500, headers: corsHeaders }

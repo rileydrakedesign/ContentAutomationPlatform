@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { ParsedCsvPost, VoiceType } from "@/types/voice";
 import { weightedEngagement } from "@/lib/utils/engagement";
@@ -183,6 +184,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Failed to parse CSV:", error);
+    Sentry.captureException(error, { tags: { route: "voice/csv-upload" } });
     return NextResponse.json(
       { error: "Failed to parse CSV file" },
       { status: 500 }

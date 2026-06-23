@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
@@ -87,6 +88,7 @@ export async function GET(request: NextRequest) {
     }, { headers: corsHeaders });
   } catch (error) {
     console.error("Extension status error:", error);
+    Sentry.captureException(error, { tags: { route: "extension/status" } });
     return NextResponse.json(
       { error: "Failed to fetch status" },
       { status: 500, headers: corsHeaders }

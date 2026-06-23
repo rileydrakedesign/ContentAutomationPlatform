@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { getUserSubscription, checkAiGenerationLimit } from "@/lib/stripe/subscription";
 import { PLANS, isSubscriptionActive } from "@/types/subscription";
@@ -40,6 +41,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Failed to fetch subscription:", error);
+    Sentry.captureException(error, { tags: { route: "stripe/subscription" } });
     return NextResponse.json(
       { error: "Failed to fetch subscription" },
       { status: 500 }

@@ -102,8 +102,8 @@ export function PatternControlsTab() {
         </div>
         <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">No Patterns Extracted Yet</h3>
         <p className="text-[var(--color-text-secondary)] mb-4 max-w-md mx-auto">
-          Patterns are extracted from your posts and watched accounts. Save more posts
-          via the Chrome extension, then use the Extract Patterns feature on the Insights page.
+          Patterns are extracted from your own top-performing posts. Sync your analytics
+          or upload a CSV, then run a Voice Tune-Up on the Insights page to mine them.
         </p>
       </div>
     );

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { getContextFreshness } from "@/lib/analysis/freshness";
@@ -39,7 +40,7 @@ export async function GET() {
         .eq("is_enabled", true),
       supabase
         .from("user_niche_profile")
-        .select("niche_summary, positioning")
+        .select("niche_summary, positioning, total_posts_analyzed")
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase
@@ -54,6 +55,7 @@ export async function GET() {
         freshness,
         examples_count: examplesRes.count ?? 0,
         patterns_count: patternsRes.count ?? 0,
+        posts_analyzed: Number(nicheRes.data?.total_posts_analyzed) || 0,
         has_niche: Boolean(nicheRes.data?.niche_summary),
         has_positioning: Boolean(
           (nicheRes.data?.positioning as { positioning_statement?: string } | null)
@@ -65,6 +67,7 @@ export async function GET() {
     );
   } catch (error) {
     console.error("Failed to fetch voice health:", error);
+    Sentry.captureException(error, { tags: { route: "insights/voice-health" } });
     return NextResponse.json(
       { error: "Failed to fetch voice health" },
       { status: 500, headers: corsHeaders }

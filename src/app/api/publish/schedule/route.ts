@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { enqueuePublish } from "@/lib/qstash/enqueue";
 import { requireFeature } from "@/lib/stripe/gate";
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Failed to schedule publish:", error);
+    Sentry.captureException(error, { tags: { route: "publish/schedule" } });
     return NextResponse.json({ error: "Failed to schedule" }, { status: 500 });
   }
 }

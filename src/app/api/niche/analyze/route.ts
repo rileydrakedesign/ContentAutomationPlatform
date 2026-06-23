@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
@@ -45,6 +46,7 @@ export async function POST() {
     );
   } catch (error) {
     console.error("Failed to analyse niche:", error);
+    Sentry.captureException(error, { tags: { route: "niche/analyze" } });
     return NextResponse.json(
       { error: "Failed to analyse niche" },
       { status: 500, headers: corsHeaders }

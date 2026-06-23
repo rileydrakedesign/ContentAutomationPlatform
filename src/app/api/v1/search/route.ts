@@ -1,6 +1,7 @@
 import { withApiAuth, apiSuccess, apiError, apiOptions } from "@/lib/api/v1-handler";
 import { NextResponse } from "next/server";
 import { searchRecentTweets, getValidAccessToken } from "@/lib/x-api";
+import { mapSearchResults } from "@/lib/x-api/search-mapping";
 import { requireFeature } from "@/lib/stripe/gate";
 import {
   CREDIT_COSTS,
@@ -65,65 +66,7 @@ export const GET = withApiAuth(["search:read"], async ({ auth, request }) => {
     );
   }
 
-  const users = new Map(
-    (result.includes?.users || []).map((u) => [u.id, u])
-  );
-  const tweets = (result.data || []).map((tweet) => {
-    // Derive reply eligibility from the author's reply_settings + whether our
-    // authenticated account is mentioned. Best-effort: a publish can still 403
-    // (author blocked us, spam heuristics) — the publish step catches that.
-    const replySettings = tweet.reply_settings ?? null;
-    const isAuthMentioned = Boolean(
-      authUsername &&
-        tweet.entities?.mentions?.some(
-          (m) => m.username?.toLowerCase() === authUsername
-        )
-    );
-
-    let replyAllowed = false;
-    let replyEligibility: "open" | "open_mentioned" | "restricted" | "unknown";
-    switch (replySettings) {
-      case "everyone":
-        replyAllowed = true;
-        replyEligibility = "open";
-        break;
-      case "mentionedUsers":
-        replyAllowed = isAuthMentioned;
-        replyEligibility = isAuthMentioned ? "open_mentioned" : "restricted";
-        break;
-      case "following":
-      case "subscribers":
-        // Not determinable from the payload — treat as not allowed.
-        replyAllowed = false;
-        replyEligibility = "restricted";
-        break;
-      case null:
-        replyAllowed = false;
-        replyEligibility = "unknown";
-        break;
-      default:
-        // Any other/gated value X may introduce.
-        replyAllowed = false;
-        replyEligibility = "restricted";
-    }
-
-    return {
-      id: tweet.id,
-      text: tweet.text,
-      created_at: tweet.created_at ?? null,
-      metrics: tweet.public_metrics ?? null,
-      author: tweet.author_id
-        ? {
-            username: users.get(tweet.author_id)?.username ?? null,
-            name: users.get(tweet.author_id)?.name ?? null,
-          }
-        : null,
-      reply_settings: replySettings,
-      is_auth_mentioned: isAuthMentioned,
-      reply_allowed: replyAllowed,
-      reply_eligibility: replyEligibility,
-    };
-  });
+  const tweets = mapSearchResults(result, authUsername);
 
   const actualCharge = Math.max(MIN_CHARGE, tweets.length * CREDIT_COSTS["search.per_post"]);
   const overcharge = maxCharge - actualCharge;

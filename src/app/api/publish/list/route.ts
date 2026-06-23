@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 
 // GET /api/publish/list - list scheduled posts for current user
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data || []);
   } catch (error) {
     console.error("Failed to list scheduled posts:", error);
+    Sentry.captureException(error, { tags: { route: "publish/list" } });
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

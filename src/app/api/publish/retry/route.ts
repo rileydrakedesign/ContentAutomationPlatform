@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { enqueuePublish } from "@/lib/qstash/enqueue";
 
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, deliveryConfirmed: messageId !== null });
   } catch (error) {
     console.error("Failed to retry scheduled post:", error);
+    Sentry.captureException(error, { tags: { route: "publish/retry" } });
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

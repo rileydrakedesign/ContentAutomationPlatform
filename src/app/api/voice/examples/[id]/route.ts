@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 
 interface RouteParams {
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("Failed to fetch voice example:", error);
+    Sentry.captureException(error, { tags: { route: "voice/examples/[id]" } });
     return NextResponse.json(
       { error: "Failed to fetch voice example" },
       { status: 500 }
@@ -117,6 +119,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("Failed to update voice example:", error);
+    Sentry.captureException(error, { tags: { route: "voice/examples/[id]" } });
     return NextResponse.json(
       { error: "Failed to update voice example" },
       { status: 500 }
@@ -149,6 +152,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete voice example:", error);
+    Sentry.captureException(error, { tags: { route: "voice/examples/[id]" } });
     return NextResponse.json(
       { error: "Failed to delete voice example" },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { searchRecentTweets, getValidAccessToken } from "@/lib/x-api";
 
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ tweets });
   } catch (error) {
     console.error("Failed to search tweets:", error);
+    Sentry.captureException(error, { tags: { route: "x/search" } });
     const message = error instanceof Error ? error.message : "Search failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }

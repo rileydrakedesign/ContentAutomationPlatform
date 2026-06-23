@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { getUserTimeline, getValidAccessToken } from "@/lib/x-api";
 import { requireFeature } from "@/lib/stripe/gate";
@@ -89,6 +90,7 @@ export async function POST() {
     });
   } catch (error) {
     console.error("Failed to sync X posts:", error);
+    Sentry.captureException(error, { tags: { route: "x/sync" } });
     return NextResponse.json(
       { error: "Failed to sync posts" },
       { status: 500 }

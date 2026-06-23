@@ -4,6 +4,27 @@ X (Twitter) content platform: generate posts and replies in your own voice,
 schedule and publish them, and track what performs. Next.js 16 app backed by
 Supabase, deployed on Vercel.
 
+## Documentation
+
+Full product & integration docs live in **[`docs/`](docs/README.md)**:
+
+- **API** — [getting started](docs/api/getting-started.md) ·
+  [auth & scopes](docs/api/authentication.md) · [credits](docs/api/credits.md) ·
+  [errors](docs/api/errors.md) · [examples](docs/api/examples.md)
+- **MCP** — [overview](docs/mcp/overview.md) · [setup](docs/mcp/setup.md) ·
+  [tool tour](docs/mcp/tools.md) · [generated tool reference](docs/mcp/tools.generated.md) ·
+  [workflows](docs/mcp/workflows.md) · [troubleshooting](docs/mcp/troubleshooting.md)
+- **How it works** — [architecture](docs/architecture/overview.md) ·
+  [voice system](docs/architecture/voice-system.md) ·
+  [publishing](docs/architecture/publishing.md)
+- **Guides** — [tune-up](docs/guides/voice-tuneup.md) ·
+  [patterns](docs/guides/patterns.md) · [inspiration](docs/guides/inspiration.md) ·
+  [analytics](docs/guides/analytics.md) · [strategy](docs/guides/strategy.md)
+- **Reference** — [data models](docs/reference/data-models.md)
+
+The REST API also has an interactive reference at **`/developers`** (Scalar,
+driven by [`src/lib/api/openapi-spec.ts`](src/lib/api/openapi-spec.ts)).
+
 ## Repository layout
 
 | Path | What it is |

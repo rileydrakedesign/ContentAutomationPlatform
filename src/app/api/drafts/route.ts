@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("Failed to fetch drafts:", error);
+    Sentry.captureException(error, { tags: { route: "drafts" } });
     return NextResponse.json(
       { error: "Failed to fetch drafts" },
       { status: 500 }
@@ -79,6 +81,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(draft, { status: 201 });
   } catch (error) {
     console.error("Failed to create draft:", error);
+    Sentry.captureException(error, { tags: { route: "drafts" } });
     return NextResponse.json(
       { error: "Failed to create draft" },
       { status: 500 }

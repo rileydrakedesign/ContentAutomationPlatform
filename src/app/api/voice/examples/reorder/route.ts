@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { ReorderExamplesRequest } from "@/types/voice";
 
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("Failed to reorder voice examples:", error);
+    Sentry.captureException(error, { tags: { route: "voice/examples/reorder" } });
     return NextResponse.json(
       { error: "Failed to reorder voice examples" },
       { status: 500 }

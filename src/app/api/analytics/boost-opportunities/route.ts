@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import type { PostAnalytics } from "@/types/analytics";
 
@@ -311,6 +312,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Failed to compute boost opportunities:", error);
+    Sentry.captureException(error, { tags: { route: "analytics/boost-opportunities" } });
     return NextResponse.json(
       { error: "Failed to compute boost opportunities" },
       { status: 500 }

@@ -1,4 +1,4 @@
-export type PlanId = "free" | "pro" | "agent";
+export type PlanId = "free" | "pro" | "agent" | "agency";
 
 export interface PlanConfig {
   id: PlanId;
@@ -12,6 +12,8 @@ export interface PlanConfig {
     scheduling: boolean;
     patternExtraction: boolean;
     insightsChat: boolean;
+    // Agency tier: manage isolated per-client voice profiles (multi-account).
+    multiAccount: boolean;
     // Agent surface (v1 API + MCP) metering — in-app UI usage is not metered.
     monthlyCredits: number;
     apiRateLimit: number; // requests/min per API key
@@ -38,6 +40,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       scheduling: false,
       patternExtraction: false,
       insightsChat: false,
+      multiAccount: false,
       monthlyCredits: 100,
       apiRateLimit: 20,
       apiPublishPerDay: 5,
@@ -64,6 +67,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       scheduling: true,
       patternExtraction: true,
       insightsChat: true,
+      multiAccount: false,
       monthlyCredits: 2000,
       apiRateLimit: 60,
       apiPublishPerDay: 200,
@@ -89,6 +93,34 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       scheduling: true,
       patternExtraction: true,
       insightsChat: true,
+      multiAccount: false,
+      monthlyCredits: 7500,
+      apiRateLimit: 120,
+      apiPublishPerDay: 600,
+      apiGeneratePerDay: 3000,
+    },
+  },
+  // Agency tier. Manage isolated per-client voice profiles. Hidden everywhere
+  // until NEXT_PUBLIC_STRIPE_AGENCY_PRICE_ID is set (see isPlanAvailable).
+  agency: {
+    id: "agency",
+    name: "Agency",
+    price: 199,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_AGENCY_PRICE_ID || "",
+    features: [
+      "Everything in Pro",
+      "Unlimited isolated client voice profiles",
+      "Per-client Voice Report & voice-check",
+      "Client approval workflow",
+      "White-label sharing",
+    ],
+    limits: {
+      aiGenerationsPerDay: Infinity,
+      xApiSync: true,
+      scheduling: true,
+      patternExtraction: true,
+      insightsChat: true,
+      multiAccount: true,
       monthlyCredits: 7500,
       apiRateLimit: 120,
       apiPublishPerDay: 600,
@@ -101,6 +133,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
  *  flagged by the presence of its Stripe price ID. */
 export function isPlanAvailable(planId: PlanId): boolean {
   if (planId === "agent") return !!PLANS.agent.stripePriceId;
+  if (planId === "agency") return !!PLANS.agency.stripePriceId;
   return true;
 }
 

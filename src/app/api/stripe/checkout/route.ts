@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -139,6 +140,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error("Stripe checkout error:", error);
+    Sentry.captureException(error, { tags: { route: "stripe/checkout" } });
     return NextResponse.json(
       { error: "Failed to create checkout session" },
       { status: 500 }

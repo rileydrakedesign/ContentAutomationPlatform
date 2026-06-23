@@ -1,38 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { createAuthClient } from "@/lib/supabase/server";
+import * as Sentry from "@sentry/nextjs";
 import { corsHeaders, handleCors } from "@/lib/cors";
+import { getDualAuthUser } from "@/lib/api/dual-auth";
 
 export async function OPTIONS() {
   return handleCors();
-}
-
-async function getAuthenticatedUser(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.substring(7);
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: `Bearer ${token}` } } }
-    );
-
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return { user: null, supabase: null };
-    return { user, supabase };
-  }
-
-  const supabase = await createAuthClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return { user: null, supabase: null };
-  return { user, supabase };
 }
 
 // POST /api/extension/replies
 // Logs a reply the user sent through the Chrome extension (for consistency tracking)
 export async function POST(request: NextRequest) {
   try {
-    const { user, supabase } = await getAuthenticatedUser(request);
+    const { user, supabase } = await getDualAuthUser(request);
     if (!user || !supabase) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
@@ -71,6 +50,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true }, { headers: corsHeaders });
   } catch (e) {
     console.error("Failed to log extension reply:", e);
+    Sentry.captureException(e, { tags: { route: "extension/replies" } });
     return NextResponse.json({ error: "Failed" }, { status: 500, headers: corsHeaders });
   }
 }

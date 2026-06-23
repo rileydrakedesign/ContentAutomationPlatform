@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import type { PostAnalytics, DayOfWeekAnalytics, DayOfWeekStats } from "@/types/analytics";
 
@@ -105,6 +106,7 @@ export async function GET() {
     return NextResponse.json(response);
   } catch (error) {
     console.error("Failed to fetch best times analytics:", error);
+    Sentry.captureException(error, { tags: { route: "analytics/best-times" } });
     return NextResponse.json({ error: "Failed to fetch analytics" }, { status: 500 });
   }
 }

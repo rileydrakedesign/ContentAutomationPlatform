@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
@@ -124,10 +125,10 @@ export async function POST(request: NextRequest) {
     }
 
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.4-nano",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.8,
-      max_tokens: 200,
+      max_completion_tokens: 200,
     });
 
     const preview = completion.choices[0]?.message?.content?.trim() || "";
@@ -147,6 +148,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Failed to generate preview:", error);
+    Sentry.captureException(error, { tags: { route: "voice/preview" } });
     return NextResponse.json(
       { error: "Failed to generate preview" },
       { status: 500 }

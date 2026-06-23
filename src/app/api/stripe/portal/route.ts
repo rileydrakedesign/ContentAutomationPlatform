@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/client";
 import { getUserSubscription } from "@/lib/stripe/subscription";
@@ -43,6 +44,7 @@ export async function POST() {
     return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error("Stripe portal error:", error);
+    Sentry.captureException(error, { tags: { route: "stripe/portal" } });
     return NextResponse.json(
       { error: "Failed to create portal session" },
       { status: 500 }

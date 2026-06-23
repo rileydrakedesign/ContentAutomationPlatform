@@ -276,6 +276,40 @@ async function generateReply(payload) {
   }
 }
 
+// Voice check — score a candidate reply against the user's tuned REPLY voice.
+// Mirrors generateReply: POSTs to /api/voice/check (3 credits) and returns the
+// structured score so the content script can render it inline in the picker.
+async function voiceCheck(payload) {
+  try {
+    const response = await apiRequest('/api/voice/check', {
+      method: 'POST',
+      body: JSON.stringify({
+        text: payload.text,
+        voice_type: payload.voice_type || 'reply',
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      return {
+        success: true,
+        score: data.score,
+        matches: data.matches || [],
+        deviations: data.deviations || [],
+        suggested_edit: data.suggested_edit || '',
+      };
+    } else if (response.status === 429 && data.code === 'AI_LIMIT') {
+      return { success: false, error: data.error, code: 'AI_LIMIT' };
+    } else {
+      return { success: false, error: data.error || 'Voice check failed' };
+    }
+  } catch (error) {
+    console.error('Voice check failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Save an inspiration post (from Chrome extension)
 async function saveInspirationPost(postData) {
   try {
@@ -317,6 +351,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         sendResponse(result);
       })
+      .catch((error) => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
+  if (message.type === 'VOICE_CHECK') {
+    voiceCheck(message.payload)
+      .then(sendResponse)
       .catch((error) => {
         sendResponse({ success: false, error: error.message });
       });

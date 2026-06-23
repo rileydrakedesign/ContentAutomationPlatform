@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import type { PostAnalytics } from "@/types/analytics";
@@ -182,6 +183,7 @@ export async function GET() {
     }, { status: 200, headers: corsHeaders });
   } catch (error) {
     console.error("Failed to compute strategy progress:", error);
+    Sentry.captureException(error, { tags: { route: "strategy/progress" } });
     return NextResponse.json({ error: "Failed to compute progress" }, { status: 500, headers: corsHeaders });
   }
 }

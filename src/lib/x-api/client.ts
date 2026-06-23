@@ -60,6 +60,12 @@ export function getOAuth2AuthorizationUrl(state: string, codeChallenge: string):
     response_type: "code",
     client_id: clientId,
     redirect_uri: redirectUri,
+    // NOTE: media.write (for v2 image/GIF/video upload, Bearer-auth) is
+    // intentionally NOT requested yet — it must first be enabled in the X
+    // developer portal, otherwise X rejects the authorize request and breaks the
+    // connect flow. Re-add "media.write" to this scope string once the portal
+    // scope is enabled; until then the media-upload route returns a graceful
+    // "reconnect" 403 and text publishing is unaffected.
     scope: "tweet.read tweet.write users.read offline.access",
     state,
     code_challenge: codeChallenge,
@@ -422,6 +428,10 @@ export async function postTweet(
   status: string,
   options?: {
     inReplyToStatusId?: string;
+    /** Up to 4 image media_ids, or 1 GIF/video media_id, from uploadMediaV2. */
+    mediaIds?: string[];
+    /** Who can reply to this post. Default (omitted) = everyone. */
+    replySettings?: "everyone" | "mentionedUsers" | "following";
   }
 ): Promise<{ id_str: string }> {
   const url = `${X_API_BASE}/2/tweets`;
@@ -429,6 +439,14 @@ export async function postTweet(
   const body: Record<string, unknown> = { text: status };
   if (options?.inReplyToStatusId) {
     body.reply = { in_reply_to_tweet_id: options.inReplyToStatusId };
+  }
+  if (options?.mediaIds && options.mediaIds.length > 0) {
+    body.media = { media_ids: options.mediaIds.slice(0, 4) };
+  }
+  // X only accepts a non-default reply audience; omit "everyone" to keep the
+  // default behavior and avoid rejections on reply tweets.
+  if (options?.replySettings && options.replySettings !== "everyone") {
+    body.reply_settings = options.replySettings;
   }
 
   const response = await fetch(url, {
@@ -447,6 +465,155 @@ export async function postTweet(
 
   const data = await response.json();
   return { id_str: data.data.id };
+}
+
+// ── Media upload (v2, Bearer-auth, chunked INIT/APPEND/FINALIZE) ──
+// Works for images, GIFs, and video. Video/large GIFs process asynchronously,
+// so we poll the STATUS endpoint until the media is ready before returning.
+
+const MEDIA_UPLOAD_URL = `${X_API_BASE}/2/media/upload`;
+const APPEND_CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB per APPEND segment
+
+export type MediaCategory =
+  | "tweet_image"
+  | "tweet_gif"
+  | "tweet_video";
+
+/** Infer the X media_category from a MIME type. */
+export function mediaCategoryForMime(mime: string): MediaCategory {
+  if (mime === "image/gif") return "tweet_gif";
+  if (mime.startsWith("video/")) return "tweet_video";
+  return "tweet_image";
+}
+
+async function mediaRequest(
+  accessToken: string,
+  body: BodyInit,
+  headers: Record<string, string>
+): Promise<Record<string, unknown>> {
+  const res = await fetch(MEDIA_UPLOAD_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, ...headers },
+    body,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Media upload failed (${res.status}): ${text}`);
+  }
+  return res.json();
+}
+
+/**
+ * Upload media to X and return its media_id. Chunked so it handles video too.
+ * `bytes` is the raw file; `mimeType` drives the media_category.
+ */
+export async function uploadMediaV2(
+  accessToken: string,
+  bytes: Buffer | Uint8Array,
+  mimeType: string
+): Promise<{ media_id: string; category: MediaCategory }> {
+  const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+  const category = mediaCategoryForMime(mimeType);
+
+  // INIT
+  const initForm = new URLSearchParams({
+    command: "INIT",
+    total_bytes: String(buffer.length),
+    media_type: mimeType,
+    media_category: category,
+  });
+  const initData = await mediaRequest(accessToken, initForm.toString(), {
+    "Content-Type": "application/x-www-form-urlencoded",
+  });
+  const mediaId =
+    (initData.data as { id?: string } | undefined)?.id ??
+    (initData.media_id_string as string | undefined);
+  if (!mediaId) {
+    throw new Error("Media upload INIT returned no media id");
+  }
+
+  // APPEND (one or more 4MB segments)
+  let segment = 0;
+  for (let offset = 0; offset < buffer.length; offset += APPEND_CHUNK_SIZE) {
+    const chunk = buffer.subarray(offset, offset + APPEND_CHUNK_SIZE);
+    // Copy into a standalone Uint8Array so the Blob part is ArrayBuffer-backed
+    // (a Node Buffer subarray can be SharedArrayBuffer-backed in TS's view).
+    const part = new Uint8Array(chunk.length);
+    part.set(chunk);
+    const form = new FormData();
+    form.append("command", "APPEND");
+    form.append("media_id", mediaId);
+    form.append("segment_index", String(segment));
+    form.append("media", new Blob([part]));
+    await mediaRequest(accessToken, form, {});
+    segment += 1;
+  }
+
+  // FINALIZE
+  const finalizeForm = new URLSearchParams({ command: "FINALIZE", media_id: mediaId });
+  const finalizeData = await mediaRequest(accessToken, finalizeForm.toString(), {
+    "Content-Type": "application/x-www-form-urlencoded",
+  });
+
+  // If async processing is required (video / large GIF), poll STATUS.
+  const processing =
+    (finalizeData.data as { processing_info?: { state?: string } } | undefined)?.processing_info ??
+    (finalizeData.processing_info as { state?: string } | undefined);
+  if (processing && processing.state && processing.state !== "succeeded") {
+    await waitForMediaProcessing(accessToken, mediaId);
+  }
+
+  return { media_id: mediaId, category };
+}
+
+async function waitForMediaProcessing(accessToken: string, mediaId: string): Promise<void> {
+  // Bounded poll: X reports check_after_secs; cap total wait so a stuck job
+  // surfaces as an error instead of hanging the publish request.
+  const maxAttempts = 20;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const res = await fetch(
+      `${MEDIA_UPLOAD_URL}?command=STATUS&media_id=${encodeURIComponent(mediaId)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Media STATUS failed (${res.status}): ${text}`);
+    }
+    const data = await res.json();
+    const info =
+      (data.data as { processing_info?: { state?: string; check_after_secs?: number } } | undefined)
+        ?.processing_info ??
+      (data.processing_info as { state?: string; check_after_secs?: number } | undefined);
+    const state = info?.state;
+    if (!state || state === "succeeded") return;
+    if (state === "failed") throw new Error("X failed to process the uploaded media");
+    const waitSecs = Math.min(info?.check_after_secs ?? 2, 5);
+    await new Promise((r) => setTimeout(r, waitSecs * 1000));
+  }
+  throw new Error("Timed out waiting for X to process the uploaded media");
+}
+
+/** Attach alt text (accessibility) to an uploaded media_id. Best-effort. */
+export async function setMediaAltText(
+  accessToken: string,
+  mediaId: string,
+  altText: string
+): Promise<void> {
+  const res = await fetch(`${X_API_BASE}/2/media/metadata`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      id: mediaId,
+      metadata: { alt_text: { text: altText.slice(0, 1000) } },
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to set media alt text (${res.status}): ${text}`);
+  }
 }
 
 // ── Analytics helpers ────────────────────────────────────────────

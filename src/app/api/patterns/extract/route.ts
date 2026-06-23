@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { requireFeature } from "@/lib/stripe/gate";
@@ -45,6 +46,7 @@ export async function POST() {
     );
   } catch (error) {
     console.error("Failed to extract patterns:", error);
+    Sentry.captureException(error, { tags: { route: "patterns/extract" } });
     return NextResponse.json(
       { error: "Failed to extract patterns" },
       { status: 500, headers: corsHeaders }

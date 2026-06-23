@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 
 // GET /api/x/status - Get X connection status
@@ -35,6 +36,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Failed to get X status:", error);
+    Sentry.captureException(error, { tags: { route: "x/status" } });
     return NextResponse.json(
       { error: "Failed to get status" },
       { status: 500 }
@@ -66,6 +68,7 @@ export async function DELETE() {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to disconnect X:", error);
+    Sentry.captureException(error, { tags: { route: "x/status" } });
     return NextResponse.json(
       { error: "Failed to disconnect" },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { Receiver } from "@upstash/qstash";
 import { createClient } from "@supabase/supabase-js";
 import { executeScheduledPost } from "@/lib/publish/execute";
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error("QStash publish webhook error:", error);
+    Sentry.captureException(error, { tags: { route: "qstash/publish" } });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

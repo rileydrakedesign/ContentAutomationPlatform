@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { postTweet, getValidAccessToken } from "@/lib/x-api";
+import { isReplyForbiddenError } from "@/lib/x-api/search-mapping";
+import { parseAttachedMedia, resolveMediaIdsForPublish } from "@/lib/x-api/media";
 
-type ContentType = "X_POST" | "X_THREAD";
+type ContentType = "X_POST" | "X_THREAD" | "X_REPLY";
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,8 +27,66 @@ export async function POST(request: NextRequest) {
     const payload = body?.payload;
     const draftId = body?.draftId ? String(body.draftId) : null;
 
-    if (!contentType || !["X_POST", "X_THREAD"].includes(contentType)) {
+    if (!contentType || !["X_POST", "X_THREAD", "X_REPLY"].includes(contentType)) {
       return NextResponse.json({ error: "Invalid contentType" }, { status: 400 });
+    }
+
+    // Reply — post in reply to a target tweet and log it to the reply pool so it
+    // feeds the reply voice (same store the extension uses).
+    if (contentType === "X_REPLY") {
+      const text = String(payload?.text || "").trim();
+      const inReplyToId = String(payload?.inReplyToId || payload?.inReplyToStatusId || "").trim();
+      if (!text) return NextResponse.json({ error: "Missing text" }, { status: 400 });
+      if (!inReplyToId) {
+        return NextResponse.json(
+          { error: "X_REPLY requires payload.inReplyToId (the tweet being replied to)" },
+          { status: 400 }
+        );
+      }
+
+      // Optional media on the reply. Immediate publish → the just-uploaded
+      // media_id is still valid (no re-upload needed).
+      const replyMedia = parseAttachedMedia(payload?.media);
+      const replyMediaIds = replyMedia.length
+        ? await resolveMediaIdsForPublish(supabase, accessToken, replyMedia, { forceReupload: false })
+        : [];
+
+      let posted: { id_str: string };
+      try {
+        posted = await postTweet(accessToken, text, {
+          inReplyToStatusId: inReplyToId,
+          mediaIds: replyMediaIds.length ? replyMediaIds : undefined,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to post reply";
+        // Undetectable-pre-flight reply restriction → clean 403 the UI can act
+        // on (clear message + drop the post), not a raw 500.
+        if (isReplyForbiddenError(message)) {
+          return NextResponse.json(
+            {
+              error:
+                "X won't allow a reply here — the author limited who can reply to this post.",
+              reply_forbidden: true,
+            },
+            { status: 403 }
+          );
+        }
+        throw err;
+      }
+
+      try {
+        await supabase.from("extension_replies").insert({
+          user_id: user.id,
+          reply_text: text,
+          replied_to_post_id: inReplyToId,
+          replied_to_post_url: payload?.inReplyToUrl ? String(payload.inReplyToUrl) : null,
+          sent_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.warn("publish now: failed to log reply to reply pool", e);
+      }
+
+      return NextResponse.json({ success: true, postedIds: [posted.id_str] });
     }
 
     // Publish
@@ -33,7 +94,21 @@ export async function POST(request: NextRequest) {
       const text = String(payload?.text || "").trim();
       if (!text) return NextResponse.json({ error: "Missing text" }, { status: 400 });
 
-      const posted = await postTweet(accessToken, text);
+      const media = parseAttachedMedia(payload?.media);
+      const mediaIds = media.length
+        ? await resolveMediaIdsForPublish(supabase, accessToken, media, { forceReupload: false })
+        : [];
+
+      const replySettings =
+        payload?.replySettings === "mentionedUsers" || payload?.replySettings === "following"
+          ? payload.replySettings
+          : undefined;
+
+      const posted = await postTweet(
+        accessToken,
+        text,
+        mediaIds.length || replySettings ? { mediaIds: mediaIds.length ? mediaIds : undefined, replySettings } : undefined
+      );
 
       // Backfill captured_posts
       try {
@@ -49,6 +124,7 @@ export async function POST(request: NextRequest) {
           triaged_as: "my_post",
           post_timestamp: new Date().toISOString(),
           metrics: {},
+          afx_assisted: true,
         });
       } catch (e) {
         console.warn("publish now: failed to backfill captured_posts", e);
@@ -113,6 +189,7 @@ export async function POST(request: NextRequest) {
         triaged_as: "my_post",
         post_timestamp: new Date().toISOString(),
         metrics: {},
+        afx_assisted: true,
       }));
       await supabase.from("captured_posts").insert(rows);
     } catch (e) {
@@ -147,6 +224,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, postedIds });
   } catch (error) {
     console.error("Failed to publish now:", error);
+    Sentry.captureException(error, { tags: { route: "publish/now" } });
     const message = error instanceof Error ? error.message : "Failed to publish";
     return NextResponse.json({ error: message }, { status: 500 });
   }

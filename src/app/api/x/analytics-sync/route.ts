@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders } from "@/lib/cors";
 
@@ -173,6 +174,7 @@ export async function POST(request: Request) {
     }, { headers: corsHeaders });
   } catch (error) {
     console.error("Failed to sync analytics:", error);
+    Sentry.captureException(error, { tags: { route: "x/analytics-sync" } });
     return NextResponse.json(
       { error: "Failed to sync analytics data" },
       { status: 500, headers: corsHeaders }

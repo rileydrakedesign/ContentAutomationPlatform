@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { UpdateSettingsRequest } from "@/types/captured";
 
@@ -43,6 +44,7 @@ export async function GET() {
     return NextResponse.json(settings);
   } catch (error) {
     console.error("Failed to fetch settings:", error);
+    Sentry.captureException(error, { tags: { route: "settings" } });
     return NextResponse.json(
       { error: "Failed to fetch settings" },
       { status: 500 }
@@ -96,6 +98,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("Failed to update settings:", error);
+    Sentry.captureException(error, { tags: { route: "settings" } });
     return NextResponse.json(
       { error: "Failed to update settings" },
       { status: 500 }

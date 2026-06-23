@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import type { PostAnalytics } from "@/types/analytics";
@@ -124,6 +125,7 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error("Failed to fetch suggestions:", error);
+    Sentry.captureException(error, { tags: { route: "patterns/suggestions" } });
     return NextResponse.json(
       { error: "Failed to fetch suggestions" },
       { status: 500, headers: corsHeaders }

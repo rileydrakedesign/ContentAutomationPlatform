@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { checkAuthRateLimit } from "@/lib/api/rate-limit";
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Login failed:", error);
+    Sentry.captureException(error, { tags: { route: "auth/login" } });
     return NextResponse.json(
       { error: "Login failed" },
       { status: 500, headers: corsHeaders }

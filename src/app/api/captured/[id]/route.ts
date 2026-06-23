@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { TriageRequest } from "@/types/captured";
 
@@ -36,6 +37,7 @@ export async function GET(
     return NextResponse.json(data);
   } catch (error) {
     console.error("Failed to fetch captured post:", error);
+    Sentry.captureException(error, { tags: { route: "captured/[id]" } });
     return NextResponse.json(
       { error: "Failed to fetch captured post" },
       { status: 500 }
@@ -96,6 +98,7 @@ export async function PATCH(
     return NextResponse.json(data);
   } catch (error) {
     console.error("Failed to update captured post:", error);
+    Sentry.captureException(error, { tags: { route: "captured/[id]" } });
     return NextResponse.json(
       { error: "Failed to update captured post" },
       { status: 500 }
@@ -131,6 +134,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete captured post:", error);
+    Sentry.captureException(error, { tags: { route: "captured/[id]" } });
     return NextResponse.json(
       { error: "Failed to delete captured post" },
       { status: 500 }

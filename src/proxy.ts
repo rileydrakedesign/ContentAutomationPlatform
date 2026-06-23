@@ -49,6 +49,8 @@ export async function proxy(request: NextRequest) {
     "/signup",
     "/agent-for-x", // privacy, terms, marketing legal
     "/.well-known", // OAuth AS / protected-resource metadata (MCP connector)
+    "/developers", // public standalone API reference (+ its /developers/scalar bundle)
+    "/share", // public opt-in shareable Voice Report (/share/[token])
   ];
 
   const isPublicPath = PUBLIC_PAGE_PATHS.some(

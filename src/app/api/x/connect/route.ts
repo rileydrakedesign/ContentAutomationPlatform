@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { generatePKCE, getOAuth2AuthorizationUrl } from "@/lib/x-api";
 
@@ -44,6 +45,7 @@ export async function GET() {
     return NextResponse.json({ url: authUrl });
   } catch (error) {
     console.error("Failed to initiate X OAuth:", error);
+    Sentry.captureException(error, { tags: { route: "x/connect" } });
     return NextResponse.json(
       { error: "Failed to initiate connection" },
       { status: 500 }

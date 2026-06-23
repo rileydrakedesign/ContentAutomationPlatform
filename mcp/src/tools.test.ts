@@ -19,7 +19,7 @@ const EXPECTED_TOOLS = [
   // queue
   "list_queue", "cancel_scheduled", "list_published",
   // analysis
-  "get_analytics", "get_best_times", "sync_analytics", "get_tweet", "search_tweets",
+  "get_analytics", "get_best_times", "sync_analytics", "get_tweet", "search_tweets", "find_reply_posts",
   // patterns & inspiration
   "list_patterns", "toggle_pattern", "list_inspiration", "add_inspiration",
 ];
@@ -69,7 +69,7 @@ describe("tool registry", () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([...EXPECTED_TOOLS].sort());
-    expect(names).toHaveLength(35);
+    expect(names).toHaveLength(36);
   });
 
   it("steers agents to client-side writing over server-side generation", async () => {
@@ -91,6 +91,7 @@ describe("tool registry", () => {
     expect(byName.get("schedule_post")).toMatch(/refunded if cancelled/);
     expect(byName.get("get_tweet")).toMatch(/1 credit/);
     expect(byName.get("search_tweets")).toMatch(/1 credit per result/);
+    expect(byName.get("find_reply_posts")).toMatch(/1 credit per post/);
     expect(byName.get("sync_analytics")).toMatch(/15 credits/);
     expect(byName.get("add_inspiration")).toMatch(/3 credits/);
   });

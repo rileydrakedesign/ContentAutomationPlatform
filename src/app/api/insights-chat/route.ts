@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
@@ -233,6 +234,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("insights-chat failed:", error);
+    Sentry.captureException(error, { tags: { route: "insights-chat" } });
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

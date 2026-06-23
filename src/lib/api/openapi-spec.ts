@@ -6,6 +6,11 @@ export const openApiSpec = {
     description:
       "Programmatic access to your content automation platform — manage drafts, generate AI content, publish to X, read analytics, configure voice settings, and set content strategy.\n\n## Authentication\n\nAll endpoints require an API key passed via the `Authorization` header:\n\n```\nAuthorization: Bearer sk_live_...\n```\n\nCreate API keys in **Settings → API Keys**. Each key has scoped permissions — only endpoints matching the key's scopes will be accessible.\n\n## Rate Limiting\n\nRequests are rate-limited per API key using a sliding window (per-plan: 20–120 requests/minute). Rate limit info is included in response headers:\n\n| Header | Description |\n|---|---|\n| `X-RateLimit-Limit` | Max requests per window |\n| `X-RateLimit-Remaining` | Requests remaining |\n| `X-RateLimit-Reset` | Unix timestamp when the window resets |\n\n## Credits\n\nActions that incur real X API or AI costs are metered in credits (1 credit = $0.01). Each operation documents its price via the `x-credits` extension. Key prices: generation 3, publish 3 per tweet, publish containing a URL 30, tweet read 1, search 1/result (min 5), on-demand sync 15. Your monthly allowance resets on your billing anniversary; purchased credit packs are consumed after the allowance and never expire while subscribed.\n\nMetered responses include `X-Credits-Charged` and `X-Credits-Remaining` headers. When you run out you'll get **402** `INSUFFICIENT_CREDITS` with your balance and a top-up URL. Failed external calls are automatically refunded.\n\n## MCP (Model Context Protocol)\n\nEvery capability here is also available as MCP tools for AI agents:\n\n- **claude.ai connector / hosted (OAuth 2.1, no keys):** add `https://app.agentsforx.com/api/v1/mcp` as a custom connector — you'll be asked to log in and approve scopes. Also works with `claude mcp add --transport http agentsforx https://app.agentsforx.com/api/v1/mcp`.\n- **Local stdio (API key):** `npx -y @agentsforx/mcp` with `CONTENT_API_KEY` set.\n\nBoth transports enforce the same scopes, rate limits, and credit metering as this REST API.\n\n## Error Format\n\nAll errors return a consistent JSON structure:\n\n```json\n{\n  \"error\": \"Human-readable message\",\n  \"code\": \"machine_readable_code\"\n}\n```\n\nCommon error codes: `unauthorized`, `forbidden`, `rate_limited`, `daily_cap`, `INSUFFICIENT_CREDITS`, `validation_error`, `not_found`, `internal_error`.",
   },
+  externalDocs: {
+    description:
+      "In-repo docs (getting started, MCP, architecture, guides) and the hosted MCP connector. The hosted MCP gateway lives at POST/GET/DELETE /api/v1/mcp (OAuth 2.1, streamable HTTP) — it is not an API-key REST endpoint, so it is described here rather than as a REST path. See docs/mcp/overview.md.",
+    url: "https://app.agentsforx.com/api/v1/mcp",
+  },
   servers: [
     {
       url: "/api/v1",
@@ -32,7 +37,7 @@ export const openApiSpec = {
       get: {
         tags: ["Health"],
         summary: "Health check",
-        description: "Returns API status. If a valid API key is provided, also returns key metadata. Useful for testing connectivity and authentication.",
+        description: "Returns API status. If a valid API key is provided, also returns key metadata (granted scopes and the key's per-minute rate limit). Useful for testing connectivity and authentication.",
         security: [],
         responses: {
           "200": {
@@ -45,12 +50,13 @@ export const openApiSpec = {
                     status: { type: "string", example: "ok" },
                     version: { type: "string", example: "1.0.0" },
                     authenticated: { type: "boolean" },
-                    key_prefix: { type: "string", example: "sk_live_abc1..." },
                     scopes: {
                       type: "array",
                       items: { type: "string" },
+                      description: "Present only when authenticated.",
                       example: ["drafts:read", "drafts:write"],
                     },
+                    rate_limit: { type: "integer", description: "Per-minute request limit for this key. Present only when authenticated.", example: 60 },
                   },
                 },
               },
@@ -63,6 +69,7 @@ export const openApiSpec = {
       get: {
         tags: ["Drafts"],
         summary: "List drafts",
+        "x-required-scopes": ["drafts:read"],
         description: "Returns a paginated list of drafts for the authenticated user.",
         parameters: [
           {
@@ -106,6 +113,7 @@ export const openApiSpec = {
       post: {
         tags: ["Drafts"],
         summary: "Create a draft",
+        "x-required-scopes": ["drafts:write"],
         description: "Creates a new draft. The draft is saved with status `DRAFT` and can be edited, published, or scheduled later.",
         requestBody: {
           required: true,
@@ -117,8 +125,11 @@ export const openApiSpec = {
                 properties: {
                   type: { type: "string", enum: ["X_POST", "X_THREAD"], description: "Content type" },
                   content: {
-                    type: "object",
-                    description: "For X_POST: `{ text: string }`. For X_THREAD: `{ tweets: string[] }`",
+                    description: "Single post: `{ text: string }`. Thread: `{ tweets: string[] }`. Shape must match `type`.",
+                    oneOf: [
+                      { type: "object", required: ["text"], properties: { text: { type: "string" } }, description: "X_POST content" },
+                      { type: "object", required: ["tweets"], properties: { tweets: { type: "array", items: { type: "string" } } }, description: "X_THREAD content" },
+                    ],
                     example: { text: "My new post content" },
                   },
                   topic: { type: "string", description: "Optional topic tag" },
@@ -143,6 +154,7 @@ export const openApiSpec = {
       get: {
         tags: ["Drafts"],
         summary: "Get a draft",
+        "x-required-scopes": ["drafts:read"],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: {
           "200": { content: { "application/json": { schema: { $ref: "#/components/schemas/Draft" } } }, description: "Draft found" },
@@ -152,7 +164,8 @@ export const openApiSpec = {
       patch: {
         tags: ["Drafts"],
         summary: "Update a draft",
-        description: "Update draft content, edited content, or status.",
+        "x-required-scopes": ["drafts:write"],
+        description: "Update draft content, edited content, or status. Only the fields you send are changed.",
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         requestBody: {
           content: {
@@ -161,8 +174,8 @@ export const openApiSpec = {
                 type: "object",
                 properties: {
                   status: { type: "string", enum: ["DRAFT", "SCHEDULED", "POSTED", "REJECTED"] },
-                  content: { type: "object", description: "Replace the draft content" },
-                  editedContent: { type: "object", description: "Store edited version separately" },
+                  content: { type: "object", description: "Replace the draft content. X_POST: `{ text }`, X_THREAD: `{ tweets[] }`." },
+                  editedContent: { type: "object", description: "Store an edited version separately (same shapes as content)." },
                 },
               },
             },
@@ -176,6 +189,7 @@ export const openApiSpec = {
       delete: {
         tags: ["Drafts"],
         summary: "Delete a draft",
+        "x-required-scopes": ["drafts:write"],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: {
           "200": {
@@ -189,19 +203,21 @@ export const openApiSpec = {
     "/drafts/generate": {
       post: {
         tags: ["Generation"],
-        summary: "Generate draft options",
+        summary: "Generate draft (or reply) options",
         "x-credits": 3,
-        description: "Uses AI to generate multiple draft options from a topic. Applies your voice settings, extracted patterns, and voice examples automatically. Returns options in memory — nothing is saved to the database until you create a draft via `POST /drafts`.",
+        "x-required-scopes": ["drafts:generate"],
+        description: "Uses AI to generate multiple draft options in the user's voice. For posts (`voiceType: post`), pass `topic`. For replies (`voiceType: reply`), pass `replyTo` (the target tweet) — `topic` then acts as an optional angle. Applies the user's voice settings, extracted patterns, and voice examples automatically. Returns options in memory — nothing is saved until you create a draft via `POST /drafts`.",
         requestBody: {
           required: true,
           content: {
             "application/json": {
               schema: {
                 type: "object",
-                required: ["topic"],
+                description: "Posts require `topic` (≥3 chars). Replies require `replyTo.text`.",
                 properties: {
-                  topic: { type: "string", minLength: 3, description: "The topic to generate content about", example: "Why most developers underestimate testing" },
-                  draftType: { type: "string", enum: ["X_POST", "X_THREAD"], default: "X_POST" },
+                  voiceType: { type: "string", enum: ["post", "reply"], default: "post", description: "`post` generates original posts/threads; `reply` generates replies to `replyTo`." },
+                  topic: { type: "string", minLength: 3, description: "For posts: the subject (required, ≥3 chars). For replies: an optional angle/point.", example: "Why most developers underestimate testing" },
+                  draftType: { type: "string", enum: ["X_POST", "X_THREAD"], default: "X_POST", description: "Applies to posts only; replies are always single posts." },
                   generateCount: { type: "integer", minimum: 1, maximum: 5, default: 3, description: "Number of options to generate" },
                   patternIds: { type: "array", items: { type: "string" }, description: "Specific pattern IDs to apply. If empty, uses top 3 enabled patterns." },
                   inspirationPost: {
@@ -211,6 +227,16 @@ export const openApiSpec = {
                       author: { type: "string" },
                     },
                     description: "Optional post to use as style inspiration",
+                  },
+                  replyTo: {
+                    type: "object",
+                    required: ["text"],
+                    description: "Required when `voiceType` is `reply` — the tweet being replied to.",
+                    properties: {
+                      text: { type: "string", description: "Full text of the target tweet." },
+                      tweetId: { type: "string", description: "ID of the target tweet (carried into option metadata)." },
+                      author: { type: "string", description: "Target author @handle (without @)." },
+                    },
                   },
                 },
               },
@@ -230,22 +256,25 @@ export const openApiSpec = {
                       items: {
                         type: "object",
                         properties: {
-                          type: { type: "string" },
-                          content: { type: "object" },
-                          topic: { type: "string" },
+                          type: { type: "string", description: "X_POST or X_THREAD (replies are X_POST)." },
+                          content: { type: "object", description: "X_POST: `{ text }`, X_THREAD: `{ tweets[] }`." },
+                          topic: { type: "string", nullable: true },
                           applied_patterns: { type: "array", items: { type: "string" } },
-                          metadata: { type: "object" },
+                          metadata: { type: "object", description: "Includes `voice_type`, `hook_type`, `generation_type`, and (for replies) `is_reply`/`reply_to`." },
                         },
                       },
                     },
                     patterns_used: { type: "array", items: { type: "object" } },
-                    topic: { type: "string" },
+                    topic: { type: "string", nullable: true },
+                    voice_type: { type: "string", enum: ["post", "reply"] },
                   },
                 },
               },
             },
           },
           "400": { $ref: "#/components/responses/ValidationError" },
+          "402": { $ref: "#/components/responses/InsufficientCredits" },
+          "429": { $ref: "#/components/responses/RateLimited" },
         },
       },
     },
@@ -253,7 +282,8 @@ export const openApiSpec = {
       get: {
         tags: ["Publishing"],
         summary: "List scheduled posts",
-        description: "Returns scheduled and published posts. Optionally filter by status.",
+        "x-required-scopes": ["publish:read"],
+        description: "Returns scheduled and published posts as a bare array, ordered by scheduled time. Optionally filter by status.",
         parameters: [
           {
             name: "status",
@@ -287,7 +317,8 @@ export const openApiSpec = {
         tags: ["Publishing"],
         summary: "Publish immediately",
         "x-credits": "3 per tweet; 30 if the tweet contains a URL",
-        description: "Publishes content to X immediately. Supports single posts and threads. Optionally links to an existing draft (updates its status to `POSTED`).",
+        "x-required-scopes": ["publish:write"],
+        description: "Publishes content to X immediately. Supports single posts (`X_POST`), threads (`X_THREAD`), and replies (`X_REPLY`). Optionally links to an existing draft (updates its status to `POSTED`).",
         requestBody: {
           required: true,
           content: {
@@ -296,10 +327,15 @@ export const openApiSpec = {
                 type: "object",
                 required: ["contentType", "payload"],
                 properties: {
-                  contentType: { type: "string", enum: ["X_POST", "X_THREAD"] },
+                  contentType: { type: "string", enum: ["X_POST", "X_THREAD", "X_REPLY"] },
                   payload: {
                     type: "object",
-                    description: "For X_POST: `{ text: \"...\" }`. For X_THREAD: `{ tweets: [\"...\", \"...\"] }`",
+                    description: "X_POST: `{ text }`. X_THREAD: `{ tweets: [...] }`. X_REPLY: `{ text, inReplyToId }` (the tweet being replied to).",
+                    properties: {
+                      text: { type: "string", description: "Required for X_POST and X_REPLY." },
+                      tweets: { type: "array", items: { type: "string" }, description: "Required for X_THREAD." },
+                      inReplyToId: { type: "string", description: "Required for X_REPLY — the ID of the tweet being replied to." },
+                    },
                     example: { text: "Hello world from the API!" },
                   },
                   draftId: { type: "string", format: "uuid", description: "Optional draft to mark as POSTED" },
@@ -324,6 +360,9 @@ export const openApiSpec = {
             },
           },
           "400": { $ref: "#/components/responses/ValidationError" },
+          "402": { $ref: "#/components/responses/InsufficientCredits" },
+          "429": { $ref: "#/components/responses/RateLimited" },
+          "502": { description: "X rejected the post/thread. For threads, a partial-failure body includes `postedIds`, `failedAtIndex`, and `remainingTweets` — do not retry the full thread." },
         },
       },
     },
@@ -332,7 +371,8 @@ export const openApiSpec = {
         tags: ["Publishing"],
         summary: "Schedule a post",
         "x-credits": "3 per tweet; 30 if the tweet contains a URL (debited at schedule time, refunded on cancel)",
-        description: "Schedules content for future publishing via QStash. The `scheduledFor` time must be in the future.",
+        "x-required-scopes": ["publish:write"],
+        description: "Schedules content for future publishing via QStash (Pro plan required). The `scheduledFor` time must be in the future.",
         requestBody: {
           required: true,
           content: {
@@ -342,7 +382,15 @@ export const openApiSpec = {
                 required: ["contentType", "payload", "scheduledFor"],
                 properties: {
                   contentType: { type: "string", enum: ["X_POST", "X_THREAD"] },
-                  payload: { type: "object", description: "Post content (same format as publish/now)" },
+                  payload: {
+                    type: "object",
+                    description: "X_POST: `{ text }`. X_THREAD: `{ tweets: [...] }` (the alias `{ thread: [...] }` is also accepted).",
+                    properties: {
+                      text: { type: "string", description: "For X_POST." },
+                      tweets: { type: "array", items: { type: "string" }, description: "For X_THREAD." },
+                      thread: { type: "array", items: { type: "string" }, description: "Accepted alias for `tweets` on X_THREAD." },
+                    },
+                  },
                   scheduledFor: { type: "string", format: "date-time", description: "ISO 8601 datetime", example: "2026-03-25T14:00:00Z" },
                   draftId: { type: "string", format: "uuid", description: "Optional draft to mark as SCHEDULED" },
                 },
@@ -360,12 +408,16 @@ export const openApiSpec = {
                   properties: {
                     id: { type: "string", format: "uuid" },
                     scheduledFor: { type: "string", format: "date-time" },
+                    deliveryConfirmed: { type: "boolean", description: "True if QStash accepted exact-time delivery; if false, the publish-scheduled sweep will deliver it." },
                   },
                 },
               },
             },
           },
           "400": { $ref: "#/components/responses/ValidationError" },
+          "402": { $ref: "#/components/responses/InsufficientCredits" },
+          "403": { description: "Scheduling requires a Pro plan" },
+          "429": { $ref: "#/components/responses/RateLimited" },
         },
       },
     },
@@ -374,6 +426,7 @@ export const openApiSpec = {
         tags: ["Analytics"],
         summary: "Get analytics data",
         "x-credits": 1,
+        "x-required-scopes": ["analytics:read"],
         description: "Returns analytics data from CSV uploads and captured posts. Use the `include` parameter to control response detail level.",
         parameters: [
           {
@@ -417,6 +470,7 @@ export const openApiSpec = {
       get: {
         tags: ["Voice"],
         summary: "Get voice settings",
+        "x-required-scopes": ["voice:read"],
         description: "Returns voice configuration and top voice examples for the specified type. Voice settings control how AI generates content in your style.",
         parameters: [
           {
@@ -444,6 +498,8 @@ export const openApiSpec = {
                           content_text: { type: "string" },
                           content_type: { type: "string" },
                           source: { type: "string" },
+                          is_excluded: { type: "boolean" },
+                          pinned_rank: { type: "integer", nullable: true },
                           engagement_score: { type: "number" },
                         },
                       },
@@ -458,6 +514,7 @@ export const openApiSpec = {
       patch: {
         tags: ["Voice"],
         summary: "Update voice settings",
+        "x-required-scopes": ["voice:write"],
         description: "Partially update voice settings. Only include fields you want to change. Dial values must be 0-100.",
         requestBody: {
           content: {
@@ -479,6 +536,7 @@ export const openApiSpec = {
       get: {
         tags: ["Strategy"],
         summary: "Get content strategy",
+        "x-required-scopes": ["strategy:read"],
         description: "Returns the user's content strategy with weekly posting targets and pillar breakdown. Returns defaults if no strategy has been set.",
         responses: {
           "200": {
@@ -499,6 +557,7 @@ export const openApiSpec = {
       put: {
         tags: ["Strategy"],
         summary: "Update content strategy",
+        "x-required-scopes": ["strategy:write"],
         description: "Upserts the content strategy. All numeric values are floored to integers and clamped to >= 0.",
         requestBody: {
           required: true,
@@ -529,14 +588,52 @@ export const openApiSpec = {
       get: {
         tags: ["Account"],
         summary: "Identity, plan & credits",
-        description: "Returns the API key holder's identity (X connection health, scopes, rate limit) plus their plan and credit balances (`credits.balance` is total spendable; `allowance_remaining` resets monthly, `pack_balance` never expires while subscribed).",
-        responses: { "200": { description: "Identity, plan, and credits" } },
+        "x-required-scopes": [],
+        description: "Returns the API key holder's identity (X connection health, scopes, rate limit) plus their plan and credit balances. Requires any valid key — no specific scope. `credits.balance` is total spendable; `allowance_remaining` resets monthly, `pack_balance` never expires while subscribed.",
+        responses: {
+          "200": {
+            description: "Identity, plan, and credits",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    user_id: { type: "string", format: "uuid" },
+                    x_username: { type: "string", nullable: true },
+                    x_user_id: { type: "string", nullable: true },
+                    x_linked: { type: "boolean", description: "An X connection row exists." },
+                    x_connected: { type: "boolean", description: "The X token actually works right now." },
+                    x_token_error: { type: "string", nullable: true },
+                    needs_reconnect: { type: "boolean" },
+                    last_api_sync_at: { type: "string", format: "date-time", nullable: true },
+                    scopes: { type: "array", items: { type: "string" } },
+                    rate_limit: { type: "integer", description: "Per-minute request limit for this key." },
+                    plan: { type: "string", example: "pro" },
+                    credits: {
+                      type: "object",
+                      properties: {
+                        balance: { type: "integer", description: "Total spendable (allowance + packs)." },
+                        allowance_remaining: { type: "integer", description: "Monthly allowance left; resets on the billing anniversary." },
+                        pack_balance: { type: "integer", description: "Purchased pack credits; never expire while subscribed." },
+                        monthly_allowance: { type: "integer" },
+                        resets_at: { type: "string", format: "date-time", nullable: true },
+                      },
+                    },
+                    context_freshness: { type: "object", description: "Tuned-context freshness vs latest analytics; `retune_recommended: true` suggests running the tune-up." },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
     "/queue": {
       get: {
         tags: ["Publishing"],
-        summary: "List scheduled posts",
+        summary: "List the publishing queue",
+        "x-required-scopes": ["publish:read"],
+        description: "Returns scheduled posts (paginated). Each item includes its source `draft_id`.",
         parameters: [
           { name: "status", in: "query", schema: { type: "string", enum: ["scheduled", "publishing", "posted", "failed", "cancelled"] } },
           { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 50 } },
@@ -545,7 +642,19 @@ export const openApiSpec = {
         responses: {
           "200": {
             description: "Scheduled posts",
-            content: { "application/json": { schema: { type: "object", properties: { data: { type: "array", items: { $ref: "#/components/schemas/ScheduledPost" } } } } } },
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    items: { type: "array", items: { $ref: "#/components/schemas/QueueItem" } },
+                    total: { type: "integer" },
+                    limit: { type: "integer" },
+                    offset: { type: "integer" },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -554,7 +663,8 @@ export const openApiSpec = {
       delete: {
         tags: ["Publishing"],
         summary: "Cancel a scheduled post",
-        description: "Cancels a post that is still in `scheduled` state and refunds the credits debited when it was scheduled.",
+        "x-required-scopes": ["publish:write"],
+        description: "Cancels a post that is still in `scheduled` state and refunds the credits debited when it was scheduled. Returns `{ id, status: \"cancelled\" }`.",
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: {
           "200": { description: "Cancelled (credits refunded)" },
@@ -569,6 +679,7 @@ export const openApiSpec = {
         summary: "Fetch a tweet",
         description: "Fetches a single tweet's text and metrics. `id` may be a raw tweet ID or an x.com status URL. Useful as reply context for generation.",
         "x-credits": 1,
+        "x-required-scopes": ["analytics:read"],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" }, description: "Tweet ID or x.com URL" }],
         responses: {
           "200": { description: "Tweet text + metrics" },
@@ -580,7 +691,8 @@ export const openApiSpec = {
       get: {
         tags: ["Patterns"],
         summary: "List extracted patterns",
-        description: "Proven patterns extracted from your top posts. Use pattern IDs with `/drafts/generate` to steer generation.",
+        "x-required-scopes": ["patterns:read"],
+        description: "Proven patterns extracted from your top posts (returned under `patterns`). Use pattern IDs with `/drafts/generate` to steer generation.",
         parameters: [
           { name: "type", in: "query", schema: { type: "string" }, description: "Filter by pattern_type" },
           { name: "enabled_only", in: "query", schema: { type: "boolean", default: false } },
@@ -593,6 +705,7 @@ export const openApiSpec = {
       patch: {
         tags: ["Patterns"],
         summary: "Enable/disable or rename a pattern",
+        "x-required-scopes": ["patterns:write"],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         requestBody: {
           required: true,
@@ -605,14 +718,16 @@ export const openApiSpec = {
       get: {
         tags: ["Inspiration"],
         summary: "List inspiration posts",
+        "x-required-scopes": ["inspiration:read"],
         parameters: [{ name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 500, default: 100 } }],
-        responses: { "200": { description: "Saved inspiration posts with analysis" } },
+        responses: { "200": { description: "Saved inspiration posts with analysis, under `inspiration`" } },
       },
       post: {
         tags: ["Inspiration"],
         summary: "Save an inspiration post",
         description: "Saves a post and auto-analyzes its voice/format in the background (poll the list for `analysis_status: completed`).",
         "x-credits": 3,
+        "x-required-scopes": ["inspiration:write"],
         requestBody: {
           required: true,
           content: {
@@ -642,6 +757,7 @@ export const openApiSpec = {
       delete: {
         tags: ["Inspiration"],
         summary: "Delete an inspiration post",
+        "x-required-scopes": ["inspiration:write"],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: { "200": { description: "Deleted" }, "404": { description: "Not found" } },
       },
@@ -650,6 +766,7 @@ export const openApiSpec = {
       get: {
         tags: ["Voice"],
         summary: "Get writing context (for self-generating agents)",
+        "x-required-scopes": ["voice:read"],
         description: "The user's full writing context — assembled voice system prompt (dials, guardrails, niche & positioning, PROVEN PATTERNS, real writing examples, inspiration), platform rules, and context_freshness — for agents that write content themselves instead of calling /drafts/generate. Free: the caller's model pays the inference. The separate `patterns` array is DEPRECATED (patterns now live in the system_prompt PROVEN PATTERNS section); it is kept one release for compatibility and flagged via `patterns_deprecated: true`.",
         parameters: [
           { name: "type", in: "query", schema: { type: "string", enum: ["post", "reply"], default: "post" } },
@@ -663,6 +780,7 @@ export const openApiSpec = {
       post: {
         tags: ["Voice"],
         summary: "Run a Voice Tune-Up",
+        "x-required-scopes": ["voice:write"],
         description:
           "Runs the full analyze loop — refresh voice examples → extract proven patterns (Pro; skipped gracefully otherwise) → analyze niche & positioning — over the user's complete post pool, then returns the Voice Report: niche, positioning, top patterns, top posts, cadence vs strategy, recurring voice-check deviations with settings suggestions, feedback themes, inspiration alignment, and context freshness.",
         "x-credits": 5,
@@ -678,8 +796,9 @@ export const openApiSpec = {
         tags: ["Voice"],
         summary: "Voice-check a draft (the tuner)",
         description:
-          "Score a draft against the user's tuned voice — assembled voice prompt, niche positioning, and proven patterns. Returns a 0-100 match score, what the draft gets right, where it deviates, and a suggested edit.",
+          "Score a draft against the user's tuned voice — assembled voice prompt, niche positioning, and proven patterns. Returns a 0-100 match score, what the draft gets right, where it deviates, and a suggested edit. Scoped `voice:read`: it reads/scores and never mutates voice configuration; the credit charge is for the model call, independent of scope.",
         "x-credits": 3,
+        "x-required-scopes": ["voice:read"],
         requestBody: {
           required: true,
           content: {
@@ -705,7 +824,8 @@ export const openApiSpec = {
       get: {
         tags: ["Niche"],
         summary: "Get niche profile",
-        description: "The user's analyzed niche: summary, content pillars, topic clusters, and positioning (target audience, unique angle, positioning statement). `profile` is null if not yet analyzed.",
+        "x-required-scopes": ["niche:read"],
+        description: "The user's analyzed niche under `profile`: summary, content pillars, topic clusters, and positioning (target audience, unique angle, positioning statement). `profile` is null if not yet analyzed.",
         responses: { "200": { description: "Niche profile or null" } },
       },
     },
@@ -713,8 +833,9 @@ export const openApiSpec = {
       get: {
         tags: ["Analytics"],
         summary: "Best posting days",
-        description: "Day-of-week engagement breakdown computed from uploaded CSV analytics.",
+        description: "Day-of-week engagement breakdown computed from uploaded CSV analytics. Returns `{ days, bestDay, totalPostsAnalyzed, hasEnoughData }`.",
         "x-credits": 1,
+        "x-required-scopes": ["analytics:read"],
         responses: {
           "200": { description: "Per-day stats + best day" },
           "402": { $ref: "#/components/responses/InsufficientCredits" },
@@ -727,6 +848,7 @@ export const openApiSpec = {
         summary: "Sync timeline from X",
         description: "On-demand sync of your own X timeline into captured posts. Delta-based (since_id) — only new posts are fetched. Pro plan required.",
         "x-credits": 15,
+        "x-required-scopes": ["analytics:read"],
         responses: {
           "200": { description: "{ synced, fetched, since_id }" },
           "402": { $ref: "#/components/responses/InsufficientCredits" },
@@ -740,12 +862,48 @@ export const openApiSpec = {
         summary: "Search recent tweets",
         description: "Search public tweets from the last 7 days. Charged per result returned (min 5 credits). Pro plan required.",
         "x-credits": "1 per result (min 5)",
+        "x-required-scopes": ["search:read"],
         parameters: [
           { name: "query", in: "query", required: true, schema: { type: "string" }, description: "X search query syntax" },
           { name: "max_results", in: "query", schema: { type: "integer", minimum: 10, maximum: 25, default: 10 } },
         ],
         responses: {
-          "200": { description: "Matching tweets with author info" },
+          "200": { description: "Matching tweets with author info and reply-eligibility fields (reply_allowed, reply_eligibility, reply_settings, is_auth_mentioned)" },
+          "402": { $ref: "#/components/responses/InsufficientCredits" },
+          "403": { description: "Pro plan required" },
+        },
+      },
+    },
+    "/search/reply-targets": {
+      get: {
+        tags: ["Search"],
+        summary: "Find posts to reply to",
+        description: "Search recent tweets and return only posts the authenticated account can reply to (reply_allowed === true). Charged per post X returns (min 5 credits) — restricted posts that get filtered out still count toward cost. Optional sort=traction ranks the repliable subset by momentum. Pro plan required.",
+        "x-credits": "1 per post returned by X (min 5)",
+        "x-required-scopes": ["search:read"],
+        parameters: [
+          { name: "query", in: "query", required: true, schema: { type: "string" }, description: "X search query syntax" },
+          { name: "max_results", in: "query", schema: { type: "integer", minimum: 10, maximum: 25, default: 10 } },
+          { name: "sort", in: "query", schema: { type: "string", enum: ["relevance", "traction"], default: "relevance" }, description: "'traction' ranks repliable posts by engagement decayed by post age" },
+        ],
+        responses: {
+          "200": {
+            description: "Repliable tweets plus transparency counts",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    tweets: { type: "array", items: { type: "object" }, description: "Only posts where reply_allowed === true, each with author + reply-eligibility fields." },
+                    query: { type: "string" },
+                    sort: { type: "string", enum: ["relevance", "traction"] },
+                    returned_count: { type: "integer", description: "How many posts X returned (what you were charged for)." },
+                    repliable_count: { type: "integer", description: "How many of those you can reply to (length of `tweets`)." },
+                  },
+                },
+              },
+            },
+          },
           "402": { $ref: "#/components/responses/InsufficientCredits" },
           "403": { description: "Pro plan required" },
         },
@@ -755,7 +913,8 @@ export const openApiSpec = {
       post: {
         tags: ["Account"],
         summary: "Submit generation feedback",
-        description: "Log like/dislike feedback on generated content; feeds future prompt assembly.",
+        "x-required-scopes": ["drafts:write"],
+        description: "Log like/dislike feedback on generated content; feeds future prompt assembly. Returns `{ id, created_at }`.",
         requestBody: {
           required: true,
           content: {
@@ -816,6 +975,18 @@ export const openApiSpec = {
           created_at: { type: "string", format: "date-time" },
         },
       },
+      QueueItem: {
+        description: "A scheduled post as returned by `GET /queue` — a ScheduledPost plus its source `draft_id`.",
+        allOf: [
+          { $ref: "#/components/schemas/ScheduledPost" },
+          {
+            type: "object",
+            properties: {
+              draft_id: { type: "string", format: "uuid", nullable: true, description: "The draft this was scheduled from, if any." },
+            },
+          },
+        ],
+      },
       VoiceSettings: {
         type: "object",
         properties: {
@@ -841,6 +1012,10 @@ export const openApiSpec = {
           special_notes: { type: "string", nullable: true },
           ai_model: { type: "string", enum: ["openai", "claude", "grok"] },
           use_niche_context: { type: "boolean" },
+          max_example_tokens: { type: "integer", minimum: 0 },
+          max_inspiration_tokens: { type: "integer", minimum: 0 },
+          auto_refresh_enabled: { type: "boolean" },
+          refresh_day_of_week: { type: "integer", minimum: 0, maximum: 6 },
         },
       },
       VoiceSettingsUpdate: {
@@ -861,6 +1036,10 @@ export const openApiSpec = {
           special_notes: { type: "string" },
           ai_model: { type: "string", enum: ["openai", "claude", "grok"] },
           use_niche_context: { type: "boolean" },
+          max_example_tokens: { type: "integer", minimum: 0, description: "Token budget for voice examples in the assembled prompt." },
+          max_inspiration_tokens: { type: "integer", minimum: 0, description: "Token budget for inspiration in the assembled prompt." },
+          auto_refresh_enabled: { type: "boolean", description: "Whether voice examples auto-refresh on a weekly cadence." },
+          refresh_day_of_week: { type: "integer", minimum: 0, maximum: 6, description: "0=Sunday … 6=Saturday; the day auto-refresh runs." },
         },
       },
       ContentStrategy: {

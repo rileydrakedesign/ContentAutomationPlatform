@@ -10,10 +10,12 @@ export function getGrok(): OpenAI {
   return _grok;
 }
 
-// Model mapping for Grok - using most powerful models
+// Model mapping for Grok. grok-3 was retired; grok-4.3 is the current flagship
+// (reasoning model — note it requires max_completion_tokens, handled in the
+// unified interface).
 export const GROK_MODELS = {
-  // Fast model - using Grok 3 for better quality
-  fast: "grok-3",
-  // Standard model - using Grok 3 (most capable)
-  standard: "grok-3",
+  // Fast model
+  fast: "grok-4.3",
+  // Standard model (most capable)
+  standard: "grok-4.3",
 } as const;

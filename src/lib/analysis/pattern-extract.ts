@@ -6,6 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getOpenAI } from "@/lib/openai/client";
 import { getAnalyzablePosts } from "./posts-pool";
+import { isGenerationApplicablePattern } from "./pattern-applicability";
 
 interface ExtractedPattern {
   pattern_type: string;
@@ -78,7 +79,7 @@ Rules:
 Return ONLY the JSON array, no other text.`;
 
   const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5.4-nano",
     messages: [
       {
         role: "system",
@@ -90,7 +91,7 @@ Return ONLY the JSON array, no other text.`;
       },
     ],
     temperature: 0.3,
-    max_tokens: 2000,
+    max_completion_tokens: 2000,
   });
 
   const responseText = completion.choices[0]?.message?.content || "[]";
@@ -124,16 +125,36 @@ Return ONLY the JSON array, no other text.`;
 
     const multiplier = baselineAvg > 0 ? avg / baselineAvg : 1.0;
 
+    // Provenance for the visible Voice Report: the user's own top posts this
+    // pattern was mined from (highest engagement first), with text + score so
+    // the report can show "this came from THESE posts, ×N" — not just a claim.
+    const sourceExamples = [...matched]
+      .sort((a, b) => b.engagement_score - a.engagement_score)
+      .slice(0, 3)
+      .map((p) => ({
+        text: p.text.length > 160 ? `${p.text.slice(0, 157)}...` : p.text,
+        engagement_score: Math.round(p.engagement_score),
+      }));
+
     return {
       user_id: userId,
       pattern_type: pattern.pattern_type,
       pattern_name: pattern.pattern_name,
       pattern_value: pattern.pattern_value,
+      // Decide once, at extraction time, whether this pattern shapes the text
+      // the generation model writes. Timing/post-type/visual patterns are kept
+      // (visible in the Voice Report) but not applied to generation.
+      applies_to_generation: isGenerationApplicablePattern({
+        pattern_type: pattern.pattern_type,
+        pattern_name: pattern.pattern_name,
+        pattern_value: pattern.pattern_value,
+      }),
       confidence_score: pattern.confidence_score || 0.5,
       sample_count: matched.length,
       avg_engagement: Math.round(avg),
       multiplier: Number.isFinite(multiplier) ? multiplier : 1.0,
       source_post_ids: matched.map((p) => p.post_id).filter(Boolean).slice(0, 25),
+      source_post_examples: sourceExamples,
       is_enabled: true,
       extraction_batch: new Date().toISOString(),
     };

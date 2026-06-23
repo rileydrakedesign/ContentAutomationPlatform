@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { AddExampleRequest, VoiceType } from "@/types/voice";
 
@@ -125,6 +126,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data || []);
   } catch (error) {
     console.error("Failed to fetch voice examples:", error);
+    Sentry.captureException(error, { tags: { route: "voice/examples" } });
     return NextResponse.json(
       { error: "Failed to fetch voice examples" },
       { status: 500 }
@@ -198,6 +200,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
     console.error("Failed to add voice example:", error);
+    Sentry.captureException(error, { tags: { route: "voice/examples" } });
     return NextResponse.json(
       { error: "Failed to add voice example" },
       { status: 500 }

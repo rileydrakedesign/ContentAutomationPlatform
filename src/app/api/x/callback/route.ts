@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { exchangeCodeForTokens, verifyCredentials } from "@/lib/x-api";
 
@@ -53,6 +54,14 @@ export async function GET(request: NextRequest) {
     // Get user info (OAuth 2.0 token response doesn't include it)
     const xUser = await verifyCredentials(tokens.access_token);
 
+    // First-ever connection? (re-connects shouldn't re-trigger a full bootstrap)
+    const { data: priorConnection } = await supabase
+      .from("x_connections")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const isFirstConnection = !priorConnection;
+
     // Save connection
     const { error: dbError } = await supabase.from("x_connections").upsert(
       {
@@ -83,11 +92,16 @@ export async function GET(request: NextRequest) {
       .delete()
       .eq("user_id", user.id);
 
+    // Land on the dashboard. On a first-ever connection, add the first-run flag
+    // so the dashboard kicks off the bootstrap (timeline sync + first tune-up)
+    // and the user's first session shows real niche / patterns / top posts —
+    // no manual CSV upload. Re-connects skip it (context already exists).
     return NextResponse.redirect(
-      new URL("/settings?success=connected", request.url)
+      new URL(isFirstConnection ? "/?connected=1" : "/?success=connected", request.url)
     );
   } catch (err) {
     console.error("X OAuth callback error:", err);
+    Sentry.captureException(err, { tags: { route: "x/callback" } });
     return NextResponse.redirect(
       new URL("/settings?error=callback_failed", request.url)
     );

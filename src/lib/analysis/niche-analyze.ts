@@ -118,7 +118,7 @@ Rules:
 - Do not include any text outside the JSON`;
 
   const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5.4-nano",
     messages: [
       {
         role: "system",
@@ -128,7 +128,7 @@ Rules:
       { role: "user", content: prompt },
     ],
     temperature: 0.3,
-    max_tokens: 2000,
+    max_completion_tokens: 2000,
   });
 
   const raw = completion.choices[0]?.message?.content || "{}";

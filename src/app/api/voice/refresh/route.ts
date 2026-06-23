@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { refreshVoiceExamples } from "@/lib/analysis/voice-refresh";
 
@@ -19,6 +20,7 @@ export async function POST() {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Failed to refresh voice examples:", error);
+    Sentry.captureException(error, { tags: { route: "voice/refresh" } });
     return NextResponse.json(
       { error: "Failed to refresh voice examples" },
       { status: 500 }

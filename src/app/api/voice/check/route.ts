@@ -1,27 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
-import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { requireAiGeneration } from "@/lib/stripe/gate";
 import { runVoiceCheck } from "@/lib/analysis/voice-check";
+import { getDualAuthUser } from "@/lib/api/dual-auth";
 
 export async function OPTIONS() {
   return handleCors();
 }
 
 // POST /api/voice/check — Score a draft against the user's tuned voice
-// (assembled voice prompt + enabled patterns). The web-app side of the tuner;
-// agents use POST /api/v1/voice/check.
+// (assembled voice prompt + enabled patterns). The human side of the tuner for
+// BOTH the dashboard (cookie) and the Chrome extension (Bearer); agents use
+// POST /api/v1/voice/check.
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createAuthClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { user, supabase } = await getDualAuthUser(request);
 
-    if (authError || !user) {
+    if (!user || !supabase) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401, headers: corsHeaders }
@@ -55,6 +53,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result, { status: 200, headers: corsHeaders });
   } catch (error) {
     console.error("Voice check failed:", error);
+    Sentry.captureException(error, { tags: { route: "voice/check" } });
     return NextResponse.json(
       { error: "Voice check failed" },
       { status: 500, headers: corsHeaders }

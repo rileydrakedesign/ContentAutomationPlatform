@@ -16,10 +16,11 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup src/stdio.ts src/server.ts src/tools.ts src/client.ts --format esm --dts --clean --out-dir dist",
+    "build": "tsup src/stdio.ts src/server.ts src/tools.ts src/client.ts src/tool-doc-gen.ts --format esm --dts --clean --out-dir dist",
     "dev": "tsup src/stdio.ts --format esm --watch --out-dir dist",
     "start": "node dist/stdio.js",
     "inspector": "npm run build && npx @modelcontextprotocol/inspector node dist/stdio.js",
+    "gen-docs": "npm run build && node scripts/gen-tool-docs.mjs",
     "test": "vitest run",
     "prepublishOnly": "npm run build"
   },

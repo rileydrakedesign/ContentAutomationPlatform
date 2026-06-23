@@ -9,10 +9,11 @@ export function getClaude(): Anthropic {
   return _claude;
 }
 
-// Model mapping for Claude - using most powerful models
+// Model mapping for Claude. claude-sonnet-4-20250514 (Sonnet 4) was retired
+// 2026-06-15; claude-sonnet-4-6 is its drop-in replacement.
 export const CLAUDE_MODELS = {
   // Fast model - using Sonnet for better quality
-  fast: "claude-sonnet-4-20250514",
-  // Standard model - using latest Sonnet (most capable)
-  standard: "claude-sonnet-4-20250514",
+  fast: "claude-sonnet-4-6",
+  // Standard model - latest Sonnet (most capable balance of speed/quality)
+  standard: "claude-sonnet-4-6",
 } as const;

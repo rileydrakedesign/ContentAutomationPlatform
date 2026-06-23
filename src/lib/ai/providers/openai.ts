@@ -9,10 +9,13 @@ export function getOpenAI(): OpenAI {
   return _openai;
 }
 
-// Model mapping for OpenAI
+// Model mapping for OpenAI. gpt-4o/gpt-4o-mini are legacy (off the current
+// pricing page); migrated to the gpt-5.4 family. These default to
+// reasoning.effort "none", so they behave like fast non-reasoning models, and
+// they require max_completion_tokens (handled in the unified interface).
 export const OPENAI_MODELS = {
-  // Fast model for replies
-  fast: "gpt-4o-mini",
+  // Fast model for replies / lightweight analysis
+  fast: "gpt-5.4-nano",
   // Standard model for content generation
-  standard: "gpt-4-turbo-preview",
+  standard: "gpt-5.4-mini",
 } as const;

@@ -112,10 +112,24 @@ function calculatePostAgeMinutes(timestamp) {
  * Calculate opportunity score for a post
  * Returns { score, rawScore, reasons } or null if scoring not possible
  */
+// Canonical weighted engagement — MUST mirror the server's
+// src/lib/utils/engagement.ts (replies 5× · retweets 4× · likes/bookmarks 3× ·
+// impressions 0.001×) so the extension's opportunity number is the same signal
+// the server ranks reply targets by (findReplyTargets / tractionScore). One
+// formula, consistent and improvable in one place.
+function weightedEngagement(metrics) {
+  const likes = metrics.likes || 0;
+  const retweets = metrics.retweets || 0;
+  const replies = metrics.replies || 0;
+  const bookmarks = metrics.bookmarks || 0;
+  const views = metrics.views || 0;
+  return likes * 3 + retweets * 4 + replies * 5 + bookmarks * 3 + views * 0.001;
+}
+
 function calculateOpportunityScore(metrics, ageMinutes) {
   const ageHours = Math.max(0.1, ageMinutes / 60);
 
-  // Hard filters (apply regardless of scoring mode)
+  // Hard filters (gate display only; the score itself stays canonical)
   if (metrics.replies > oppSettings.maxReplies) {
     return { score: 0, rawScore: 0, reasons: ['Too many replies'], filtered: true };
   }
@@ -124,79 +138,37 @@ function calculateOpportunityScore(metrics, ageMinutes) {
   }
 
   const hasViews = metrics.views != null && metrics.views > 0;
-  const quotes = metrics.quotes || 0;
-  const eng = (metrics.likes || 0) + (2 * (metrics.retweets || 0)) + (2 * quotes);
-  const competition = (metrics.replies || 0) + 1;
-
-  let scoreRaw;
-  let reasons = [];
-  let isProxy = false;
-
-  if (hasViews) {
-    // Primary scoring: use views
-    const velocity = metrics.views / ageHours;
-    const vpr = metrics.views / competition;
-
-    scoreRaw =
-      0.50 * Math.log1p(velocity) +
-      0.35 * Math.log1p(vpr) +
-      0.15 * Math.log1p((eng + 1) / competition);
-
-    // Build reasons
-    if (velocity > 1000) reasons.push('High views per hour');
-    else if (velocity > 500) reasons.push('Good view velocity');
-
-    if (vpr > 100) reasons.push('Low replies vs views');
-    else if (vpr > 50) reasons.push('Moderate competition');
-  } else if (oppSettings.useProxyScore) {
-    // Proxy scoring: use engagement when views unavailable
-    // Estimate "attention" from likes/retweets velocity
-    const engVelocity = eng / ageHours;
-    const engPerReply = eng / competition;
-
-    scoreRaw =
-      0.60 * Math.log1p(engVelocity) +
-      0.40 * Math.log1p(engPerReply);
-
-    isProxy = true;
-
-    // Build reasons
-    if (engVelocity > 50) reasons.push('High engagement rate');
-    else if (engVelocity > 20) reasons.push('Good engagement');
-
-    if (engPerReply > 10) reasons.push('Low competition');
-  } else {
-    // No views and proxy scoring disabled
+  // Without views and with proxy scoring disabled, we don't score (parity with
+  // the prior gating behavior — avoids ranking on a near-empty signal).
+  if (!hasViews && !oppSettings.useProxyScore) {
     return null;
   }
 
-  // Freshness multiplier
-  let multiplier = 1.0;
-  if (ageMinutes < 10) {
-    multiplier = 0.8; // Too early, little signal
-  } else if (ageMinutes > 720) {
-    multiplier = 0.4; // > 12h
-  } else if (ageMinutes > 360) {
-    multiplier = 0.7; // 6-12h
+  // The server's traction score: canonical weighted engagement decayed by post
+  // age, so fresh + rising posts outrank old + saturated ones.
+  const traction = weightedEngagement(metrics) / ageHours;
+
+  const competition = (metrics.replies || 0) + 1;
+  const reasons = [];
+  if (hasViews) {
+    const velocity = metrics.views / ageHours;
+    if (velocity > 1000) reasons.push('High views per hour');
+    else if (velocity > 500) reasons.push('Good view velocity');
+    if (metrics.views / competition > 100) reasons.push('Low replies vs views');
+  } else {
+    if (weightedEngagement(metrics) / competition > 10) reasons.push('Low competition');
   }
-
-  // Apply slight penalty to proxy scores (less reliable)
-  if (isProxy) {
-    multiplier *= 0.85;
-  }
-
-  const finalScore = scoreRaw * multiplier;
-
   if (ageMinutes >= 10 && ageMinutes <= 360) reasons.push('Fresh post');
-  if (isProxy) reasons.push('Est. from engagement');
+  const isProxy = !hasViews;
+  if (isProxy) reasons.push('Est. without views');
 
   return {
-    score: finalScore,
-    rawScore: scoreRaw,
+    score: traction,
+    rawScore: traction,
     reasons,
     filtered: false,
     isProxy,
-    metrics: { eng, ageHours, competition },
+    metrics: { ageHours, competition },
   };
 }
 
@@ -328,6 +300,69 @@ function updateAllNicheSaveButtons() {
   });
 }
 
+/**
+ * Reply eligibility gate.
+ *
+ * X restricts replies on some posts ("Who can reply" — e.g. only accounts the
+ * author follows, or only mentioned users). When replies are restricted we must
+ * NOT surface our reply button or opportunity pill, because clicking through
+ * would point the user at a post they cannot reply to.
+ *
+ * Returns true ONLY when we can positively determine replies are restricted.
+ * We are deliberately conservative: any ambiguity is treated as repliable so we
+ * never hide UI on a false positive.
+ *
+ * Signals used:
+ *  1. Absence of X's native reply control `[data-testid="reply"]` in the article
+ *     — when X disallows a reply it omits/disables this control.
+ *  2. X's reply-restriction notice text near the post (e.g. "Who can reply",
+ *     "can reply", "People @… mentions can reply"). We only match this on short
+ *     notice-style text to avoid catching the post body itself.
+ */
+function isReplyRestricted(articleElement) {
+  if (!articleElement) return false;
+
+  try {
+    // Signal 1: native reply control present? If present, replies are allowed.
+    // (If absent we fall through to the text check rather than assuming
+    //  restriction, since the control can also be missing while the DOM is
+    //  still hydrating.)
+    const nativeReply = articleElement.querySelector('[data-testid="reply"]');
+
+    // Signal 2: reply-restriction notice text. X renders a small notice such as
+    // "People @user follows can reply" / "Who can reply". Match conservatively
+    // on short text nodes only.
+    let restrictionNoticeFound = false;
+    const candidates = articleElement.querySelectorAll('span, div[dir="ltr"], div[dir="auto"]');
+    for (const el of candidates) {
+      const text = (el.textContent || '').trim();
+      // Skip long text (post bodies, quoted tweets) — notices are short.
+      if (!text || text.length > 80) continue;
+      const lower = text.toLowerCase();
+      if (
+        lower.includes('who can reply') ||
+        lower.includes('can reply') ||
+        lower.includes('can reply to this')
+      ) {
+        restrictionNoticeFound = true;
+        break;
+      }
+    }
+
+    // Restricted only when BOTH the native reply control is missing AND we found
+    // a restriction notice — either alone is too weak to act on confidently.
+    if (!nativeReply && restrictionNoticeFound) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    // On any error, fail open (treat as repliable) to avoid hiding UI wrongly.
+    console.error('[Content Pipeline] isReplyRestricted failed:', error);
+    return false;
+  }
+}
+
 // ===========================================
 // OPPORTUNITY UI COMPONENTS
 // ===========================================
@@ -388,6 +423,10 @@ function applyOpportunityBorder(articleElement, score) {
  */
 function scoreAndDisplayOpportunity(articleElement) {
   if (!oppSettings.enabled) return;
+
+  // Reply-eligibility gate: never flag an "opportunity" on a post the user
+  // can't actually reply to (see isReplyRestricted).
+  if (isReplyRestricted(articleElement)) return;
 
   // Extract post data for scoring
   const postData = extractPostData(articleElement);
@@ -1015,7 +1054,9 @@ async function handleNicheSaveClick(event, button) {
   }
 }
 
-// Tone options for reply generation
+// Tone options for reply generation.
+// WIRED END-TO-END: option click -> handleReplyClick(..., tone) -> GENERATE_REPLY
+// payload.tone -> background generateReply() -> /api/generate-reply honors `tone`.
 const TONE_OPTIONS = [
   { id: 'controversial', label: 'Controversial' },
   { id: 'sarcastic', label: 'Sarcastic' },
@@ -1079,18 +1120,26 @@ function createToneDropdown() {
 function createReplyPicker() {
   const picker = document.createElement('div');
   picker.className = REPLY_PICKER_CLASS;
+  // Static template only (no user/API data). The context section and
+  // voice-check result are populated per-option via createElement/textContent.
   picker.innerHTML = `
     <div class="cp-picker-header">
       <span class="cp-picker-title">Choose a reply</span>
       <button class="cp-picker-close">&times;</button>
     </div>
     <div class="cp-picker-options"></div>
+    <div class="cp-picker-context"></div>
+    <div class="cp-voice-check">
+      <button class="cp-voice-check-btn" type="button">Voice check (3 cr)</button>
+      <div class="cp-voice-check-result"></div>
+    </div>
     <div class="cp-picker-nav">
       <button class="cp-nav-prev" disabled>&larr;</button>
       <span class="cp-nav-indicator">1 / 3</span>
       <button class="cp-nav-next">&rarr;</button>
     </div>
     <button class="cp-picker-use">Use this reply</button>
+    <div class="cp-picker-safety">Account-safe: you approve every reply before it sends.</div>
   `;
   return picker;
 }
@@ -1119,11 +1168,130 @@ function submitReplyFeedback(reply, feedbackType, articleElement) {
   });
 }
 
+/**
+ * Render the "Context used" section: a compact, collapsible summary of the
+ * rich context (parent / quoted / link / media) the reply is grounded in.
+ * Only sections that actually exist are shown. Uses textContent for all
+ * post/API-derived strings (never innerHTML) to stay XSS-safe.
+ */
+function renderContextUsed(container, context) {
+  container.textContent = '';
+  if (!context) return;
+
+  const items = [];
+
+  // Truncate helper for compact display
+  const snip = (s, n) => {
+    const t = (s || '').trim().replace(/\s+/g, ' ');
+    return t.length > n ? t.slice(0, n - 1) + '…' : t;
+  };
+
+  if (context.parent && (context.parent.author || context.parent.text)) {
+    const who = context.parent.author ? `@${context.parent.author}` : 'parent post';
+    const snippet = context.parent.text ? `: "${snip(context.parent.text, 60)}"` : '';
+    items.push(`Replying to ${who}${snippet}`);
+  }
+  if (context.quoted && (context.quoted.author || context.quoted.text)) {
+    const who = context.quoted.author ? `@${context.quoted.author}` : 'a post';
+    const snippet = context.quoted.text ? `: "${snip(context.quoted.text, 60)}"` : '';
+    items.push(`Quoting ${who}${snippet}`);
+  }
+  if (context.link && (context.link.title || context.link.domain || context.link.url)) {
+    const label = context.link.title || context.link.domain || context.link.url;
+    items.push(`Link: ${snip(label, 70)}`);
+  }
+  if (context.media && context.media.length > 0) {
+    for (const m of context.media) {
+      if (m.type === 'image') {
+        items.push(m.hasAlt && m.alt ? `Image (alt: "${snip(m.alt, 50)}")` : 'Image');
+      } else if (m.type === 'gif') {
+        items.push('GIF');
+      } else if (m.type === 'video') {
+        items.push('Video');
+      }
+    }
+  }
+
+  if (items.length === 0) return;
+
+  // Collapsible <details>/<summary> so it stays out of the way by default.
+  const details = document.createElement('details');
+  details.className = 'cp-context-details';
+
+  const summary = document.createElement('summary');
+  summary.className = 'cp-context-summary';
+  summary.textContent = `Context used (${items.length})`;
+  details.appendChild(summary);
+
+  const list = document.createElement('ul');
+  list.className = 'cp-context-list';
+  for (const text of items) {
+    const li = document.createElement('li');
+    li.textContent = text; // safe: API/DOM-derived text
+    list.appendChild(li);
+  }
+  details.appendChild(list);
+
+  container.appendChild(details);
+}
+
+/**
+ * Render a voice-check result inline in the picker: a 0–100 score plus what
+ * matches and what drifts. All strings come from the API; rendered via
+ * textContent/createElement only.
+ */
+function renderVoiceCheckResult(container, result) {
+  container.textContent = '';
+  container.classList.add('cp-visible');
+
+  const score = Math.max(0, Math.min(100, Math.round(Number(result.score) || 0)));
+
+  const scoreRow = document.createElement('div');
+  scoreRow.className = 'cp-vc-score-row';
+
+  const scoreBadge = document.createElement('span');
+  scoreBadge.className = 'cp-vc-score';
+  // Color band by score
+  if (score >= 75) scoreBadge.classList.add('cp-vc-high');
+  else if (score >= 55) scoreBadge.classList.add('cp-vc-medium');
+  else scoreBadge.classList.add('cp-vc-low');
+  scoreBadge.textContent = `Voice ${score}/100`;
+  scoreRow.appendChild(scoreBadge);
+  container.appendChild(scoreRow);
+
+  const addList = (label, arr, cls) => {
+    if (!Array.isArray(arr) || arr.length === 0) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'cp-vc-section ' + cls;
+
+    const heading = document.createElement('span');
+    heading.className = 'cp-vc-heading';
+    heading.textContent = label;
+    wrap.appendChild(heading);
+
+    const ul = document.createElement('ul');
+    ul.className = 'cp-vc-list';
+    for (const entry of arr.slice(0, 3)) {
+      const li = document.createElement('li');
+      li.textContent = String(entry);
+      ul.appendChild(li);
+    }
+    wrap.appendChild(ul);
+    container.appendChild(wrap);
+  };
+
+  addList('Matches', result.matches, 'cp-vc-matches');
+  addList('Drifts', result.deviations, 'cp-vc-deviations');
+}
+
 // Show reply picker with generated options
 function showReplyPicker(picker, replyButton, replies, articleElement) {
   let currentIndex = 0;
 
   const optionsContainer = picker.querySelector('.cp-picker-options');
+  const contextContainer = picker.querySelector('.cp-picker-context');
+  const voiceCheckBtn = picker.querySelector('.cp-voice-check-btn');
+  const voiceCheckResult = picker.querySelector('.cp-voice-check-result');
   const indicator = picker.querySelector('.cp-nav-indicator');
   const prevBtn = picker.querySelector('.cp-nav-prev');
   const nextBtn = picker.querySelector('.cp-nav-next');
@@ -1132,6 +1300,11 @@ function showReplyPicker(picker, replyButton, replies, articleElement) {
 
   // Track feedback state per reply
   const feedbackState = {};
+
+  // Extract once: the rich context this reply is grounded in (same source the
+  // generation used). Rendered as a compact, collapsible "Context used" section.
+  const pickerPostData = extractPostData(articleElement);
+  renderContextUsed(contextContainer, pickerPostData && pickerPostData.context);
 
   // SVG markup for feedback icons (static, no user data)
   const thumbsUpSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>';
@@ -1198,10 +1371,57 @@ function showReplyPicker(picker, replyButton, replies, articleElement) {
       }
     };
 
+    // Voice-check result is per-option; clear it whenever the option changes.
+    voiceCheckResult.textContent = '';
+    voiceCheckResult.classList.remove('cp-visible');
+    voiceCheckBtn.disabled = false;
+    voiceCheckBtn.textContent = 'Voice check (3 cr)';
+
     indicator.textContent = `${currentIndex + 1} / ${replies.length}`;
     prevBtn.disabled = currentIndex === 0;
     nextBtn.disabled = currentIndex === replies.length - 1;
   }
+
+  // On-demand voice check: scores the CURRENTLY selected reply against the
+  // user's tuned REPLY voice. Kept manual (a button) to respect the 3-credit
+  // cost — never fires automatically.
+  voiceCheckBtn.onclick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const selectedOptionText = replies[currentIndex].text;
+    voiceCheckBtn.disabled = true;
+    voiceCheckBtn.textContent = 'Checking…';
+    voiceCheckResult.textContent = '';
+    voiceCheckResult.classList.add('cp-visible');
+
+    try {
+      const res = await sendMessage({
+        type: 'VOICE_CHECK',
+        payload: { text: selectedOptionText, voice_type: 'reply' },
+      });
+
+      if (res && res.success) {
+        renderVoiceCheckResult(voiceCheckResult, res);
+        voiceCheckBtn.textContent = 'Re-check';
+      } else if (res && res.code === 'AI_LIMIT') {
+        voiceCheckResult.textContent = 'Daily limit reached — upgrade to keep checking.';
+        voiceCheckBtn.textContent = 'Voice check (3 cr)';
+      } else {
+        voiceCheckResult.textContent = (res && res.error) || 'Voice check failed — try again.';
+        voiceCheckBtn.textContent = 'Voice check (3 cr)';
+      }
+    } catch (err) {
+      console.error('[Content Pipeline] Voice check failed:', err);
+      voiceCheckResult.textContent =
+        err.message === 'NOT_LOGGED_IN'
+          ? 'Log in via the extension icon to run a voice check.'
+          : 'Voice check failed — try again.';
+      voiceCheckBtn.textContent = 'Voice check (3 cr)';
+    } finally {
+      voiceCheckBtn.disabled = false;
+    }
+  };
 
   // Navigation handlers
   prevBtn.onclick = (e) => {
@@ -1299,11 +1519,15 @@ function showLimitReachedPicker(picker, replyButton) {
   const nextBtn = picker.querySelector('.cp-nav-next');
   const useBtn = picker.querySelector('.cp-picker-use');
   const closeBtn = picker.querySelector('.cp-picker-close');
+  const contextContainer = picker.querySelector('.cp-picker-context');
+  const voiceCheckWrap = picker.querySelector('.cp-voice-check');
 
-  // Hide navigation elements
+  // Hide navigation and the reply-only affordances (context + voice check)
   prevBtn.style.display = 'none';
   nextBtn.style.display = 'none';
   indicator.textContent = '';
+  if (contextContainer) contextContainer.textContent = '';
+  if (voiceCheckWrap) voiceCheckWrap.style.display = 'none';
 
   // Build limit-reached content
   optionsContainer.textContent = '';
@@ -1367,6 +1591,7 @@ function showLimitReachedPicker(picker, replyButton) {
     // Restore button defaults
     prevBtn.style.display = '';
     nextBtn.style.display = '';
+    if (voiceCheckWrap) voiceCheckWrap.style.display = '';
     useBtn.textContent = 'Use this reply';
     useBtn.onclick = null;
   };
@@ -1375,6 +1600,7 @@ function showLimitReachedPicker(picker, replyButton) {
     hideReplyPicker(picker);
     prevBtn.style.display = '';
     nextBtn.style.display = '';
+    if (voiceCheckWrap) voiceCheckWrap.style.display = '';
     useBtn.textContent = 'Use this reply';
     useBtn.onclick = null;
   };
@@ -1691,9 +1917,23 @@ function injectButtons(articleElement) {
   // Extract post ID
   const postId = extractTweetId(postUrl);
 
-  // Create inspiration save button
+  // Create inspiration save button (always available — independent of reply
+  // eligibility, since saving inspiration doesn't require replying).
   const nicheSaveButton = createNicheSaveButton(postUrl, postId);
   nicheSaveButton.addEventListener('click', (e) => handleNicheSaveClick(e, nicheSaveButton));
+
+  // Reply-eligibility gate: if X restricts replies on this post, suppress the
+  // reply affordance entirely (and, via scoreAndDisplayOpportunity, the
+  // opportunity pill). We still insert the niche save button below.
+  if (isReplyRestricted(articleElement)) {
+    const lastChildSaveOnly = actionBar.lastElementChild;
+    if (lastChildSaveOnly) {
+      actionBar.insertBefore(nicheSaveButton, lastChildSaveOnly);
+    } else {
+      actionBar.appendChild(nicheSaveButton);
+    }
+    return;
+  }
 
   // Create reply button (split design), picker, and tone dropdown
   const replyButton = createReplyButton();

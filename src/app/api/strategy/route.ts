@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
 
@@ -41,6 +42,7 @@ export async function GET() {
     return NextResponse.json({ strategy }, { status: 200, headers: corsHeaders });
   } catch (error) {
     console.error("Failed to fetch strategy:", error);
+    Sentry.captureException(error, { tags: { route: "strategy" } });
     return NextResponse.json({ error: "Failed to fetch strategy" }, { status: 500, headers: corsHeaders });
   }
 }
@@ -96,6 +98,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ strategy }, { status: 200, headers: corsHeaders });
   } catch (error) {
     console.error("Failed to save strategy:", error);
+    Sentry.captureException(error, { tags: { route: "strategy" } });
     return NextResponse.json({ error: "Failed to save strategy" }, { status: 500, headers: corsHeaders });
   }
 }

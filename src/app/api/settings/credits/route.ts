@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { getCredits, effectivePlan } from "@/lib/billing/credits";
 import { CREDIT_PACKS } from "@/types/subscription";
@@ -36,6 +37,7 @@ export async function GET() {
     });
   } catch (e) {
     console.error("Failed to load credits:", e);
+    Sentry.captureException(e, { tags: { route: "settings/credits" } });
     return NextResponse.json({ error: "Failed to load credits" }, { status: 500 });
   }
 }

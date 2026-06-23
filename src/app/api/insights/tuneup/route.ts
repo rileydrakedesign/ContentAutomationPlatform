@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
@@ -51,6 +52,7 @@ export async function POST() {
     );
   } catch (error) {
     console.error("Voice tune-up failed:", error);
+    Sentry.captureException(error, { tags: { route: "insights/tuneup" } });
     return NextResponse.json(
       { error: "Voice tune-up failed" },
       { status: 500, headers: corsHeaders }

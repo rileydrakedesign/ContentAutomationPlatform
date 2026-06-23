@@ -5,12 +5,30 @@
  * abstracting the differences between OpenAI, Claude, and Grok APIs.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getOpenAI, OPENAI_MODELS } from "./providers/openai";
 import { getClaude, CLAUDE_MODELS } from "./providers/claude";
 import { getGrok, GROK_MODELS } from "./providers/grok";
 
 export type AIProvider = "openai" | "claude" | "grok";
 export type ModelTier = "fast" | "standard";
+
+/**
+ * Resolve the user's selected AI provider from their voice settings.
+ * Falls back to "openai" when unset. Centralizes the ai_model -> provider
+ * mapping so every generation path honors the model picker in settings.
+ */
+export async function getUserProvider(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<AIProvider> {
+  const { data } = await supabase
+    .from("user_voice_settings")
+    .select("ai_model")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return (data?.ai_model as AIProvider) || "openai";
+}
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -88,7 +106,8 @@ async function createOpenAICompletion(options: {
     model,
     messages,
     temperature,
-    max_tokens: maxTokens,
+    // gpt-5.4 family requires max_completion_tokens (max_tokens is rejected).
+    max_completion_tokens: maxTokens,
     ...(jsonResponse && { response_format: { type: "json_object" } }),
   });
 
@@ -128,7 +147,8 @@ async function createGrokCompletion(options: {
     model,
     messages: processedMessages,
     temperature,
-    max_tokens: maxTokens,
+    // grok-4.x is a reasoning model and requires max_completion_tokens.
+    max_completion_tokens: maxTokens,
     // Grok supports response_format like OpenAI
     ...(jsonResponse && { response_format: { type: "json_object" as const } }),
   });

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { analyzeInspirationPost } from "@/lib/openai";
+import { getUserProvider } from "@/lib/ai";
 import { requireAiGeneration } from "@/lib/stripe/gate";
 
 /**
@@ -43,6 +45,7 @@ export async function GET(
     return NextResponse.json(data);
   } catch (error) {
     console.error("Failed to fetch inspiration post:", error);
+    Sentry.captureException(error, { tags: { route: "inspiration/[id]" } });
     return NextResponse.json(
       { error: "Failed to fetch inspiration post" },
       { status: 500 }
@@ -111,6 +114,7 @@ export async function PATCH(
     return NextResponse.json(data);
   } catch (error) {
     console.error("Failed to update inspiration post:", error);
+    Sentry.captureException(error, { tags: { route: "inspiration/[id]" } });
     return NextResponse.json(
       { error: "Failed to update inspiration post" },
       { status: 500 }
@@ -149,6 +153,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete inspiration post:", error);
+    Sentry.captureException(error, { tags: { route: "inspiration/[id]" } });
     return NextResponse.json(
       { error: "Failed to delete inspiration post" },
       { status: 500 }
@@ -206,7 +211,8 @@ export async function POST(
 
     // Re-analyze
     try {
-      const analysis = await analyzeInspirationPost(post.raw_content);
+      const provider = await getUserProvider(supabase, user.id);
+      const analysis = await analyzeInspirationPost(post.raw_content, provider);
 
       const { data: updated, error: updateError } = await supabase
         .from("inspiration_posts")
@@ -236,6 +242,7 @@ export async function POST(
     }
   } catch (error) {
     console.error("Failed to re-analyze inspiration post:", error);
+    Sentry.captureException(error, { tags: { route: "inspiration/[id]" } });
     return NextResponse.json(
       { error: "Failed to re-analyze inspiration post" },
       { status: 500 }

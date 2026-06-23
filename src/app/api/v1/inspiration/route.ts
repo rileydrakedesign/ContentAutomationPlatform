@@ -1,7 +1,9 @@
 import { withApiAuth, apiSuccess, apiError, apiOptions } from "@/lib/api/v1-handler";
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { analyzeInspirationPost } from "@/lib/openai";
+import { getUserProvider } from "@/lib/ai";
 import {
   CREDIT_COSTS,
   requireCredits,
@@ -105,7 +107,8 @@ export const POST = withApiAuth(["inspiration:write"], async ({ auth, request })
   // Analyze in the background (matches the internal route's behavior).
   void (async () => {
     try {
-      const analysis = await analyzeInspirationPost(content);
+      const provider = await getUserProvider(supabase, auth.userId);
+      const analysis = await analyzeInspirationPost(content, provider);
       await supabase
         .from("inspiration_posts")
         .update({
@@ -117,6 +120,7 @@ export const POST = withApiAuth(["inspiration:write"], async ({ auth, request })
         .eq("id", post.id);
     } catch (err) {
       console.error("v1 inspiration: background analysis failed", err);
+      Sentry.captureException(err, { tags: { route: "v1/inspiration" } });
       await supabase
         .from("inspiration_posts")
         .update({ analysis_status: "failed", updated_at: new Date().toISOString() })

@@ -2,6 +2,14 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  // The /developers/scalar route reads the Scalar standalone bundle from the
+  // installed package at runtime; force-include it in that route's serverless
+  // function so it exists in production.
+  outputFileTracingIncludes: {
+    "/developers/scalar": [
+      "./node_modules/@scalar/api-reference/dist/browser/standalone.js",
+    ],
+  },
   async headers() {
     return [
       {
@@ -90,7 +98,4 @@ export default withSentryConfig(nextConfig, {
 
   // Upload a wider set of client source maps for prettier stack traces.
   widenClientFileUpload: true,
-
-  // Tree-shake Sentry logger statements to shrink the client bundle.
-  disableLogger: true,
 });

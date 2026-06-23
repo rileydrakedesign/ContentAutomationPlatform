@@ -1,53 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
-import { createClient } from "@supabase/supabase-js";
-import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { createChatCompletion, AIProvider } from "@/lib/ai";
 import { REPLY_SYSTEM_PROMPT } from "@/lib/openai/prompts/reply-prompt";
 import { getAssembledPromptForUser } from "@/lib/openai/prompts/prompt-assembler";
 import { requireAiGeneration } from "@/lib/stripe/gate";
+import { getDualAuthUser } from "@/lib/api/dual-auth";
 
 // Handle CORS preflight
 export async function OPTIONS() {
   return handleCors();
-}
-
-// Helper to get user from either cookie or Bearer token
-async function getAuthenticatedUser(request: NextRequest) {
-  // Check for Bearer token first (from extension)
-  const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.substring(7);
-
-    // Create client with the access token
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      }
-    );
-
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) {
-      return { user: null, supabase: null };
-    }
-    return { user, supabase };
-  }
-
-  // Fall back to cookie-based auth
-  const supabase = await createAuthClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) {
-    return { user: null, supabase: null };
-  }
-  return { user, supabase };
 }
 
 interface MediaItem {
@@ -161,7 +125,7 @@ function buildContextPrompt(context: PostContext | undefined): string {
 // POST /api/generate-reply - Generate AI reply options to a post
 export async function POST(request: NextRequest) {
   try {
-    const { user, supabase } = await getAuthenticatedUser(request);
+    const { user, supabase } = await getDualAuthUser(request);
 
     if (!user || !supabase) {
       return NextResponse.json(
@@ -242,6 +206,7 @@ export async function POST(request: NextRequest) {
     } catch (aiError) {
       console.error("[generate-reply] AI API error:", aiError instanceof Error ? aiError.message : aiError);
       console.error("[generate-reply] AI error details:", JSON.stringify(aiError, null, 2));
+      Sentry.captureException(aiError, { tags: { route: "generate-reply" } });
       return NextResponse.json(
         { error: `AI error: ${aiError instanceof Error ? aiError.message : 'Unknown'}` },
         { status: 500, headers: corsHeaders }
@@ -267,6 +232,7 @@ export async function POST(request: NextRequest) {
       console.log("[generate-reply] Parsed successfully, replies count:", parsed.replies?.length);
     } catch (parseError) {
       console.error("[generate-reply] Failed to parse reply JSON:", content);
+      Sentry.captureException(parseError, { tags: { route: "generate-reply" } });
       return NextResponse.json(
         { error: "Failed to parse generated replies" },
         { status: 500, headers: corsHeaders }
@@ -311,6 +277,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ replies }, { headers: corsHeaders });
   } catch (error) {
     console.error("Failed to generate replies:", error);
+    Sentry.captureException(error, { tags: { route: "generate-reply" } });
     return NextResponse.json(
       { error: "Failed to generate replies" },
       { status: 500, headers: corsHeaders }

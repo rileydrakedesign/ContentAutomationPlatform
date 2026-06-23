@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@supabase/supabase-js";
-import { getUserTimeline, mapV2ToPostAnalytics, getValidAccessToken } from "@/lib/x-api";
-import type { PostAnalytics } from "@/types/analytics";
-import { capPostsByRecency } from "@/lib/utils/analytics-retention";
+import { syncUserTimeline } from "@/lib/analysis/timeline-sync";
 import { getUserSubscription } from "@/lib/stripe/subscription";
 import { PLANS, isSubscriptionActive } from "@/types/subscription";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-// GET /api/cron/analytics-sync - Automated analytics sync for all users
+// GET /api/cron/analytics-sync - Automated timeline analytics sync for all
+// paid users. The daily-ops cron drives this on a daily cadence; this route
+// stays for manual / on-demand triggering.
 export async function GET(request: NextRequest) {
   try {
     // Verify cron secret
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     // Process users sequentially to respect rate limits
     for (const conn of connections) {
       try {
-        // API sync is a paid-plan feature — apply the same gate as the UI
+        // Timeline sync is a paid-plan feature — apply the same gate as the UI
         const sub = await getUserSubscription(conn.user_id);
         const plan = isSubscriptionActive(sub)
           ? PLANS[sub.plan_id] || PLANS.free
@@ -62,103 +62,8 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        const { accessToken, connection } = await getValidAccessToken(conn.user_id);
-
-        // Fetch up to 200 tweets
-        const allTweets: PostAnalytics[] = [];
-        let paginationToken: string | undefined;
-
-        for (let page = 0; page < 2; page++) {
-          const { data: tweets, meta } = await getUserTimeline(
-            accessToken,
-            connection.x_user_id,
-            100,
-            paginationToken
-          );
-
-          for (const tweet of tweets) {
-            allTweets.push(mapV2ToPostAnalytics(tweet));
-          }
-
-          paginationToken = meta.next_token;
-          if (!paginationToken) break;
-        }
-
-        // Load existing user_analytics
-        const { data: existingRow } = await supabase
-          .from("user_analytics")
-          .select("id, posts")
-          .eq("user_id", conn.user_id)
-          .order("uploaded_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        const existingPosts: PostAnalytics[] =
-          existingRow?.posts && Array.isArray(existingRow.posts)
-            ? (existingRow.posts as PostAnalytics[])
-            : [];
-
-        const existingByPostId = new Map<string, PostAnalytics>();
-        for (const p of existingPosts) {
-          existingByPostId.set(p.post_id, p);
-        }
-
-        for (const apiPost of allTweets) {
-          const existing = existingByPostId.get(apiPost.post_id);
-          if (existing) {
-            existingByPostId.set(apiPost.post_id, {
-              ...existing,
-              impressions: apiPost.impressions,
-              likes: apiPost.likes,
-              replies: apiPost.replies,
-              reposts: apiPost.reposts,
-              bookmarks: apiPost.bookmarks,
-              engagement_score: apiPost.engagement_score,
-              data_source: "both",
-            });
-          } else {
-            existingByPostId.set(apiPost.post_id, apiPost);
-          }
-        }
-
-        const mergedPosts = capPostsByRecency(Array.from(existingByPostId.values()));
-        const nonReplyPosts = mergedPosts.filter((p) => !p.is_reply);
-
-        mergedPosts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-        const dates = mergedPosts.map((p) => new Date(p.date).getTime()).filter((t) => !isNaN(t));
-        const dateRange = dates.length > 0
-          ? {
-              start: new Date(Math.min(...dates)).toISOString().split("T")[0],
-              end: new Date(Math.max(...dates)).toISOString().split("T")[0],
-            }
-          : { start: "", end: "" };
-
-        const upsertData = {
-          user_id: conn.user_id,
-          posts: mergedPosts,
-          total_posts: nonReplyPosts.length,
-          total_replies: mergedPosts.length - nonReplyPosts.length,
-          date_range: dateRange,
-          uploaded_at: new Date().toISOString(),
-        };
-
-        if (existingRow?.id) {
-          await supabase
-            .from("user_analytics")
-            .update(upsertData)
-            .eq("id", existingRow.id);
-        } else {
-          await supabase.from("user_analytics").insert(upsertData);
-        }
-
-        // Update last_api_sync_at
-        await supabase
-          .from("x_connections")
-          .update({ last_api_sync_at: new Date().toISOString() })
-          .eq("user_id", conn.user_id);
-
-        results.push({ userId: conn.user_id, synced: allTweets.length });
+        const { synced } = await syncUserTimeline(supabase, conn.user_id);
+        results.push({ userId: conn.user_id, synced });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[analytics-sync] Failed for user ${conn.user_id}:`, msg);

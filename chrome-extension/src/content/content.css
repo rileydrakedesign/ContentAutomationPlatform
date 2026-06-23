@@ -338,6 +338,16 @@
   background: rgb(26, 140, 216);
 }
 
+/* Account-safety reassurance — you approve every reply (Gap #3) */
+.cp-picker-safety {
+  margin: 0 16px 14px;
+  padding-top: 2px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgb(113, 118, 123);
+  text-align: center;
+}
+
 /* Refresh Notice */
 .cp-refresh-notice {
   position: fixed;
@@ -609,6 +619,164 @@
   color: rgb(244, 114, 182);
 }
 
+/* "Context used" section (collapsible) */
+.cp-picker-context {
+  padding: 0 16px;
+}
+
+.cp-picker-context:empty {
+  display: none;
+}
+
+.cp-context-details {
+  border: 1px solid rgb(47, 51, 54);
+  border-radius: 10px;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+}
+
+.cp-context-summary {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(113, 118, 123);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.cp-context-summary::-webkit-details-marker {
+  display: none;
+}
+
+.cp-context-summary::before {
+  content: '▸ ';
+  font-size: 10px;
+}
+
+.cp-context-details[open] .cp-context-summary::before {
+  content: '▾ ';
+}
+
+.cp-context-list {
+  margin: 6px 0 2px;
+  padding-left: 16px;
+  list-style: disc;
+}
+
+.cp-context-list li {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgb(155, 160, 165);
+  margin-bottom: 2px;
+  word-wrap: break-word;
+}
+
+/* Voice check */
+.cp-voice-check {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 16px 0;
+}
+
+.cp-voice-check-btn {
+  align-self: flex-start;
+  padding: 6px 14px;
+  border: 1px solid rgb(83, 100, 113);
+  border-radius: 9999px;
+  background: transparent;
+  color: rgb(231, 233, 234);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cp-voice-check-btn:hover:not(:disabled) {
+  background: rgba(231, 233, 234, 0.1);
+  border-color: rgb(231, 233, 234);
+}
+
+.cp-voice-check-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.cp-voice-check-result {
+  display: none;
+  font-size: 12px;
+  color: rgb(155, 160, 165);
+}
+
+.cp-voice-check-result.cp-visible {
+  display: block;
+}
+
+.cp-vc-score-row {
+  margin-bottom: 6px;
+}
+
+.cp-vc-score {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(113, 118, 123, 0.15);
+  color: rgb(113, 118, 123);
+}
+
+.cp-vc-score.cp-vc-high {
+  background: rgba(0, 186, 124, 0.15);
+  color: rgb(0, 186, 124);
+}
+
+.cp-vc-score.cp-vc-medium {
+  background: rgba(249, 171, 0, 0.15);
+  color: rgb(249, 171, 0);
+}
+
+.cp-vc-score.cp-vc-low {
+  background: rgba(244, 114, 182, 0.15);
+  color: rgb(244, 114, 182);
+}
+
+.cp-vc-section {
+  margin-top: 6px;
+}
+
+.cp-vc-heading {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgb(113, 118, 123);
+  margin-bottom: 2px;
+}
+
+.cp-vc-matches .cp-vc-heading {
+  color: rgb(0, 186, 124);
+}
+
+.cp-vc-deviations .cp-vc-heading {
+  color: rgb(244, 114, 182);
+}
+
+.cp-vc-list {
+  margin: 0;
+  padding-left: 16px;
+  list-style: disc;
+}
+
+.cp-vc-list li {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgb(155, 160, 165);
+  margin-bottom: 2px;
+  word-wrap: break-word;
+}
+
 /* Light mode support */
 @media (prefers-color-scheme: light) {
   .cp-reply-picker {
@@ -666,5 +834,25 @@
 
   .cp-tone-option:hover {
     background: rgba(15, 20, 25, 0.05);
+  }
+
+  .cp-context-details {
+    border-color: rgb(207, 217, 222);
+  }
+
+  .cp-context-list li,
+  .cp-vc-list li,
+  .cp-voice-check-result {
+    color: rgb(83, 100, 113);
+  }
+
+  .cp-voice-check-btn {
+    border-color: rgb(207, 217, 222);
+    color: rgb(15, 20, 25);
+  }
+
+  .cp-voice-check-btn:hover:not(:disabled) {
+    background: rgba(15, 20, 25, 0.05);
+    border-color: rgb(15, 20, 25);
   }
 }

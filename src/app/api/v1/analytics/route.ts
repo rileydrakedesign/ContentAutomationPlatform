@@ -1,6 +1,7 @@
 import { withApiAuth, apiSuccess, apiOptions } from "@/lib/api/v1-handler";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getOutcomeAttribution } from "@/lib/analysis/attribution";
 import {
   CREDIT_COSTS,
   requireCredits,
@@ -50,6 +51,8 @@ export const GET = withApiAuth(["analytics:read"], async ({ auth, request }) => 
         }
       : null,
     captured_posts_count: capturedCount || 0,
+    // Outcome attribution — AFX-assisted posts vs. the user's baseline.
+    attribution: await getOutcomeAttribution(supabase, auth.userId),
   };
 
   if (include === "posts" || include === "all") {
