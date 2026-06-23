@@ -10,9 +10,14 @@ import { TopicInput } from "./TopicInput";
 import { PatternSelector } from "./PatternSelector";
 import { DraftsList } from "./DraftsList";
 import { VoiceCheckPanel } from "./VoiceCheckPanel";
+import {
+  AgenticChain,
+  type ChainStepView,
+  type ChainSource,
+  type ChainScore,
+} from "./AgenticChain";
 import { InspirationPost } from "@/types/inspiration";
 import {
-  Sparkles,
   FileText,
   List,
   PenSquare,
@@ -27,12 +32,18 @@ import {
   Edit3,
   Plus,
   Trash2,
-  Send,
+  RefreshCw,
+  Zap,
+  Bot,
 } from "lucide-react";
 import { useSubscription } from "@/components/auth/SubscriptionProvider";
 import { AiUsageCounter } from "@/components/ui/AiUsageCounter";
 import { parseGateError } from "@/lib/utils/gate-error";
-import { usePersistentState } from "@/hooks/usePersistentState";
+import {
+  usePersistentState,
+  writePersistedValue,
+  removePersistedValue,
+} from "@/hooks/usePersistentState";
 import { CharCounter } from "@/components/compose/CharCounter";
 
 type DraftType = "X_POST" | "X_THREAD";
@@ -50,6 +61,16 @@ interface GeneratedDraft {
     hook_type?: string;
     patterns_applied?: string[];
   };
+}
+
+type GenMode = "quick" | "agent";
+
+// The exact inputs of a generation, saved so Regenerate can replay them verbatim.
+interface GenQuery {
+  topic: string;
+  draftType: DraftType;
+  patternIds: string[];
+  inspiration: { text: string; author: string } | null;
 }
 
 export function CreatePage() {
@@ -80,6 +101,18 @@ export function CreatePage() {
   const [inspirationPost, setInspirationPost] = useState<InspirationPost | null>(null);
   const [loadingInspiration, setLoadingInspiration] = useState(false);
   const [feedbackMap, setFeedbackMap] = useState<Record<number, 'like' | 'dislike' | null>>({});
+  // Agentic chain view (live SSE): step timeline, sources, voice scores, and
+  // the streaming draft text. Ephemeral per run — not persisted.
+  const [chainSteps, setChainSteps] = useState<ChainStepView[]>([]);
+  const [chainSources, setChainSources] = useState<ChainSource[]>([]);
+  const [chainScores, setChainScores] = useState<ChainScore[]>([]);
+  const [liveDraft, setLiveDraft] = useState("");
+  const [chainActive, setChainActive] = useState(false);
+  // Generation mode: "quick" (one-shot) vs "agent" (research + refine pipeline).
+  const [mode, setMode] = usePersistentState<GenMode>("create:mode", "agent");
+  // The last query run, so Regenerate replays it exactly (same mode + inputs).
+  const [lastQuery, setLastQuery] = useState<{ mode: GenMode; query: GenQuery } | null>(null);
+  const [refining, setRefining] = useState(false);
   const [inspirationList, setInspirationList] = useState<Array<{ id: string; raw_content: string; author_handle: string | null; created_at: string }>>([]);
   const [inspirationPickerOpen, setInspirationPickerOpen] = useState(false);
   const [inspirationSearch, setInspirationSearch] = useState("");
@@ -134,120 +167,288 @@ export function CreatePage() {
     router.replace(`/create?${params.toString()}`);
   };
 
-  // Shared generation call. `isRegenerate` appends a new variation (steering
-  // away from prior ones, optionally with a one-off instruction); a fresh
-  // generate resets the history.
-  const runGeneration = async (isRegenerate: boolean) => {
+  // Merge a step event into the chain, keyed by step + iteration so a step's
+  // running→done transition updates in place rather than appending a row.
+  const upsertStep = (prev: ChainStepView[], ev: ChainStepView): ChainStepView[] => {
+    const key = (s: ChainStepView) => `${s.step}:${s.iteration ?? 0}`;
+    const idx = prev.findIndex((s) => key(s) === key(ev));
+    if (idx === -1) return [...prev, ev];
+    const next = [...prev];
+    next[idx] = ev;
+    return next;
+  };
+
+  // Apply a finished option to the variation list — append (regenerate/refine)
+  // or replace (fresh generate) — and focus it.
+  const applyOption = (option: GeneratedDraft, append: boolean) => {
+    if (append) {
+      setGeneratedDrafts((prev) => {
+        const next = [...prev, option];
+        setCurrentVariation(next.length - 1);
+        return next;
+      });
+    } else {
+      setGeneratedDrafts([option]);
+      setCurrentVariation(0);
+    }
+  };
+
+  // Read the agentic SSE stream and drive the chain UI. On `complete`, fold the
+  // option into the variation history so the existing result card renders it.
+  const consumeAgenticStream = async (
+    body: ReadableStream<Uint8Array>,
+    append: boolean
+  ) => {
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let liveText = "";
+    let liveIter = -1;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split("\n\n");
+      buffer = frames.pop() || "";
+
+      for (const frame of frames) {
+        const dataLine = frame.split("\n").find((l) => l.startsWith("data:"));
+        if (!dataLine) continue;
+        const payload = dataLine.slice(5).trim();
+        if (!payload) continue;
+
+        let ev: Record<string, unknown>;
+        try {
+          ev = JSON.parse(payload);
+        } catch {
+          continue;
+        }
+
+        switch (ev.type) {
+          case "step":
+            setChainSteps((prev) =>
+              upsertStep(prev, {
+                step: ev.step as ChainStepView["step"],
+                status: ev.status as ChainStepView["status"],
+                label: String(ev.label),
+                iteration: ev.iteration as number | undefined,
+              })
+            );
+            break;
+          case "research":
+            setChainSources((ev.sources as ChainSource[]) || []);
+            break;
+          case "draft_delta": {
+            const iter = (ev.iteration as number) ?? 0;
+            if (iter !== liveIter) {
+              liveIter = iter;
+              liveText = "";
+            }
+            liveText += String(ev.text);
+            setLiveDraft(liveText);
+            break;
+          }
+          case "voice_score": {
+            const sc: ChainScore = {
+              iteration: (ev.iteration as number) ?? 0,
+              score: (ev.score as number) ?? 0,
+            };
+            setChainScores((prev) =>
+              [...prev.filter((s) => s.iteration !== sc.iteration), sc].sort(
+                (a, b) => a.iteration - b.iteration
+              )
+            );
+            break;
+          }
+          case "complete":
+            applyOption(ev.option as GeneratedDraft, append);
+            break;
+          case "error":
+            setError(String(ev.message || "Generation failed"));
+            break;
+        }
+      }
+    }
+  };
+
+  // Snapshot the current inputs as a replayable query.
+  const currentQuery = (): GenQuery => ({
+    topic: topic.trim(),
+    draftType,
+    patternIds: selectedPatterns,
+    inspiration: inspirationPost
+      ? { text: inspirationPost.raw_content, author: inspirationPost.author_handle || "" }
+      : null,
+  });
+
+  const bodyFromQuery = (q: GenQuery): Record<string, unknown> => {
+    const b: Record<string, unknown> = {
+      topic: q.topic,
+      draftType: q.draftType,
+      patternIds: q.patternIds,
+    };
+    if (q.inspiration) b.inspirationPost = q.inspiration;
+    return b;
+  };
+
+  const setGenError = async (res: Response, fallback: string) => {
+    let data: Record<string, unknown> = {};
+    try {
+      data = await res.json();
+    } catch {
+      data = {};
+    }
+    const gateErr = parseGateError(res.status, data);
+    setError(gateErr ? gateErr.message : String(data.error || fallback));
+  };
+
+  // Quick mode: one-shot, non-streaming.
+  const runQuick = async (q: GenQuery, append: boolean) => {
+    const res = await fetch("/api/drafts/generate-from-topic", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(bodyFromQuery(q)),
+    });
+    if (!res.ok) {
+      await setGenError(res, "Failed to generate drafts");
+      return;
+    }
+    const data = await res.json();
+    const newOptions: GeneratedDraft[] = data.options || [];
+    if (newOptions.length === 0) {
+      setError("No content was generated. Try again.");
+      return;
+    }
+    applyOption(newOptions[0], append);
+  };
+
+  // Agent mode: streamed research → draft → voice-check → refine pipeline.
+  const runAgent = async (q: GenQuery, append: boolean) => {
+    setChainSteps([]);
+    setChainSources([]);
+    setChainScores([]);
+    setLiveDraft("");
+    setChainActive(true);
+    try {
+      const res = await fetch("/api/drafts/generate-agentic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyFromQuery(q)),
+      });
+      if (!res.ok || !res.body) {
+        await setGenError(res, "Failed to generate drafts");
+        return;
+      }
+      await consumeAgenticStream(res.body, append);
+    } finally {
+      setChainActive(false);
+    }
+  };
+
+  // Fresh generation in the selected mode. Records the exact query so a later
+  // Regenerate replays it verbatim.
+  const handleGenerate = async () => {
     if (!topic.trim() || topic.length < 3) {
       setError("Please enter a topic (at least 3 characters)");
       return;
     }
-
-    if (isRegenerate) {
-      setRegenerating(true);
-    } else {
-      setGenerating(true);
-      setGeneratedDrafts([]);
-      setFeedbackMap({});
-    }
+    const q = currentQuery();
+    setGenerating(true);
     setError(null);
-
+    setGeneratedDrafts([]);
+    setFeedbackMap({});
+    setChainSteps([]);
+    setChainSources([]);
+    setChainScores([]);
+    setLiveDraft("");
+    setLastQuery({ mode, query: q });
     try {
-      const requestBody: Record<string, unknown> = {
-        topic: topic.trim(),
-        draftType,
-        patternIds: selectedPatterns,
-        generateCount: 1,
-      };
-
-      if (isRegenerate) {
-        if (regenInstructions.trim()) requestBody.instructions = regenInstructions.trim();
-        const priorTexts = generatedDrafts.map(getDraftText).filter(Boolean);
-        if (priorTexts.length > 0) requestBody.previousVariations = priorTexts;
-      }
-
-      // Add inspiration post if available
-      if (inspirationPost) {
-        requestBody.inspirationPost = {
-          text: inspirationPost.raw_content,
-          author: inspirationPost.author_handle || "",
-        };
-      }
-
-      const res = await fetch("/api/drafts/generate-from-topic", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        const gateErr = parseGateError(res.status, data);
-        if (gateErr) {
-          setError(gateErr.message);
-        } else {
-          setError(data.error || "Failed to generate drafts");
-        }
-        return;
-      }
-
-      const data = await res.json();
-      const newOptions: GeneratedDraft[] = data.options || [];
-      if (newOptions.length === 0) {
-        setError("No content was generated. Try again.");
-        return;
-      }
-
-      if (isRegenerate) {
-        setGeneratedDrafts((prev) => {
-          const next = [...prev, ...newOptions];
-          setCurrentVariation(next.length - 1);
-          return next;
-        });
-        setRegenInstructions("");
-      } else {
-        setGeneratedDrafts(newOptions);
-        setCurrentVariation(0);
-      }
+      if (mode === "agent") await runAgent(q, false);
+      else await runQuick(q, false);
       refetchSubscription();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  // Regenerate: replay the last query exactly (same mode + inputs), appending a
+  // new variation. No feedback, no steering — a fresh attempt at the same ask.
+  const handleRegenerate = async () => {
+    if (!lastQuery) return;
+    setRegenerating(true);
+    setError(null);
+    try {
+      if (lastQuery.mode === "agent") await runAgent(lastQuery.query, true);
+      else await runQuick(lastQuery.query, true);
+      refetchSubscription();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to regenerate");
+    } finally {
       setRegenerating(false);
     }
   };
 
-  const handleGenerate = () => runGeneration(false);
-  const handleRegenerate = () => runGeneration(true);
-
-  const [savingDraft, setSavingDraft] = useState(false);
-
-  const handleUseDraft = async (draft: GeneratedDraft) => {
-    setSavingDraft(true);
+  // Refine: take the current variation (Quick or Agent) and revise it per the
+  // user's feedback in a single lightweight call. Never runs the pipeline.
+  const handleRefine = async () => {
+    if (!regenInstructions.trim()) {
+      setError("Add some feedback to refine with.");
+      return;
+    }
+    const idx = Math.min(currentVariation, generatedDrafts.length - 1);
+    const draft = generatedDrafts[idx];
+    if (!draft) return;
+    const c = draft.content as { text?: string; tweets?: string[]; posts?: string[] };
+    setRefining(true);
+    setError(null);
     try {
-      const res = await fetch("/api/drafts", {
+      const res = await fetch("/api/drafts/refine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: draft.type,
-          content: draft.content,
-          topic: draft.topic,
-          appliedPatterns: draft.applied_patterns,
-          metadata: draft.metadata,
+          text: c.text || "",
+          tweets: c.tweets || c.posts || undefined,
+          draftType: (draft.type as DraftType) || draftType,
+          feedback: regenInstructions.trim(),
+          topic: draft.topic || topic.trim(),
         }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to save draft");
+        await setGenError(res, "Failed to refine");
+        return;
       }
-      const saved = await res.json();
-      router.push(`/drafts/${saved.id}`);
+      const data = await res.json();
+      if (data.option) {
+        applyOption(data.option as GeneratedDraft, true);
+        setRegenInstructions("");
+      }
+      refetchSubscription();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save draft");
+      setError(err instanceof Error ? err.message : "Failed to refine");
     } finally {
-      setSavingDraft(false);
+      setRefining(false);
     }
+  };
+
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  // Hand the generated post off to the transient editor (no DB write yet). It
+  // only becomes a draft if the user explicitly clicks "Save Draft" there —
+  // saving is a deliberate action, not a side-effect of editing/publishing.
+  const handleUseDraft = (draft: GeneratedDraft) => {
+    setSavingDraft(true);
+    writePersistedValue("draft:new:seed", {
+      type: draft.type,
+      content: draft.content,
+      topic: draft.topic,
+      appliedPatterns: draft.applied_patterns,
+      metadata: draft.metadata,
+    });
+    removePersistedValue("draft:new:buf");
+    router.push("/drafts/new");
   };
 
   const handleFeedback = async (index: number, feedbackType: 'like' | 'dislike') => {
@@ -305,7 +506,9 @@ export function CreatePage() {
     );
   };
 
-  const handleSaveCompose = async () => {
+  // Carry the manually-composed post to the transient editor — same deliberate
+  // save model as the AI flow: it's only persisted if the user saves it there.
+  const handleContinueCompose = () => {
     const content =
       composeType === "X_POST"
         ? { text: composeText }
@@ -317,34 +520,19 @@ export function CreatePage() {
         : composeThreadTweets.every((t) => !t.trim());
 
     if (isEmpty) {
-      setComposeError("Write something before saving");
+      setComposeError("Write something first");
       return;
     }
 
     setSavingCompose(true);
     setComposeError(null);
-
-    try {
-      const res = await fetch("/api/drafts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: composeType,
-          content,
-          metadata: { generation_type: "manual" },
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to save draft");
-      }
-      const saved = await res.json();
-      router.push(`/drafts/${saved.id}`);
-    } catch (err) {
-      setComposeError(err instanceof Error ? err.message : "Failed to save");
-    } finally {
-      setSavingCompose(false);
-    }
+    writePersistedValue("draft:new:seed", {
+      type: composeType,
+      content,
+      metadata: { generation_type: "manual" },
+    });
+    removePersistedValue("draft:new:buf");
+    router.push("/drafts/new");
   };
 
   return (
@@ -376,9 +564,9 @@ export function CreatePage() {
         </div>
 
         <TabsContent value="new">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             {/* Left Column - Topic & Format */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="space-y-6">
               {/* Inspiration Post Card (if present) */}
               {(inspirationPost || loadingInspiration) && (
                 <Card className="border-[var(--color-accent-500)]/30 bg-[var(--color-accent-500)]/5">
@@ -509,7 +697,7 @@ export function CreatePage() {
             </div>
 
             {/* Right Column - Patterns & Generate */}
-            <div className="lg:col-span-1 space-y-6">
+            <div className="space-y-6">
               {/* Inspiration Picker */}
               {!inspirationId && (
                 <Card>
@@ -570,6 +758,50 @@ export function CreatePage() {
                 </CardContent>
               </Card>
 
+              {/* Generation mode: Quick vs Agent */}
+              <Card>
+                <CardContent className="py-3">
+                  <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+                    Mode
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setMode("quick")}
+                      className={`relative p-3 rounded-xl border-2 transition-all duration-200 cursor-pointer text-left ${
+                        mode === "quick"
+                          ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10"
+                          : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
+                      }`}
+                    >
+                      <Zap className={`w-5 h-5 mb-1.5 ${mode === "quick" ? "text-[var(--color-primary-400)]" : "text-[var(--color-text-secondary)]"}`} />
+                      <p className={`text-sm font-medium ${mode === "quick" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
+                        Quick
+                      </p>
+                      <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+                        One-shot draft · 1 generation
+                      </p>
+                    </button>
+
+                    <button
+                      onClick={() => setMode("agent")}
+                      className={`relative p-3 rounded-xl border-2 transition-all duration-200 cursor-pointer text-left ${
+                        mode === "agent"
+                          ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10"
+                          : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
+                      }`}
+                    >
+                      <Bot className={`w-5 h-5 mb-1.5 ${mode === "agent" ? "text-[var(--color-primary-400)]" : "text-[var(--color-text-secondary)]"}`} />
+                      <p className={`text-sm font-medium ${mode === "agent" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
+                        Agent
+                      </p>
+                      <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+                        Research + refine · 3 generations
+                      </p>
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* AI Usage + Generate Button */}
               <AiUsageCounter className="mb-2" />
               <Button
@@ -578,10 +810,20 @@ export function CreatePage() {
                 disabled={!topic.trim() || aiLimitReached}
                 fullWidth
                 glow
-                icon={<Sparkles className="w-5 h-5" />}
+                icon={mode === "agent" ? <Bot className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
                 className="h-14 text-base"
               >
-                {aiLimitReached ? "Daily Limit Reached" : generating ? "Generating..." : generatedDrafts.length > 0 ? "Start Over" : "Generate Post"}
+                {aiLimitReached
+                  ? "Daily Limit Reached"
+                  : generating
+                  ? mode === "agent"
+                    ? "Running agent…"
+                    : "Generating…"
+                  : generatedDrafts.length > 0
+                  ? "Start Over"
+                  : mode === "agent"
+                  ? "Generate with Agent"
+                  : "Generate Post"}
               </Button>
 
               {/* Error Display */}
@@ -595,6 +837,19 @@ export function CreatePage() {
             </div>
           </div>
 
+          {/* Agentic pipeline — live chain while generating, persists after */}
+          {(chainActive || chainSteps.length > 0) && (
+            <div className="mt-8">
+              <AgenticChain
+                steps={chainSteps}
+                sources={chainSources}
+                scores={chainScores}
+                liveDraft={liveDraft}
+                active={chainActive}
+              />
+            </div>
+          )}
+
           {/* Generated Post — single full view with regenerate + history */}
           {generatedDrafts.length > 0 && (() => {
             const index = Math.min(currentVariation, generatedDrafts.length - 1);
@@ -604,7 +859,7 @@ export function CreatePage() {
               Array.isArray(c.tweets) ? (c.tweets as string[]) :
               Array.isArray(c.posts) ? (c.posts as string[]) :
               [];
-            const isThread = draftType === "X_THREAD";
+            const isThread = draft.type === "X_THREAD";
 
             return (
               <div className="mt-8 max-w-2xl mx-auto space-y-4">
@@ -612,30 +867,43 @@ export function CreatePage() {
                   <h3 className="text-heading text-lg font-semibold text-[var(--color-text-primary)]">
                     Generated {isThread ? "Thread" : "Post"}
                   </h3>
-                  {/* Variation history nav */}
-                  {generatedDrafts.length > 1 && (
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    {/* Variation history nav */}
+                    {generatedDrafts.length > 1 && (
+                      <>
+                        <button
+                          onClick={() => setCurrentVariation((i) => Math.max(0, i - 1))}
+                          disabled={index === 0}
+                          className="px-2 py-1 rounded-md border border-[var(--color-border-default)] text-xs text-[var(--color-text-secondary)] disabled:opacity-40 hover:border-[var(--color-border-strong)] transition-colors"
+                          title="Previous variation"
+                        >
+                          ←
+                        </button>
+                        <span className="text-xs text-[var(--color-text-muted)]">
+                          Variation {index + 1} of {generatedDrafts.length}
+                        </span>
+                        <button
+                          onClick={() => setCurrentVariation((i) => Math.min(generatedDrafts.length - 1, i + 1))}
+                          disabled={index === generatedDrafts.length - 1}
+                          className="px-2 py-1 rounded-md border border-[var(--color-border-default)] text-xs text-[var(--color-text-secondary)] disabled:opacity-40 hover:border-[var(--color-border-strong)] transition-colors"
+                          title="Next variation"
+                        >
+                          →
+                        </button>
+                      </>
+                    )}
+                    {/* Regenerate: re-run the exact last query as a new variation */}
+                    {lastQuery && (
                       <button
-                        onClick={() => setCurrentVariation((i) => Math.max(0, i - 1))}
-                        disabled={index === 0}
-                        className="px-2 py-1 rounded-md border border-[var(--color-border-default)] text-xs text-[var(--color-text-secondary)] disabled:opacity-40 hover:border-[var(--color-border-strong)] transition-colors"
-                        title="Previous variation"
+                        onClick={handleRegenerate}
+                        disabled={regenerating || aiLimitReached}
+                        title="Regenerate — re-run the same prompt"
+                        className="flex items-center justify-center w-8 h-8 rounded-md border border-[var(--color-border-default)] text-[var(--color-text-secondary)] disabled:opacity-40 hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] transition-colors"
                       >
-                        ←
+                        <RefreshCw className={`w-4 h-4 ${regenerating ? "animate-spin" : ""}`} />
                       </button>
-                      <span className="text-xs text-[var(--color-text-muted)]">
-                        Variation {index + 1} of {generatedDrafts.length}
-                      </span>
-                      <button
-                        onClick={() => setCurrentVariation((i) => Math.min(generatedDrafts.length - 1, i + 1))}
-                        disabled={index === generatedDrafts.length - 1}
-                        className="px-2 py-1 rounded-md border border-[var(--color-border-default)] text-xs text-[var(--color-text-secondary)] disabled:opacity-40 hover:border-[var(--color-border-strong)] transition-colors"
-                        title="Next variation"
-                      >
-                        →
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 <Card>
@@ -719,43 +987,44 @@ export function CreatePage() {
                       icon={<ArrowRight className="w-4 h-4" />}
                       iconPosition="right"
                     >
-                      {savingDraft ? "Saving..." : "Edit & Publish"}
+                      {savingDraft ? "Opening…" : "Edit & Publish"}
                     </Button>
                   </CardContent>
                 </Card>
 
-                {/* Regenerate with optional one-off instruction */}
+                {/* Refine the current draft with feedback (lightweight; no pipeline) */}
                 <Card>
                   <CardContent className="py-4 space-y-3">
                     <div className="flex items-center gap-2">
                       <Wand2 className="w-4 h-4 text-[var(--color-primary-400)]" />
                       <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                        Regenerate
+                        Refine this draft
                       </h4>
                     </div>
                     <input
                       value={regenInstructions}
                       onChange={(e) => setRegenInstructions(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && !regenerating && !aiLimitReached) handleRegenerate();
+                        if (e.key === "Enter" && !refining && !aiLimitReached && regenInstructions.trim()) handleRefine();
                       }}
-                      placeholder='Optional: "make it punchier", "add a stat", "less formal"…'
+                      placeholder='Feedback: "make it longer, add bullet points", "punchier hook", "less formal"…'
                       className="w-full h-10 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] transition-colors"
                     />
                     <Button
                       variant="secondary"
                       fullWidth
-                      loading={regenerating}
-                      disabled={regenerating || aiLimitReached}
-                      onClick={handleRegenerate}
-                      icon={<Sparkles className="w-4 h-4" />}
+                      loading={refining}
+                      disabled={refining || aiLimitReached || !regenInstructions.trim()}
+                      onClick={handleRefine}
+                      icon={<Wand2 className="w-4 h-4" />}
                     >
-                      {regenerating ? "Regenerating…" : "Regenerate a new variation"}
+                      {refining ? "Refining…" : "Refine with feedback"}
                     </Button>
                     <p className="text-[11px] text-[var(--color-text-muted)]">
-                      Your previous variation is kept — flip between them above. The
-                      instruction is a one-off nudge for this variation; your tuned
-                      voice still applies.
+                      Refine edits the current draft from your feedback (your
+                      feedback takes priority). To re-run the original prompt from
+                      scratch, use the regenerate ↻ button above. Variations are
+                      kept — flip between them.
                     </p>
                   </CardContent>
                 </Card>
@@ -936,7 +1205,7 @@ export function CreatePage() {
 
             {/* Save Draft Button */}
             <Button
-              onClick={handleSaveCompose}
+              onClick={handleContinueCompose}
               loading={savingCompose}
               disabled={
                 composeType === "X_POST"
@@ -945,14 +1214,16 @@ export function CreatePage() {
               }
               fullWidth
               glow
-              icon={<Send className="w-5 h-5" />}
+              icon={<ArrowRight className="w-5 h-5" />}
+              iconPosition="right"
               className="h-14 text-base"
             >
-              {savingCompose ? "Saving..." : "Save Draft & Continue"}
+              {savingCompose ? "Opening…" : "Continue to Publish"}
             </Button>
 
             <p className="text-xs text-center text-[var(--color-text-muted)]">
-              You&apos;ll be able to edit, publish, or schedule on the next screen
+              Edit, save as a draft, publish, or schedule on the next screen — nothing
+              is saved until you choose to
             </p>
           </div>
         </TabsContent>

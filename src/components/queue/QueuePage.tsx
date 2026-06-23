@@ -22,12 +22,31 @@ type ScheduledPost = {
   payload?: Record<string, unknown> | null;
 };
 
+type QueueAction = "cancel" | "retry" | "delete";
+
 function statusBadgeVariant(status: ScheduledPost["status"]) {
   if (status === "posted") return "success" as const;
   if (status === "failed") return "danger" as const;
   if (status === "publishing") return "primary" as const;
   if (status === "cancelled") return "default" as const;
   return "default" as const;
+}
+
+function statusLabel(status: ScheduledPost["status"]) {
+  switch (status) {
+    case "scheduled":
+      return "Scheduled";
+    case "publishing":
+      return "Publishing…";
+    case "posted":
+      return "Posted";
+    case "failed":
+      return "Didn't post";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return status;
+  }
 }
 
 function statusDotColor(status: ScheduledPost["status"]) {
@@ -38,18 +57,42 @@ function statusDotColor(status: ScheduledPost["status"]) {
   return "bg-[var(--color-primary-400)]";
 }
 
-function getPostPreview(item: ScheduledPost): string {
-  if (!item.payload) return "";
+// Turn a raw API/X error into something a human can act on. The raw text is
+// still available behind a "details" toggle for debugging.
+function friendlyError(raw: string): string {
+  const e = raw.toLowerCase();
+  if (e.includes("duplicate"))
+    return "X rejected this as a duplicate of a recent post. Edit the text and try again.";
+  if (e.includes("partially posted"))
+    return "Only part of this thread went out before X errored. The rest is kept on the draft so you can finish it — don't retry the whole thread.";
+  if (e.includes("401") || e.includes("unauthor") || e.includes("token") || e.includes("reconnect"))
+    return "Your X connection expired. Reconnect X in Settings, then retry.";
+  if (e.includes("rate limit") || e.includes("429") || e.includes("too many"))
+    return "X rate-limited this post. Wait a few minutes, then retry.";
+  if (e.includes("forbidden") || e.includes("403"))
+    return "X wouldn't allow this post. Check the content and your account status.";
+  if (e.includes("media"))
+    return "There was a problem with the attached media. Re-add it and try again.";
+  return "Something went wrong while posting. You can retry, or edit the draft and reschedule.";
+}
+
+// One row per tweet: a single post is [text], a thread is each tweet in order.
+function getPostTexts(item: ScheduledPost): string[] {
+  if (!item.payload) return [];
   const p = item.payload as Record<string, unknown>;
-  if (typeof p.text === "string") return p.text;
-  if (Array.isArray(p.tweets) && p.tweets.length > 0) {
-    const first = p.tweets[0];
-    if (typeof first === "string") return first;
-    if (first && typeof first === "object" && "text" in first && typeof (first as Record<string, unknown>).text === "string")
-      return (first as Record<string, unknown>).text as string;
+  if (Array.isArray(p.tweets) || Array.isArray(p.posts)) {
+    const arr = (Array.isArray(p.tweets) ? p.tweets : p.posts) as unknown[];
+    return arr
+      .map((t) => {
+        if (typeof t === "string") return t;
+        if (t && typeof t === "object" && "text" in t) return String((t as Record<string, unknown>).text || "");
+        return "";
+      })
+      .filter(Boolean);
   }
-  if (typeof p.content === "string") return p.content;
-  return "";
+  if (typeof p.text === "string") return [p.text];
+  if (typeof p.content === "string") return [p.content];
+  return [];
 }
 
 function getDaysInMonth(year: number, month: number) {
@@ -67,29 +110,168 @@ const MONTH_NAMES = [
 
 const DAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function ActionButton({
+function QueueItemCard({
   item,
   workingId,
   onAction,
 }: {
   item: ScheduledPost;
   workingId: string | null;
-  onAction: (id: string, action: "cancel" | "retry") => void;
+  onAction: (id: string, action: QueueAction) => void;
 }) {
-  if (item.status !== "scheduled" && item.status !== "failed") return null;
-  const action = item.status === "failed" ? "retry" : "cancel";
+  const [expanded, setExpanded] = useState(false);
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
+
+  const texts = getPostTexts(item);
+  const isThread = item.content_type === "X_THREAD";
+  const preview = texts[0] || "";
+  const canExpand = isThread ? texts.length > 1 : preview.length > 220;
+  const busy = workingId === item.id;
+
+  const canCancel = item.status === "scheduled";
+  const canRetry = item.status === "failed";
+  const canDelete = item.status !== "publishing";
+
   return (
-    <button
-      onClick={() => onAction(item.id, action)}
-      disabled={workingId === item.id}
-      className={`px-3 py-1.5 rounded-md text-xs font-medium border transition ${
-        action === "retry"
-          ? "bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] border-[var(--color-primary-500)]/20 hover:bg-[var(--color-primary-500)]/15"
-          : "bg-[var(--color-danger-500)]/10 text-[var(--color-danger-400)] border-[var(--color-danger-500)]/20 hover:bg-[var(--color-danger-500)]/15"
-      }`}
-    >
-      {workingId === item.id ? "Working…" : action === "retry" ? "Retry" : "Cancel"}
-    </button>
+    <Card className="hover:border-[var(--color-border-strong)] transition-all duration-200">
+      <CardContent>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1 space-y-2">
+            {/* Status row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="default">{isThread ? "Thread" : "Post"}</Badge>
+              <Badge variant={statusBadgeVariant(item.status)}>{statusLabel(item.status)}</Badge>
+              {isThread && texts.length > 1 && (
+                <span className="text-xs text-[var(--color-text-muted)]">{texts.length} tweets</span>
+              )}
+            </div>
+
+            {/* Schedule time */}
+            <div className="text-sm text-[var(--color-text-primary)] font-mono tabular-nums">
+              {new Date(item.scheduled_for).toLocaleString([], {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </div>
+
+            {/* Post text — the actual content, viewable */}
+            {preview ? (
+              <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]/50 px-3 py-2.5">
+                {isThread && expanded ? (
+                  <div className="space-y-2">
+                    {texts.map((tw, i) => (
+                      <div key={i}>
+                        <span className="text-[11px] text-[var(--color-text-muted)]">
+                          {i + 1}/{texts.length}
+                        </span>
+                        <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap mt-0.5">
+                          {tw}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p
+                    className={`text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap ${
+                      !expanded ? "line-clamp-3" : ""
+                    }`}
+                  >
+                    {preview}
+                  </p>
+                )}
+                {canExpand && (
+                  <button
+                    onClick={() => setExpanded((v) => !v)}
+                    className="mt-1.5 text-xs font-medium text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors"
+                  >
+                    {expanded ? "Show less" : isThread ? `Show all ${texts.length} tweets` : "Show more"}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--color-text-muted)] italic">No preview available</p>
+            )}
+
+            <div className="text-xs text-[var(--color-text-muted)]">
+              created {formatRelativeTime(item.created_at)}
+            </div>
+
+            {/* Graceful failure message */}
+            {item.status === "failed" && item.error && (
+              <div className="rounded-lg border border-[var(--color-danger-500)]/20 bg-[var(--color-danger-500)]/5 px-3 py-2">
+                <p className="text-xs text-[var(--color-danger-400)]">{friendlyError(item.error)}</p>
+                <button
+                  onClick={() => setShowErrorDetails((v) => !v)}
+                  className="mt-1 text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+                >
+                  {showErrorDetails ? "Hide details" : "Details"}
+                </button>
+                {showErrorDetails && (
+                  <p className="mt-1 text-[11px] font-mono text-[var(--color-text-muted)] break-words">
+                    {item.error}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Posted links */}
+            {Array.isArray(item.posted_post_ids) && item.posted_post_ids.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-0.5">
+                {item.posted_post_ids.slice(0, 3).map((pid) => (
+                  <a
+                    key={pid}
+                    href={`https://x.com/i/web/status/${pid}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] underline underline-offset-2"
+                  >
+                    View on X ↗
+                  </a>
+                ))}
+                {item.posted_post_ids.length > 3 && (
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    +{item.posted_post_ids.length - 3} more
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-wrap gap-2 pt-1">
+              {canCancel && (
+                <button
+                  onClick={() => onAction(item.id, "cancel")}
+                  disabled={busy}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium border bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] border-[var(--color-border-default)] hover:bg-[var(--color-bg-hover)] disabled:opacity-50 transition"
+                >
+                  {busy ? "Working…" : "Cancel"}
+                </button>
+              )}
+              {canRetry && (
+                <button
+                  onClick={() => onAction(item.id, "retry")}
+                  disabled={busy}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium border bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] border-[var(--color-primary-500)]/20 hover:bg-[var(--color-primary-500)]/15 disabled:opacity-50 transition"
+                >
+                  {busy ? "Working…" : "Retry"}
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  onClick={() => onAction(item.id, "delete")}
+                  disabled={busy}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium border bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-[var(--color-danger-400)] hover:border-[var(--color-danger-500)]/30 disabled:opacity-50 transition"
+                >
+                  {busy ? "Working…" : "Delete"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -125,11 +307,19 @@ export function QueuePage() {
     boot();
   }, []);
 
-  async function handleAction(id: string, action: "cancel" | "retry") {
+  async function handleAction(id: string, action: QueueAction) {
+    if (action === "delete" && !confirm("Delete this post from the queue? This can't be undone.")) {
+      return;
+    }
     setWorkingId(id);
     setActionError(null);
     try {
-      const endpoint = action === "retry" ? "/api/publish/retry" : "/api/publish/cancel";
+      const endpoint =
+        action === "retry"
+          ? "/api/publish/retry"
+          : action === "delete"
+            ? "/api/publish/delete"
+            : "/api/publish/cancel";
       await apiFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -137,9 +327,7 @@ export function QueuePage() {
       });
       await load();
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : `Failed to ${action} the post`
-      );
+      setActionError(err instanceof Error ? err.message : `Failed to ${action} the post`);
     } finally {
       setWorkingId(null);
     }
@@ -178,6 +366,22 @@ export function QueuePage() {
   }
 
   const selectedPosts = selectedDate ? (postsByDate[selectedDate] || []) : [];
+
+  // Surface the most relevant work first in the list: live/queued before history.
+  const sortedItems = useMemo(() => {
+    const order: Record<ScheduledPost["status"], number> = {
+      publishing: 0,
+      scheduled: 1,
+      failed: 2,
+      posted: 3,
+      cancelled: 4,
+    };
+    return [...items].sort((a, b) => {
+      const d = order[a.status] - order[b.status];
+      if (d !== 0) return d;
+      return new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime();
+    });
+  }, [items]);
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -230,43 +434,13 @@ export function QueuePage() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {items.map((item) => (
-                  <Card key={item.id} className="hover:border-[var(--color-border-strong)] transition-all duration-200">
-                    <CardContent>
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="default">{item.content_type === "X_POST" ? "Post" : "Thread"}</Badge>
-                            <Badge variant={statusBadgeVariant(item.status)}>{item.status}</Badge>
-                            {item.status === "failed" && (
-                              <span className="text-xs text-[var(--color-text-muted)]">retry available</span>
-                            )}
-                          </div>
-                          <div className="text-sm text-[var(--color-text-primary)] font-mono tabular-nums">
-                            {new Date(item.scheduled_for).toLocaleString()}
-                          </div>
-                          <div className="text-xs text-[var(--color-text-muted)]">
-                            created {formatRelativeTime(item.created_at)}
-                          </div>
-                          {item.error && (
-                            <div className="text-xs text-[var(--color-danger-400)] mt-2">{item.error}</div>
-                          )}
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <ActionButton item={item} workingId={workingId} onAction={handleAction} />
-                          </div>
-                        </div>
-                        {Array.isArray(item.posted_post_ids) && item.posted_post_ids.length > 0 && (
-                          <div className="text-xs text-[var(--color-text-muted)] text-right">
-                            <div>posted ids</div>
-                            <div className="font-mono">
-                              {item.posted_post_ids.slice(0, 2).join(", ")}
-                              {item.posted_post_ids.length > 2 ? "…" : ""}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                {sortedItems.map((item) => (
+                  <QueueItemCard
+                    key={item.id}
+                    item={item}
+                    workingId={workingId}
+                    onAction={handleAction}
+                  />
                 ))}
               </div>
             )}
@@ -353,7 +527,7 @@ export function QueuePage() {
                           <span
                             key={post.id}
                             className={`w-2 h-2 rounded-full ${statusDotColor(post.status)}`}
-                            title={`${post.status} — ${new Date(post.scheduled_for).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}
+                            title={`${statusLabel(post.status)} — ${new Date(post.scheduled_for).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}
                           />
                         ))}
                         {postsOnDay.length > 3 && (
@@ -391,46 +565,14 @@ export function QueuePage() {
                 {selectedPosts.length === 0 ? (
                   <p className="text-xs text-[var(--color-text-muted)]">No posts scheduled for this day.</p>
                 ) : (
-                  selectedPosts.map((item) => {
-                    const preview = getPostPreview(item);
-                    return (
-                      <Card key={item.id} className="hover:border-[var(--color-border-strong)] transition-all duration-200">
-                        <CardContent>
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="space-y-1 min-w-0 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Badge variant="default">{item.content_type === "X_POST" ? "Post" : "Thread"}</Badge>
-                                <Badge variant={statusBadgeVariant(item.status)}>{item.status}</Badge>
-                                <span className="text-xs text-[var(--color-text-muted)] font-mono tabular-nums">
-                                  {new Date(item.scheduled_for).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                                </span>
-                              </div>
-                              {preview && (
-                                <p className="text-sm text-[var(--color-text-secondary)] truncate mt-1">
-                                  {preview.length > 120 ? preview.slice(0, 120) + "…" : preview}
-                                </p>
-                              )}
-                              {item.error && (
-                                <div className="text-xs text-[var(--color-danger-400)] mt-1">{item.error}</div>
-                              )}
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                <ActionButton item={item} workingId={workingId} onAction={handleAction} />
-                              </div>
-                            </div>
-                            {Array.isArray(item.posted_post_ids) && item.posted_post_ids.length > 0 && (
-                              <div className="text-xs text-[var(--color-text-muted)] text-right shrink-0">
-                                <div>posted ids</div>
-                                <div className="font-mono">
-                                  {item.posted_post_ids.slice(0, 2).join(", ")}
-                                  {item.posted_post_ids.length > 2 ? "…" : ""}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
+                  selectedPosts.map((item) => (
+                    <QueueItemCard
+                      key={item.id}
+                      item={item}
+                      workingId={workingId}
+                      onAction={handleAction}
+                    />
+                  ))
                 )}
               </div>
             )}

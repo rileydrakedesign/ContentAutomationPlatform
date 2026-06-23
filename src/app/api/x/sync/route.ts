@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { getUserTimeline, getValidAccessToken } from "@/lib/x-api";
 import { requireFeature } from "@/lib/stripe/gate";
+import { checkRateLimit } from "@/lib/api/rate-limit";
 
 // POST /api/x/sync - Sync user's tweets from X (v2 API)
 export async function POST() {
@@ -21,6 +22,15 @@ export async function POST() {
     // X API sync requires Pro plan
     const gateError = await requireFeature(user.id, "xApiSync");
     if (gateError) return gateError;
+
+    // Per-user throttle — each sync pulls 100 tweets from the billed X API.
+    const rl = await checkRateLimit(`x-sync:${user.id}`, 5);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Sync already running — try again in a minute." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
 
     const { accessToken, connection } = await getValidAccessToken(user.id);
 

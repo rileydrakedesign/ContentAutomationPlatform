@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
-import { createChatCompletion, AIProvider } from "@/lib/ai";
+import { createChatCompletion, AIProvider, resolveProvider } from "@/lib/ai";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { requireAiGeneration } from "@/lib/stripe/gate";
 import { isGenerationApplicablePattern } from "@/lib/analysis/pattern-applicability";
@@ -82,6 +82,9 @@ export async function POST(request: NextRequest) {
     // top-3 are filtered to generation-applicable patterns only — timing,
     // post-type (single/thread), and visual/media patterns are insights but
     // not things the text model controls (see pattern-applicability.ts).
+    // Only patterns the user explicitly selected for this post are applied. We
+    // no longer force default top patterns in — the tuned voice stays the
+    // baseline, and unselected patterns are not used (per-post intent wins).
     const wasExplicitSelection = patternIds.length > 0;
     let patterns: Pattern[] = [];
     if (wasExplicitSelection) {
@@ -93,19 +96,6 @@ export async function POST(request: NextRequest) {
 
       if (patternError) throw patternError;
       patterns = (patternData || []).filter(isGenerationApplicablePattern);
-    } else {
-      // Get top enabled, generation-applicable patterns by default. Over-fetch
-      // then filter so non-applicable rows don't crowd out the top 3.
-      const { data: defaultPatterns, error: defaultError } = await supabase
-        .from("extracted_patterns")
-        .select("id, pattern_type, pattern_name, pattern_value, multiplier, applies_to_generation")
-        .eq("user_id", user.id)
-        .eq("is_enabled", true)
-        .order("multiplier", { ascending: false })
-        .limit(10);
-
-      if (defaultError) throw defaultError;
-      patterns = (defaultPatterns || []).filter(isGenerationApplicablePattern).slice(0, 3);
     }
 
     // Fetch user's voice settings including AI model preference
@@ -116,40 +106,44 @@ export async function POST(request: NextRequest) {
       .eq("voice_type", "post")
       .single();
 
-    const aiProvider: AIProvider = (voiceSettings?.ai_model as AIProvider) || "openai";
+    const aiProvider: AIProvider = resolveProvider(voiceSettings?.ai_model as string | null);
 
     // Voice dials, guardrails, examples, and default patterns all come from
     // the assembled system prompt (one canonical tuned context). The user
     // prompt only carries explicit per-request steering: user-selected
     // pattern IDs.
-    const patternInstructions = wasExplicitSelection && patterns.length > 0
-      ? `The user explicitly selected these proven patterns for this post — prioritize applying them (while staying in their authentic voice; never force one if it breaks the voice):\n${patterns.map(p => `- ${p.pattern_name}: ${p.pattern_value}`).join('\n')}`
+    const hasSelectedPatterns = wasExplicitSelection && patterns.length > 0;
+
+    // Priority ladder: explicit instruction > inspiration > selected patterns >
+    // tuned voice (baseline). Mirrors the Agent pipeline so both modes weight
+    // the user's per-post choices over default voice tendencies.
+    const ladderLines: string[] = ["Priority order for THIS post (highest first):"];
+    let pri = 1;
+    if (instructions && instructions.trim())
+      ladderLines.push(`${pri++}. The explicit instruction below — follow it fully, even where it diverges from your usual voice tendencies (length, format, structure are yours to change on request).`);
+    if (inspirationPost)
+      ladderLines.push(`${pri++}. The inspiration post below — match its structure, format, and length closely; it is the primary template for this post.`);
+    if (hasSelectedPatterns) ladderLines.push(`${pri++}. The selected proven patterns below.`);
+    ladderLines.push(`${pri++}. The user's tuned voice (from the system prompt) — tone, vocabulary, and personality. The baseline, not a cage: never let it override the explicit choices above.`);
+    const priorityLadder = ladderLines.join("\n");
+
+    // Explicit instruction is the top directive — it overrides default voice tendencies.
+    const instructionLine = instructions && instructions.trim()
+      ? `EXPLICIT INSTRUCTION FOR THIS POST (apply fully; overrides default voice tendencies where they conflict): ${instructions.trim()}`
+      : "";
+
+    // Inspiration is the heaviest stylistic driver when present.
+    const inspirationInstructions = inspirationPost
+      ? `INSPIRATION POST (model this post closely on its structure, format, length, and hook style — adapt the wording into the user's voice; do not copy verbatim):\n@${inspirationPost.author}: "${inspirationPost.text}"`
+      : "";
+
+    const patternInstructions = hasSelectedPatterns
+      ? `Selected proven patterns — apply them where they fit:\n${patterns.map(p => `- ${p.pattern_name}: ${p.pattern_value}`).join('\n')}`
       : "";
 
     const formatInstructions = draftType === "X_THREAD"
-      ? "Generate a thread of 3-5 connected tweets. Each tweet should be under 280 characters. Start with a hook that grabs attention. Use line breaks within individual tweets for readability where appropriate."
-      : `Generate a single post for X. Make it punchy and engaging.
-Use formatting to improve readability when appropriate:
-- Use line breaks (\\n) to separate ideas and create visual breathing room
-- Use bullet points (•) or dashes (-) for lists
-- Use short paragraphs instead of walls of text
-- Preserve the natural structure of the content
-Keep the post concise but don't artificially limit to 280 characters — longer formatted posts are fine when the content warrants it.`;
-
-    const inspirationInstructions = inspirationPost
-      ? `Use this post as style and format inspiration (adapt the approach, don't copy):
----
-@${inspirationPost.author}: "${inspirationPost.text}"
----
-Study the structure, tone, and hooks used. Create original content on the topic that captures similar energy and format.`
-      : "";
-
-    // One-off per-request steering, subordinate to the tuned voice (mirrors how
-    // generate-reply frames `tone`): applies to THIS generation only and never
-    // overrides how the user actually writes.
-    const instructionLine = instructions && instructions.trim()
-      ? `One-off adjustment for this request only (the user's voice still applies; do not let this override it): ${instructions.trim()}`
-      : "";
+      ? "Format: a thread of 3-5 connected tweets, each under 280 characters, starting with a hook. Use line breaks within tweets for readability where appropriate."
+      : `Format: a single X post. Use line breaks, bullets (•/-), and short paragraphs for readability when appropriate. Keep it as tight as the instruction allows; don't artificially cap at 280 characters when the content warrants more.`;
 
     // On regenerate, steer away from variations already shown so the new one is
     // genuinely different.
@@ -162,13 +156,15 @@ Study the structure, tone, and hooks used. Create original content on the topic 
 
     const prompt = `Generate ${generateCount} ${draftType === "X_THREAD" ? "thread" : "tweet"} option${generateCount === 1 ? "" : "s"} about: "${topic}"
 
-${formatInstructions}
+${priorityLadder}
+
+${instructionLine}
 
 ${inspirationInstructions}
 
 ${patternInstructions}
 
-${instructionLine}
+${formatInstructions}
 
 ${priorVariationsBlock}
 
@@ -179,9 +175,11 @@ Return a JSON array with ${generateCount} option${generateCount === 1 ? "" : "s"
 
 Return ONLY the JSON array, no other text.`;
 
-    // Use the same voice prompt assembler used across the app
+    // Use the same voice prompt assembler used across the app. includePatterns
+    // is false so default patterns aren't force-injected — only the explicitly
+    // selected ones above are applied.
     const { getAssembledPromptForUser } = await import("@/lib/openai/prompts/prompt-assembler");
-    const systemPrompt = await getAssembledPromptForUser(supabase, user.id, "post");
+    const systemPrompt = await getAssembledPromptForUser(supabase, user.id, "post", { includePatterns: false });
 
     const result = await createChatCompletion({
       provider: aiProvider,

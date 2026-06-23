@@ -5,6 +5,7 @@ export const maxDuration = 120;
 import { createAuthClient } from "@/lib/supabase/server";
 import { getValidAccessToken, uploadMediaV2, setMediaAltText } from "@/lib/x-api";
 import { DRAFT_MEDIA_BUCKET } from "@/lib/x-api/media";
+import { checkRateLimit } from "@/lib/api/rate-limit";
 
 // Server-side X media upload. The X token never leaves the server; the browser
 // posts the file here and gets back a media_id to attach to a draft/publish.
@@ -38,6 +39,15 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Per-user throttle — uploads buffer large files in memory and hit X.
+    const rl = await checkRateLimit(`x-media:${user.id}`, 20);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many uploads — please slow down." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
     }
 
     const form = await request.formData();
@@ -132,7 +142,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Media upload failed:", error);
     Sentry.captureException(error, { tags: { route: "x/media/upload" } });
-    const message = error instanceof Error ? error.message : "Media upload failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Media upload failed. Please try again." }, { status: 500 });
   }
 }

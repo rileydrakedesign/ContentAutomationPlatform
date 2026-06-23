@@ -31,9 +31,9 @@ export function TopicInput({ value, onChange, suggestions = [] }: TopicInputProp
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholder="Enter your topic or idea..."
-          rows={3}
+          rows={6}
           className={`
-            w-full px-4 py-3 text-sm resize-none transition-all duration-200
+            w-full min-h-[160px] px-4 py-3 text-sm resize-y transition-all duration-200
             ${isFocused ? "ring-2 ring-[var(--color-primary-500)]/20" : ""}
           `}
         />

@@ -14,9 +14,27 @@ export type AIProvider = "openai" | "claude" | "grok";
 export type ModelTier = "fast" | "standard";
 
 /**
+ * Force all post/reply generation onto Claude while keeping the multi-provider
+ * switching code (openai/claude/grok) intact and selectable in the DB. The
+ * model picker still writes `ai_model`; this just overrides the resolved
+ * provider at read time. Set AI_CLAUDE_ONLY=false to re-enable the picker.
+ */
+export const CLAUDE_ONLY = process.env.AI_CLAUDE_ONLY !== "false";
+
+/**
+ * Map a stored `ai_model` preference to the provider we actually call. While
+ * CLAUDE_ONLY is on, every path resolves to "claude" regardless of the stored
+ * value — the switching machinery below stays in place but is bypassed.
+ */
+export function resolveProvider(stored?: string | null): AIProvider {
+  if (CLAUDE_ONLY) return "claude";
+  return (stored as AIProvider) || "openai";
+}
+
+/**
  * Resolve the user's selected AI provider from their voice settings.
- * Falls back to "openai" when unset. Centralizes the ai_model -> provider
- * mapping so every generation path honors the model picker in settings.
+ * Centralizes the ai_model -> provider mapping so every generation path
+ * honors the model picker in settings (subject to the CLAUDE_ONLY override).
  */
 export async function getUserProvider(
   supabase: SupabaseClient,
@@ -27,7 +45,7 @@ export async function getUserProvider(
     .select("ai_model")
     .eq("user_id", userId)
     .maybeSingle();
-  return (data?.ai_model as AIProvider) || "openai";
+  return resolveProvider(data?.ai_model as string | null);
 }
 
 export interface ChatMessage {

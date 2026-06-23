@@ -5,12 +5,18 @@ import { requireFeature } from "@/lib/stripe/gate";
 import { getValidAccessToken } from "@/lib/x-api";
 import { findReplyTargets } from "@/lib/x-api/reply-targets";
 import { getDualAuthUser } from "@/lib/api/dual-auth";
+import {
+  CREDIT_COSTS,
+  requireCredits,
+  refundCredits,
+} from "@/lib/billing/credits";
 
 export const maxDuration = 60;
 
 // X bills search per post returned, so cap the page size hard.
 const MIN_RESULTS = 10;
 const MAX_RESULTS = 25;
+const MIN_CHARGE = 5;
 
 export async function OPTIONS() {
   return handleCors();
@@ -55,7 +61,30 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const found = await findReplyTargets(user.id, { query, maxResults, sort });
+    // X bills per post it RETURNS. Debit the worst case up front (1 credit/
+    // result, min 5), then refund the difference once we know the actual count.
+    // Mirrors /api/v1/search/reply-targets so the dashboard can't bypass the
+    // metering the agent surface enforces.
+    const maxCharge = maxResults * CREDIT_COSTS["search.per_post"];
+    const charge = await requireCredits(user.id, maxCharge, "search.per_post");
+    if (charge instanceof NextResponse) return charge;
+
+    let found: Awaited<ReturnType<typeof findReplyTargets>>;
+    try {
+      found = await findReplyTargets(user.id, { query, maxResults, sort });
+    } catch (error) {
+      await refundCredits(user.id, charge.charged, "refund.search_failed");
+      throw error;
+    }
+
+    const actualCharge = Math.max(
+      MIN_CHARGE,
+      found.returned_count * CREDIT_COSTS["search.per_post"]
+    );
+    const overcharge = maxCharge - actualCharge;
+    if (overcharge > 0) {
+      await refundCredits(user.id, overcharge, "refund.search_overcount");
+    }
 
     return NextResponse.json(
       {
@@ -70,7 +99,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Reply-target search failed:", error);
     Sentry.captureException(error, { tags: { route: "search/reply-targets" } });
-    const message = error instanceof Error ? error.message : "Search failed";
-    return NextResponse.json({ error: message }, { status: 500, headers: corsHeaders });
+    return NextResponse.json(
+      { error: "Search failed. Please try again." },
+      { status: 500, headers: corsHeaders }
+    );
   }
 }

@@ -1805,34 +1805,58 @@ async function injectReplyText(text, replyMeta = null) {
       if (editableDiv) {
         console.log('[Content Pipeline] Found editable div, injecting text');
 
+        // X's composer is a DraftJS editor. Native edits like
+        // execCommand('insertText') write a raw text node straight into the
+        // contenteditable DOM, while DraftJS ALSO inserts into its own model and
+        // re-renders from it. The two don't reconcile, leaving a model-backed copy
+        // plus an orphan DOM text node — the "ghost" double that only deletes
+        // halfway. To avoid that, drive DraftJS's own paste pipeline, which is
+        // fully model-driven and re-renders cleanly with no orphan nodes.
+
         // Focus the element
         editableDiv.focus();
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Clear and insert text using execCommand
-        const selection = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(editableDiv);
-        selection.removeAllRanges();
-        selection.addRange(range);
+        // Select all existing content the way DraftJS understands so the paste
+        // replaces it (idempotent — wipes any restored draft or prior insert).
+        document.execCommand('selectAll', false, null);
 
-        // Insert the text
-        document.execCommand('insertText', false, text);
+        const pasteText = (payload) => {
+          const dataTransfer = new DataTransfer();
+          dataTransfer.setData('text/plain', payload);
+          return editableDiv.dispatchEvent(new ClipboardEvent('paste', {
+            bubbles: true,
+            cancelable: true,
+            clipboardData: dataTransfer,
+          }));
+        };
 
-        // Verify insertion
-        await new Promise(resolve => setTimeout(resolve, 50));
-        if (editableDiv.textContent.includes(text.substring(0, Math.min(20, text.length)))) {
-          console.log('[Content Pipeline] Reply injected successfully');
+        let injected = false;
+        try {
+          pasteText(text);
+          await new Promise(resolve => setTimeout(resolve, 150));
+          const probe = text.substring(0, Math.min(20, text.length));
+          injected = editableDiv.textContent.trim() === text.trim() ||
+                     editableDiv.textContent.includes(probe);
+        } catch (pasteErr) {
+          console.warn('[Content Pipeline] Synthetic paste failed:', pasteErr);
+        }
+
+        if (injected) {
+          console.log('[Content Pipeline] Reply injected successfully (paste)');
           attachReplySendLogger(text, replyMeta);
           return;
         }
 
-        // Fallback: direct text manipulation
-        console.log('[Content Pipeline] execCommand failed, trying direct manipulation');
-        editableDiv.textContent = text;
-        editableDiv.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
+        // Fallback for browsers where the constructed ClipboardEvent carries no
+        // usable clipboardData: clear DraftJS's selection-all, then insertText.
+        console.log('[Content Pipeline] Paste did not take, falling back to insertText');
+        editableDiv.focus();
+        document.execCommand('selectAll', false, null);
+        document.execCommand('insertText', false, text);
 
-        console.log('[Content Pipeline] Reply injected via direct manipulation');
+        await new Promise(resolve => setTimeout(resolve, 100));
+        console.log('[Content Pipeline] Reply injected via insertText fallback');
         attachReplySendLogger(text, replyMeta);
         return;
       }

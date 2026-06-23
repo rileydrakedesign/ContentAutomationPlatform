@@ -24,7 +24,15 @@ export async function enqueuePublish(params: {
   userId: string;
   notBefore: number; // epoch seconds
 }): Promise<{ messageId: string | null }> {
-  const base = (process.env.QSTASH_PUBLISH_URL || "").replace(/\/$/, "");
+  // QSTASH_PUBLISH_URL is optional and falls back to the canonical app origin
+  // (the same source the QStash setup script and CORS use). Without a fallback,
+  // an empty/missing value produced a RELATIVE callback URL, which QStash
+  // rejects — silently killing exact-time per-post delivery.
+  const base = (
+    process.env.QSTASH_PUBLISH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://app.agentsforx.com"
+  ).replace(/\/$/, "");
   const publishUrl = `${base}/api/qstash/publish`;
   // The post id rides in the callback URL so the failure route can identify the
   // post without depending on QStash's failure-body shape.

@@ -24,6 +24,8 @@ export function InsightsPage() {
   const initialTab = searchParams.get("tab") || "overview";
   const { isFreePlan } = useSubscription();
 
+  const [activeTab, setActiveTab] = useState(initialTab);
+
   const [analyticsData, setAnalyticsData] = useState<UserAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showUploadDrawer, setShowUploadDrawer] = useState(false);
@@ -72,6 +74,8 @@ export function InsightsPage() {
   }, []);
 
   const handleRunTuneup = async () => {
+    // Surface the analyzing state + result where it now lives.
+    setActiveTab("voice");
     setTuningUp(true);
     setTuneupError(null);
     try {
@@ -131,9 +135,15 @@ export function InsightsPage() {
         </button>
       </div>
 
-      <Tabs defaultValue={initialTab}>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="voice">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3 text-[var(--color-primary-400)]" />
+              Voice Report
+            </span>
+          </TabsTrigger>
           <TabsTrigger value="patterns">
             <span className="flex items-center gap-1.5">
               Patterns
@@ -149,7 +159,7 @@ export function InsightsPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview">
+        <TabsContent value="voice">
           <div className="space-y-6">
             {tuneupError && (
               <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[var(--color-danger-500)]/5 border border-[var(--color-danger-500)]/20">
@@ -182,7 +192,41 @@ export function InsightsPage() {
                 </span>
               </div>
             )}
-            {tuneupReport && <VoiceReport report={tuneupReport} />}
+            {tuneupReport ? (
+              <VoiceReport report={tuneupReport} />
+            ) : (
+              !reportLoading &&
+              !tuningUp && (
+                <div className="flex flex-col items-center justify-center text-center gap-3 py-16 px-6 rounded-xl border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-elevated)]/40">
+                  <div className="w-11 h-11 rounded-xl bg-[var(--color-primary-500)]/10 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-[var(--color-primary-400)]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                      No Voice Report yet
+                    </h3>
+                    <p className="text-sm text-[var(--color-text-muted)] mt-1 max-w-sm">
+                      Run a Voice Tune-Up to analyze your niche, positioning, and
+                      top-performing patterns — then see exactly how your content
+                      sounds like you.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleRunTuneup}
+                    disabled={tuningUp}
+                    className="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-muted)] text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Run Voice Tune-Up</span>
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="overview">
+          <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
               <div className="lg:col-span-3">
                 <GrowthTrendChart posts={analyticsData?.posts || []} />

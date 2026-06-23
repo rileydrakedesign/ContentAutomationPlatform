@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { requireClient } from "@/lib/agency/guard";
+import { checkRateLimit } from "@/lib/api/rate-limit";
 import { runVoiceTuneup } from "@/lib/analysis/tuneup";
 
 export const runtime = "nodejs";
@@ -18,6 +19,15 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const ctx = await requireClient(id);
   if (ctx instanceof NextResponse) return ctx;
+
+  // Burst guard — per-client tune-up runs the full 300s multi-model pipeline.
+  const rl = await checkRateLimit(`agency-tuneup:${id}`, 3);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "A tune-up just ran for this client — please wait a moment." },
+      { status: 429, headers: { ...corsHeaders, "Retry-After": "60" } }
+    );
+  }
 
   try {
     const result = await runVoiceTuneup(ctx.admin, id, { allowPatternExtraction: true });

@@ -614,8 +614,14 @@ export function assemblePrompt(context: AssemblyContext): AssembledPrompt {
 export async function getAssembledPromptForUser(
   supabase: SupabaseClient,
   userId: string,
-  voiceType: VoiceType = 'reply'
+  voiceType: VoiceType = 'reply',
+  // `includePatterns` defaults to true (every existing caller's behavior). The
+  // post creator passes false so the tuned voice stays the baseline but default
+  // patterns aren't force-injected — only patterns the user explicitly selected
+  // for that post are applied, via the per-request user prompt.
+  options?: { includePatterns?: boolean }
 ): Promise<string> {
+  const includePatterns = options?.includePatterns ?? true;
   // Fetch voice settings for the specific voice type
   const { data: settings } = await supabase
     .from('user_voice_settings')
@@ -688,7 +694,7 @@ export async function getAssembledPromptForUser(
     feedback: (feedback as FeedbackItem[]) || [],
     mode: voiceType,
     nicheProfile: nicheProfile || null,
-    patterns: (patterns as PatternForPrompt[]) || [],
+    patterns: includePatterns ? (patterns as PatternForPrompt[]) || [] : [],
     strategy: (strategy as StrategyForPrompt) || null,
   });
 

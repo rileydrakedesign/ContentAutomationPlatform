@@ -5,6 +5,7 @@ export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { requireAiGeneration, requireFeature } from "@/lib/stripe/gate";
+import { checkRateLimit } from "@/lib/api/rate-limit";
 import { runVoiceTuneup } from "@/lib/analysis/tuneup";
 
 export async function OPTIONS() {
@@ -31,6 +32,16 @@ export async function POST() {
 
     const gateError = await requireAiGeneration(user.id, "voice-tuneup");
     if (gateError) return gateError;
+
+    // Burst guard — a tune-up runs a multi-model pipeline; back-to-back runs
+    // are never legitimate and Pro daily generations are unlimited.
+    const rl = await checkRateLimit(`voice-tuneup:${user.id}`, 3);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "A tune-up just ran — please wait a moment." },
+        { status: 429, headers: { ...corsHeaders, "Retry-After": "60" } }
+      );
+    }
 
     // Pattern extraction is a Pro feature — skipped gracefully, not fatal
     const patternGate = await requireFeature(user.id, "patternExtraction");

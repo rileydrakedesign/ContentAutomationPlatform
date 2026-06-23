@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { searchRecentTweets, getValidAccessToken } from "@/lib/x-api";
+import { checkRateLimit } from "@/lib/api/rate-limit";
 
 // POST /api/x/search - Search recent tweets for inspiration
 export async function POST(request: NextRequest) {
@@ -15,6 +16,15 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Per-user throttle — search hits the billed X API.
+    const rl = await checkRateLimit(`x-search:${user.id}`, 10);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many searches — please slow down." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
     }
 
     const { accessToken } = await getValidAccessToken(user.id);
@@ -41,7 +51,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Failed to search tweets:", error);
     Sentry.captureException(error, { tags: { route: "x/search" } });
-    const message = error instanceof Error ? error.message : "Search failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Search failed. Please try again." }, { status: 500 });
   }
 }

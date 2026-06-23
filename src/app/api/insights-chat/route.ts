@@ -5,8 +5,13 @@ export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
 import { createChatCompletion } from "@/lib/ai";
 import { requireFeature, requireAiGeneration } from "@/lib/stripe/gate";
+import { corsHeaders, handleCors } from "@/lib/cors";
 
 type ChatTurn = { role: "user" | "assistant"; content: string };
+
+export async function OPTIONS() {
+  return handleCors();
+}
 
 function clamp(text: string, max: number) {
   if (text.length <= max) return text;
@@ -24,7 +29,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
 
     // Insights chat requires Pro plan
@@ -39,7 +44,7 @@ export async function POST(request: NextRequest) {
     const history: ChatTurn[] = Array.isArray(body?.history) ? body.history : [];
 
     if (!question) {
-      return NextResponse.json({ error: "Missing question" }, { status: 400 });
+      return NextResponse.json({ error: "Missing question" }, { status: 400, headers: corsHeaders });
     }
 
     // Retrieve relevant user data (keep it small + cheap)
@@ -95,7 +100,7 @@ export async function POST(request: NextRequest) {
           `I can’t answer yet because your database is missing required tables: ${missingTables.join(", ")}.\n\n` +
           `Next step: apply the Supabase migrations for this app, then retry.`,
         sources_used: ["db: schema missing (apply migrations)"]
-      });
+      }, { headers: corsHeaders });
     }
 
     // Build a compact “knowledge bundle” as markdown
@@ -231,10 +236,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       answer: String(parsed.answer || ""),
       sources_used: Array.isArray(parsed.sources_used) ? parsed.sources_used : [],
-    });
+    }, { headers: corsHeaders });
   } catch (error) {
     console.error("insights-chat failed:", error);
     Sentry.captureException(error, { tags: { route: "insights-chat" } });
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    return NextResponse.json({ error: "Failed" }, { status: 500, headers: corsHeaders });
   }
 }

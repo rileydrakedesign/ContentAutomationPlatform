@@ -34,20 +34,24 @@ export async function requireFeature(
 }
 
 /**
- * Check and consume an AI generation quota. Returns an error response if limit reached.
+ * Check and consume an AI generation quota. Returns an error response if the
+ * limit is reached. `weight` is how many daily slots the action costs — Quick
+ * generation is 1, the Agent pipeline is 3 — and the run is blocked unless at
+ * least `weight` slots remain.
  */
 export async function requireAiGeneration(
   userId: string,
-  endpoint: string
+  endpoint: string,
+  weight = 1
 ): Promise<NextResponse | null> {
   const { allowed, remaining, limit } = await checkAiGenerationLimit(userId);
 
-  if (!allowed) {
+  if (!allowed || remaining < weight) {
     return NextResponse.json(
       {
         error: "Daily AI generation limit reached",
         code: "AI_LIMIT",
-        remaining: 0,
+        remaining: Math.max(0, remaining),
         limit,
         upgrade_url: "/pricing",
       },
@@ -55,8 +59,8 @@ export async function requireAiGeneration(
     );
   }
 
-  // Log the usage
-  await logAiGeneration(userId, endpoint);
+  // Log the usage (weight rows so heavier actions consume more of the quota)
+  await logAiGeneration(userId, endpoint, weight);
 
   return null; // Access granted
 }

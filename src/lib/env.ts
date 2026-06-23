@@ -11,9 +11,10 @@ const REQUIRED_SERVER_ENV_VARS = [
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
   "NEXT_PUBLIC_STRIPE_PRO_PRICE_ID",
-  // QStash (scheduled publishing)
+  // QStash (scheduled publishing). QSTASH_PUBLISH_URL is intentionally NOT
+  // required: it falls back to NEXT_PUBLIC_APP_URL in enqueue.ts, and listing it
+  // here meant an empty-string value would throw at boot (empty is falsy).
   "QSTASH_TOKEN",
-  "QSTASH_PUBLISH_URL",
   "QSTASH_CURRENT_SIGNING_KEY",
   "QSTASH_NEXT_SIGNING_KEY",
   // Upstash Redis (rate limiting)

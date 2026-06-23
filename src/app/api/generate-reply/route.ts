@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
 import { corsHeaders, handleCors } from "@/lib/cors";
-import { createChatCompletion, AIProvider } from "@/lib/ai";
+import { createChatCompletion, AIProvider, resolveProvider } from "@/lib/ai";
 import { REPLY_SYSTEM_PROMPT } from "@/lib/openai/prompts/reply-prompt";
 import { getAssembledPromptForUser } from "@/lib/openai/prompts/prompt-assembler";
 import { requireAiGeneration } from "@/lib/stripe/gate";
@@ -168,8 +168,8 @@ export async function POST(request: NextRequest) {
       systemPrompt = REPLY_SYSTEM_PROMPT;
     }
 
-    // Get user's AI model preference
-    let aiProvider: AIProvider = "openai";
+    // Get user's AI model preference (CLAUDE_ONLY forces "claude" regardless)
+    let aiProvider: AIProvider = resolveProvider(null);
     try {
       const { data: settings } = await supabase
         .from("user_voice_settings")
@@ -178,9 +178,7 @@ export async function POST(request: NextRequest) {
         .eq("voice_type", "reply")
         .single();
 
-      if (settings?.ai_model) {
-        aiProvider = settings.ai_model as AIProvider;
-      }
+      aiProvider = resolveProvider(settings?.ai_model as string | null);
     } catch (settingsError) {
       console.log("[generate-reply] Could not fetch AI model preference, using default:", settingsError);
     }
@@ -208,7 +206,7 @@ export async function POST(request: NextRequest) {
       console.error("[generate-reply] AI error details:", JSON.stringify(aiError, null, 2));
       Sentry.captureException(aiError, { tags: { route: "generate-reply" } });
       return NextResponse.json(
-        { error: `AI error: ${aiError instanceof Error ? aiError.message : 'Unknown'}` },
+        { error: "Failed to generate replies. Please try again." },
         { status: 500, headers: corsHeaders }
       );
     }

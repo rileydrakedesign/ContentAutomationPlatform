@@ -7,6 +7,7 @@ import { syncUserTimeline } from "@/lib/analysis/timeline-sync";
 import { runVoiceTuneup } from "@/lib/analysis/tuneup";
 import { voiceConfidence } from "@/lib/analysis/voice-confidence";
 import { requireFeature } from "@/lib/stripe/gate";
+import { checkRateLimit } from "@/lib/api/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -32,6 +33,16 @@ export async function POST() {
 
     if (!user || authError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+    }
+
+    // Per-user throttle — bootstrap runs a full timeline pull + Voice Tune-Up
+    // (up to 300s of X + LLM work); back-to-back runs are never legitimate.
+    const rl = await checkRateLimit(`x-bootstrap:${user.id}`, 2);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "A tune-up is already running — please wait a moment." },
+        { status: 429, headers: { ...corsHeaders, "Retry-After": "60" } }
+      );
     }
 
     // Must have a live X connection to have anything to analyze.

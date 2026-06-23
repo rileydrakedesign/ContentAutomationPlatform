@@ -86,19 +86,24 @@ export async function checkAiGenerationLimit(userId: string): Promise<{
 }
 
 /**
- * Log an AI generation for rate limiting.
+ * Log an AI generation for rate limiting. `weight` lets a heavier action
+ * consume multiple daily-quota slots (e.g. the Agent pipeline counts as 3) by
+ * writing that many usage rows in one insert.
  */
 export async function logAiGeneration(
   userId: string,
-  endpoint: string
+  endpoint: string,
+  weight = 1
 ): Promise<void> {
   const supabase = await createAdminClient();
-
-  await supabase.from("ai_usage_log").insert({
+  const now = new Date().toISOString();
+  const rows = Array.from({ length: Math.max(1, weight) }, () => ({
     user_id: userId,
     endpoint,
-    created_at: new Date().toISOString(),
-  });
+    created_at: now,
+  }));
+
+  await supabase.from("ai_usage_log").insert(rows);
 }
 
 /**

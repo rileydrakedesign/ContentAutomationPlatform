@@ -5,7 +5,7 @@
  */
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createChatCompletion, AIProvider } from "@/lib/ai";
+import { createChatCompletion, AIProvider, resolveProvider } from "@/lib/ai";
 import { getAssembledPromptForUser } from "@/lib/openai/prompts/prompt-assembler";
 import type { VoiceType } from "@/types/voice";
 
@@ -16,14 +16,28 @@ export interface VoiceCheckResult {
   suggested_edit: string; // a rewrite that closes the gap
 }
 
+export interface VoiceCheckOptions {
+  // Reuse an already-assembled voice spec (e.g. the post creator's scoped
+  // prompt) instead of re-fetching, so the judge scores against the same spec
+  // the draft was written from.
+  systemPromptOverride?: string;
+  // Explicit, intentional choices the user made for this draft (instructions,
+  // "modeled on an inspiration post"). The judge is told not to penalize the
+  // draft for following them, since they may diverge from the usual voice.
+  constraints?: string;
+}
+
 export async function runVoiceCheck(
   supabase: SupabaseClient,
   userId: string,
   draftText: string,
-  voiceType: VoiceType
+  voiceType: VoiceType,
+  options?: VoiceCheckOptions
 ): Promise<VoiceCheckResult> {
   const [systemPrompt, { data: voiceSettings }] = await Promise.all([
-    getAssembledPromptForUser(supabase, userId, voiceType),
+    options?.systemPromptOverride
+      ? Promise.resolve(options.systemPromptOverride)
+      : getAssembledPromptForUser(supabase, userId, voiceType),
     supabase
       .from("user_voice_settings")
       .select("ai_model")
@@ -32,7 +46,11 @@ export async function runVoiceCheck(
       .single(),
   ]);
 
-  const aiProvider: AIProvider = (voiceSettings?.ai_model as AIProvider) || "openai";
+  const aiProvider: AIProvider = resolveProvider(voiceSettings?.ai_model as string | null);
+
+  const constraintsNote = options?.constraints?.trim()
+    ? `\n\nIMPORTANT — the user gave explicit, intentional direction for THIS draft that may diverge from their usual voice. Do NOT lower the score for following it; judge voice match on tone, vocabulary, and personality, not on choices the user explicitly requested:\n${options.constraints.trim()}`
+    : "";
 
   const judgePrompt = `You are a strict voice editor. Below is the full voice specification a user's content must match — their base style rules, voice controls, niche, proven patterns, and real examples of their writing.
 
@@ -46,7 +64,7 @@ Judge this ${voiceType === "reply" ? "reply" : "post"} draft against the specifi
 ${draftText}
 """
 
-Score how well the draft matches the user's voice and proven patterns (0 = nothing like them, 100 = indistinguishable from their best work). Be calibrated: most decent drafts land 55-85.
+Score how well the draft matches the user's voice and proven patterns (0 = nothing like them, 100 = indistinguishable from their best work). Be calibrated: most decent drafts land 55-85.${constraintsNote}
 
 Return ONLY valid JSON in this exact shape:
 {
