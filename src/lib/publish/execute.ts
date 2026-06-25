@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { getValidAccessToken, postTweet } from "@/lib/x-api";
 import { parseAttachedMedia, resolveMediaIdsForPublish } from "@/lib/x-api/media";
+import { pollForPublish } from "@/lib/x-api/poll";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 interface ScheduledPost {
@@ -68,10 +69,14 @@ export async function executeScheduledPost(
       throw new Error("Cannot publish: content is empty");
     }
 
+    // A poll only applies to a single post (X has no thread polls) and is
+    // mutually exclusive with media. It attaches to the first tweet.
+    const poll = content_type === "X_POST" ? pollForPublish(payload.poll) : null;
+
     // Resolve attached media. X media_ids expire, so for a scheduled post we
     // re-upload from the durable draft-media copy to get fresh ids at publish
     // time. Media attaches to the first tweet only.
-    const attachedMedia = parseAttachedMedia(payload.media);
+    const attachedMedia = poll ? [] : parseAttachedMedia(payload.media);
     const mediaIds =
       attachedMedia.length > 0 && postedIds.length === 0
         ? await resolveMediaIdsForPublish(supabase, accessToken, attachedMedia, {
@@ -91,9 +96,13 @@ export async function executeScheduledPost(
     for (let i = postedIds.length; i < tweetTexts.length; i++) {
       const result = await postTweet(accessToken, tweetTexts[i], {
         inReplyToStatusId: previousId,
-        // Only the first tweet of the run carries the media + reply audience.
+        // Only the first tweet of the run carries the media / poll + reply audience.
         mediaIds: i === 0 && mediaIds.length ? mediaIds : undefined,
         replySettings: i === 0 ? replySettings : undefined,
+        poll:
+          i === 0 && poll
+            ? { options: poll.options, durationMinutes: poll.duration_minutes }
+            : undefined,
       });
       postedIds.push(result.id_str);
       previousId = result.id_str;

@@ -4,6 +4,7 @@ import { createAuthClient } from "@/lib/supabase/server";
 import { postTweet, getValidAccessToken } from "@/lib/x-api";
 import { isReplyForbiddenError } from "@/lib/x-api/search-mapping";
 import { parseAttachedMedia, resolveMediaIdsForPublish } from "@/lib/x-api/media";
+import { pollForPublish } from "@/lib/x-api/poll";
 
 type ContentType = "X_POST" | "X_THREAD" | "X_REPLY";
 
@@ -94,7 +95,9 @@ export async function POST(request: NextRequest) {
       const text = String(payload?.text || "").trim();
       if (!text) return NextResponse.json({ error: "Missing text" }, { status: 400 });
 
-      const media = parseAttachedMedia(payload?.media);
+      // A poll and media are mutually exclusive on X — a poll suppresses media.
+      const poll = pollForPublish(payload?.poll);
+      const media = poll ? [] : parseAttachedMedia(payload?.media);
       const mediaIds = media.length
         ? await resolveMediaIdsForPublish(supabase, accessToken, media, { forceReupload: false })
         : [];
@@ -107,7 +110,15 @@ export async function POST(request: NextRequest) {
       const posted = await postTweet(
         accessToken,
         text,
-        mediaIds.length || replySettings ? { mediaIds: mediaIds.length ? mediaIds : undefined, replySettings } : undefined
+        mediaIds.length || replySettings || poll
+          ? {
+              mediaIds: mediaIds.length ? mediaIds : undefined,
+              replySettings,
+              poll: poll
+                ? { options: poll.options, durationMinutes: poll.duration_minutes }
+                : undefined,
+            }
+          : undefined
       );
 
       // Backfill captured_posts

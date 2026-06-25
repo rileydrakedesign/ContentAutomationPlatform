@@ -432,6 +432,8 @@ export async function postTweet(
     mediaIds?: string[];
     /** Who can reply to this post. Default (omitted) = everyone. */
     replySettings?: "everyone" | "mentionedUsers" | "following";
+    /** Attach a poll. Mutually exclusive with media on X — poll wins if both set. */
+    poll?: { options: string[]; durationMinutes: number };
   }
 ): Promise<{ id_str: string }> {
   const url = `${X_API_BASE}/2/tweets`;
@@ -440,7 +442,14 @@ export async function postTweet(
   if (options?.inReplyToStatusId) {
     body.reply = { in_reply_to_tweet_id: options.inReplyToStatusId };
   }
-  if (options?.mediaIds && options.mediaIds.length > 0) {
+  // A poll and media can't coexist on the same tweet; prefer the poll when both
+  // are somehow present (the composer prevents that, this is a backstop).
+  if (options?.poll && options.poll.options.length >= 2) {
+    body.poll = {
+      options: options.poll.options.slice(0, 4),
+      duration_minutes: options.poll.durationMinutes,
+    };
+  } else if (options?.mediaIds && options.mediaIds.length > 0) {
     body.media = { media_ids: options.mediaIds.slice(0, 4) };
   }
   // X only accepts a non-default reply audience; omit "everyone" to keep the
