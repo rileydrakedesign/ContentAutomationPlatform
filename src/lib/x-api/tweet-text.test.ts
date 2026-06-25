@@ -3,6 +3,8 @@ import {
   weightedTweetLength,
   tweetLengthInfo,
   firstUrl,
+  findUrls,
+  findLinks,
   URL_WEIGHTED_LENGTH,
 } from "./tweet-text";
 
@@ -51,5 +53,26 @@ describe("firstUrl", () => {
     expect(firstUrl("at www.foo.io")).toBe("https://www.foo.io");
     expect(firstUrl("already https://bar.dev/x")).toBe("https://bar.dev/x");
     expect(firstUrl("no links here")).toBe(null);
+  });
+});
+
+describe("findLinks — assistant external-link penalty (vs findUrls)", () => {
+  it("does not flag an email address's domain as a link (#6)", () => {
+    // findUrls (counter/billing) still sees the bare domain...
+    expect(findUrls("ping me at me@google.com please").length).toBe(1);
+    // ...but the penalty must not fire on an email host.
+    expect(findLinks("ping me at me@google.com please")).toEqual([]);
+  });
+
+  it("still flags real links — scheme'd, www, and standalone bare domains", () => {
+    expect(findLinks("read https://example.com now").length).toBe(1);
+    expect(findLinks("see www.foo.io").length).toBe(1);
+    expect(findLinks("I went to google.com today").length).toBe(1);
+  });
+
+  it("flags a real link even when an email is also present", () => {
+    const links = findLinks("mail me@google.com or visit https://site.dev");
+    expect(links.length).toBe(1);
+    expect(links[0].raw).toBe("https://site.dev");
   });
 });

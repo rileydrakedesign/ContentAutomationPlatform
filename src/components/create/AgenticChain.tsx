@@ -8,10 +8,14 @@ import {
   CheckCircle2,
   Loader2,
   ExternalLink,
+  TrendingUp,
+  CircleCheck,
+  CircleAlert,
+  CircleX,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 
-export type StepName = "research" | "draft" | "voice_check" | "iterate";
+export type StepName = "research" | "draft" | "voice_check" | "iterate" | "read";
 
 export interface ChainStepView {
   step: StepName;
@@ -30,11 +34,37 @@ export interface ChainScore {
   score: number;
 }
 
+export interface ChainReadFlag {
+  signal: string;
+  status: "good" | "caution" | "penalty";
+  label: string;
+  note: string;
+}
+
+export interface ChainReadNote {
+  signal: string;
+  weight: number | null;
+  label: string;
+  effect: "positive" | "negative";
+  note: string;
+}
+
+export interface ChainRead {
+  resemblance_score: number;
+  confidence: "low" | "medium" | "high";
+  matched_winning_patterns: { pattern_name: string; multiplier: number }[];
+  missing_high_lift_patterns: { pattern_name: string; pattern_value?: string; multiplier: number }[];
+  algorithm_flags: ChainReadFlag[];
+  algorithm_notes: ChainReadNote[];
+  summary: string;
+}
+
 const STEP_ICON: Record<StepName, typeof Search> = {
   research: Search,
   draft: PenLine,
   voice_check: ShieldCheck,
   iterate: RefreshCw,
+  read: TrendingUp,
 };
 
 function scoreColor(score: number): string {
@@ -43,12 +73,19 @@ function scoreColor(score: number): string {
   return "text-[var(--color-danger-400)]";
 }
 
+const FLAG_STYLE: Record<ChainReadFlag["status"], { icon: typeof CircleCheck; cls: string }> = {
+  good: { icon: CircleCheck, cls: "text-[var(--color-success-400)]" },
+  caution: { icon: CircleAlert, cls: "text-[var(--color-warning-400)]" },
+  penalty: { icon: CircleX, cls: "text-[var(--color-danger-400)]" },
+};
+
 interface AgenticChainProps {
   steps: ChainStepView[];
   sources: ChainSource[];
   scores: ChainScore[];
   liveDraft: string;
   active: boolean;
+  read?: ChainRead | null;
 }
 
 /**
@@ -56,7 +93,7 @@ interface AgenticChainProps {
  * (research → draft → voice-check → iterate) with status icons, the sources
  * surfaced by web search, the streaming draft, and the voice score per pass.
  */
-export function AgenticChain({ steps, sources, scores, liveDraft, active }: AgenticChainProps) {
+export function AgenticChain({ steps, sources, scores, liveDraft, active, read }: AgenticChainProps) {
   if (steps.length === 0 && !active) return null;
 
   return (
@@ -163,6 +200,99 @@ export function AgenticChain({ steps, sources, scores, liveDraft, active }: Agen
                 <span className={`text-sm font-semibold ${scoreColor(sc.score)}`}>{sc.score}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Pre-publish engagement read */}
+        {read && (
+          <div className="mt-5 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]/50 px-3 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-[var(--color-text-primary)]">
+                Engagement read
+              </span>
+              <span className="flex items-baseline gap-1.5">
+                <span className={`text-sm font-semibold ${scoreColor(read.resemblance_score)}`}>
+                  {read.resemblance_score}
+                </span>
+                <span className="text-[10px] text-[var(--color-text-muted)]">
+                  resembles your winners · {read.confidence} confidence
+                </span>
+              </span>
+            </div>
+
+            {read.summary && (
+              <p className="mt-1.5 text-xs text-[var(--color-text-secondary)] leading-relaxed">
+                {read.summary}
+              </p>
+            )}
+
+            {/* Algorithm-fit flags */}
+            {read.algorithm_flags.length > 0 && (
+              <ul className="mt-2.5 space-y-1.5">
+                {read.algorithm_flags.map((f, i) => {
+                  const { icon: Icon, cls } = FLAG_STYLE[f.status];
+                  return (
+                    <li key={i} className="flex items-start gap-2">
+                      <Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${cls}`} />
+                      <span className="text-[11px] text-[var(--color-text-secondary)] leading-snug">
+                        <span className="font-medium text-[var(--color-text-primary)]">{f.label}.</span>{" "}
+                        {f.note}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            {/* Proven-pattern chips */}
+            {(read.matched_winning_patterns.length > 0 || read.missing_high_lift_patterns.length > 0) && (
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {read.matched_winning_patterns.map((p, i) => (
+                  <span
+                    key={`m${i}`}
+                    className="inline-flex items-center gap-1 rounded-full bg-[var(--color-success-500)]/10 px-2 py-0.5 text-[10px] text-[var(--color-success-400)]"
+                  >
+                    {p.pattern_name} ×{p.multiplier.toFixed(1)}
+                  </span>
+                ))}
+                {read.missing_high_lift_patterns.map((p, i) => (
+                  <span
+                    key={`x${i}`}
+                    className="inline-flex items-center gap-1 rounded-full bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)] px-2 py-0.5 text-[10px] text-[var(--color-text-muted)]"
+                    title={p.pattern_value || undefined}
+                  >
+                    + {p.pattern_name} ×{p.multiplier.toFixed(1)}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* How X treats this — transparency disclosure */}
+            {read.algorithm_notes.length > 0 && (
+              <details className="mt-2.5 group">
+                <summary className="cursor-pointer text-[11px] text-[var(--color-primary-400)] hover:underline list-none">
+                  How X treats this ▾
+                </summary>
+                <ul className="mt-2 space-y-1">
+                  {read.algorithm_notes.map((n, i) => (
+                    <li key={i} className="flex items-start gap-2 text-[11px] leading-snug">
+                      <span
+                        className={`shrink-0 font-mono ${
+                          n.effect === "positive"
+                            ? "text-[var(--color-success-400)]"
+                            : "text-[var(--color-danger-400)]"
+                        }`}
+                      >
+                        {n.weight === null ? "—" : n.weight > 0 ? `+${n.weight}` : n.weight}
+                      </span>
+                      <span className="text-[var(--color-text-muted)]">
+                        <span className="text-[var(--color-text-secondary)]">{n.label}.</span> {n.note}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </div>
         )}
       </CardContent>

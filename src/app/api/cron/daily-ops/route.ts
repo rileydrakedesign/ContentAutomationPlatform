@@ -6,6 +6,7 @@ import { computeDailyUsage, storeDailyUsage } from "@/lib/billing/telemetry";
 import { refreshOwnPostMetrics } from "@/lib/analysis/own-posts-refresh";
 import { syncUserTimeline } from "@/lib/analysis/timeline-sync";
 import { refreshVoiceExamples } from "@/lib/analysis/voice-refresh";
+import { refreshVoiceVectors } from "@/lib/analysis/assistant/vectors";
 import { getUserSubscription } from "@/lib/stripe/subscription";
 import { PLANS, isSubscriptionActive } from "@/types/subscription";
 
@@ -158,6 +159,12 @@ async function runLoopUpkeep() {
       if (setting) {
         await refreshVoiceExamples(supabase, userId);
         examplesRefreshed++;
+        // The corpus just moved → rebuild the writing-assistant L2 centroids so
+        // the live Voice Match tracks it. Best-effort; the assistant cold-starts
+        // a refresh on its own if this is skipped.
+        await refreshVoiceVectors(supabase, userId).catch((err) =>
+          console.error(`[daily-ops] vector refresh failed for ${userId}:`, err)
+        );
       }
     } catch (err) {
       console.error(`[daily-ops] voice refresh failed for ${userId}:`, err);

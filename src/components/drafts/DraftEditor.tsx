@@ -12,10 +12,17 @@ import {
   writePersistedValue,
   removePersistedValue,
 } from "@/hooks/usePersistentState";
-import { CharCounter } from "@/components/compose/CharCounter";
+import { ComposeTextarea } from "@/components/compose/ComposeTextarea";
+import { HighlightedTextarea } from "@/components/compose/HighlightedTextarea";
+import { AssistantPanel } from "@/components/assistant/AssistantPanel";
+import { useAssistant } from "@/components/assistant/useAssistant";
+import { isAssistantEnabled } from "@/lib/assistant/flag";
 import { MediaUploader } from "@/components/compose/MediaUploader";
 import { LinkPreview } from "@/components/compose/LinkPreview";
+import { PollEditor } from "@/components/compose/PollEditor";
 import { parseAttachedMedia, type AttachedMedia } from "@/lib/x-api/media";
+import { parseDraftPoll, type DraftPoll } from "@/lib/x-api/poll";
+import { GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 
 export type DraftType = "X_POST" | "X_THREAD";
 export type DraftStatus = "DRAFT" | "POSTED" | "SCHEDULED" | "REJECTED";
@@ -24,30 +31,82 @@ function XPostEditor({
   content,
   onChange,
 }: {
-  content: { text: string; media?: unknown };
-  onChange: (content: { text: string; media?: AttachedMedia[] }) => void;
+  content: { text: string; media?: unknown; poll?: unknown };
+  onChange: (content: { text: string; media?: AttachedMedia[]; poll?: DraftPoll | null }) => void;
 }) {
   // Defensive: ensure text exists
   const text = content?.text ?? "";
   const media = parseAttachedMedia(content?.media);
+  const poll = parseDraftPoll(content?.poll);
 
-  return (
-    <div className="space-y-2">
-      <textarea
-        value={text}
-        onChange={(e) => onChange({ text: e.target.value, media })}
-        className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-500)] focus:ring-1 focus:ring-[var(--color-primary-500)] transition min-h-[200px]"
-      />
-      {/* X-accurate weighted counter (URLs = 23, CJK = 2) */}
-      <CharCounter text={text} />
+  // X allows media OR a poll on a post, never both.
+  function set(updated: { text?: string; media?: AttachedMedia[]; poll?: DraftPoll | null }) {
+    onChange({
+      text: updated.text ?? text,
+      media: updated.media ?? media,
+      poll: updated.poll !== undefined ? updated.poll : poll,
+    });
+  }
+
+  // Writing assistant (Grammarly-for-tweets). The hook is always called (Tier-0
+  // is cheap and pure); `enabled` gates the LLM Live Read and the UI swap.
+  const assistantOn = isAssistantEnabled();
+  const assistant = useAssistant({
+    text,
+    onChangeText: (t) => set({ text: t }),
+    voiceType: "post",
+    hasMedia: media.length > 0,
+    enabled: assistantOn,
+    autoLiveRead: true,
+  });
+
+  const composer = assistantOn ? (
+    <HighlightedTextarea
+      value={text}
+      onChange={(t) => set({ text: t })}
+      findings={assistant.report.findings}
+      onAccept={assistant.accept}
+      onDismiss={assistant.dismiss}
+      minHeightClass="min-h-[200px]"
+    />
+  ) : (
+    <ComposeTextarea value={text} onChange={(t) => set({ text: t })} minHeightClass="min-h-[200px]" />
+  );
+
+  const editorBody = (
+    <div className="space-y-3">
+      {composer}
 
       {/* Link preview for the first URL (URLs still count as 23 above) */}
       <LinkPreview text={text} />
 
-      {/* Media: image/GIF/video with alt text — stored on the draft content */}
-      <div className="pt-2">
-        <MediaUploader media={media} onChange={(m) => onChange({ text, media: m })} />
-      </div>
+      {/* Media: image/GIF/video with alt text — hidden while a poll is attached */}
+      {!poll && (
+        <div className="pt-1">
+          <MediaUploader media={media} onChange={(m) => set({ media: m })} />
+        </div>
+      )}
+
+      {/* Poll — mutually exclusive with media */}
+      <PollEditor poll={poll} onChange={(p) => set({ poll: p })} disabled={!poll && media.length > 0} />
+    </div>
+  );
+
+  if (!assistantOn) return editorBody;
+
+  // Two-column layout: editor + always-visible assistant sidebar (UX §5).
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
+      {editorBody}
+      <AssistantPanel
+        report={assistant.report}
+        checking={assistant.checking}
+        stale={assistant.stale}
+        liveError={assistant.liveError}
+        onAccept={assistant.accept}
+        onDismiss={assistant.dismiss}
+        onDeepCheck={assistant.runDeepCheck}
+      />
     </div>
   );
 }
@@ -61,6 +120,7 @@ function XThreadEditor({
 }) {
   // Defensive: accept either { tweets: string[] } (canonical) or legacy { posts: string[] }
   const tweets = content.tweets ?? content.posts ?? [""];
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   function updateTweet(index: number, value: string) {
     const newTweets = [...tweets];
@@ -77,12 +137,69 @@ function XThreadEditor({
     onChange({ tweets: newTweets });
   }
 
+  // Reorder: drag the grip handle, or use the up/down buttons (keyboard-accessible).
+  function move(from: number, to: number) {
+    if (to < 0 || to >= tweets.length || from === to) return;
+    const next = [...tweets];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onChange({ tweets: next });
+  }
+
   return (
     <div className="space-y-4">
       {tweets.map((tweet, index) => (
-        <div key={index} className="space-y-1">
+        <div
+          key={index}
+          onDragOver={(e) => {
+            if (dragIndex !== null) e.preventDefault();
+          }}
+          onDrop={() => {
+            if (dragIndex !== null) move(dragIndex, index);
+            setDragIndex(null);
+          }}
+          className={`space-y-1 rounded-lg transition ${
+            dragIndex === index ? "opacity-50" : ""
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-sm text-[var(--color-text-secondary)]">Tweet {index + 1}</span>
+            <div className="flex items-center gap-1.5">
+              {/* Drag handle — only the handle is draggable so text selection in
+                  the textarea keeps working. */}
+              <span
+                draggable
+                onDragStart={() => setDragIndex(index)}
+                onDragEnd={() => setDragIndex(null)}
+                className="cursor-grab active:cursor-grabbing text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+                title="Drag to reorder"
+                aria-label={`Drag tweet ${index + 1} to reorder`}
+              >
+                <GripVertical className="w-4 h-4" />
+              </span>
+              <span className="text-sm text-[var(--color-text-secondary)]">Tweet {index + 1}</span>
+              {tweets.length > 1 && (
+                <span className="flex items-center">
+                  <button
+                    onClick={() => move(index, index - 1)}
+                    disabled={index === 0}
+                    className="p-0.5 rounded text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] disabled:opacity-30"
+                    title="Move up"
+                    aria-label={`Move tweet ${index + 1} up`}
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => move(index, index + 1)}
+                    disabled={index === tweets.length - 1}
+                    className="p-0.5 rounded text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] disabled:opacity-30"
+                    title="Move down"
+                    aria-label={`Move tweet ${index + 1} down`}
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+            </div>
             {tweets.length > 1 && (
               <button
                 onClick={() => removeTweet(index)}
@@ -92,13 +209,7 @@ function XThreadEditor({
               </button>
             )}
           </div>
-          <textarea
-            value={tweet}
-            onChange={(e) => updateTweet(index, e.target.value)}
-            className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-500)] focus:ring-1 focus:ring-[var(--color-primary-500)] transition"
-            rows={3}
-          />
-          <CharCounter text={tweet} />
+          <ComposeTextarea value={tweet} onChange={(v) => updateTweet(index, v)} rows={3} />
         </div>
       ))}
       {tweets.length < 6 && (

@@ -15,7 +15,26 @@ fs.copyFileSync(
   path.join(distDir, 'manifest.json')
 );
 
-// Copy content script
+// Bundle the writing-assistant engine FROM the app's TypeScript source, so the
+// extension and the dashboard share one engine (no hand-port to drift). esbuild
+// resolves the app's "@/..." alias to the repo's src/.
+require('esbuild').buildSync({
+  entryPoints: [path.join(srcDir, 'engine-entry.ts')],
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: ['chrome109'],
+  outfile: path.join(distDir, 'assistant-engine.js'),
+  alias: { '@': path.join(__dirname, '..', 'src') },
+  legalComments: 'none',
+});
+
+// Copy content scripts (engine bundle + UI run before content.js — they share
+// the isolated world via window.AFXAssistant).
+fs.copyFileSync(
+  path.join(srcDir, 'content', 'assistant-ui.js'),
+  path.join(distDir, 'assistant-ui.js')
+);
 fs.copyFileSync(
   path.join(srcDir, 'content', 'content.js'),
   path.join(distDir, 'content.js')

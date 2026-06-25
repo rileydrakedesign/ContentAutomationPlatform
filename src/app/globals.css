@@ -563,3 +563,26 @@ input[type="range"]::-moz-range-thumb {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Writing-assistant ProseMirror editor — match the old textarea chrome. */
+.afx-pm-editor {
+  width: 100%;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.5rem;
+  background: var(--color-bg-elevated);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  color: var(--color-text-primary);
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.afx-pm-editor:focus {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 1px var(--color-primary-500);
+}
+.afx-pm-editor p {
+  margin: 0;
+}

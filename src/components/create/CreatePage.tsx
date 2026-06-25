@@ -10,11 +10,16 @@ import { TopicInput } from "./TopicInput";
 import { PatternSelector } from "./PatternSelector";
 import { DraftsList } from "./DraftsList";
 import { VoiceCheckPanel } from "./VoiceCheckPanel";
+import { HighlightedTextarea } from "@/components/compose/HighlightedTextarea";
+import { AssistantPanel } from "@/components/assistant/AssistantPanel";
+import { useAssistant } from "@/components/assistant/useAssistant";
+import { isAssistantEnabled } from "@/lib/assistant/flag";
 import {
   AgenticChain,
   type ChainStepView,
   type ChainSource,
   type ChainScore,
+  type ChainRead,
 } from "./AgenticChain";
 import { InspirationPost } from "@/types/inspiration";
 import {
@@ -78,6 +83,10 @@ export function CreatePage() {
   const router = useRouter();
   const tabParam = searchParams.get("tab");
   const initialTab = tabParam === "drafts" ? "drafts" : tabParam === "compose" ? "compose" : "new";
+  // Controlled tab state so the assistant hook (which lives at page scope, not
+  // inside the unmounted TabsContent) can be gated on the Compose tab being
+  // active — otherwise it would run, and spend, on a hidden tab.
+  const [activeTab, setActiveTab] = useState(initialTab);
   const inspirationId = searchParams.get("inspiration");
 
   // Persist in-progress work so navigating away and back doesn't lose it (#8).
@@ -106,6 +115,7 @@ export function CreatePage() {
   const [chainSteps, setChainSteps] = useState<ChainStepView[]>([]);
   const [chainSources, setChainSources] = useState<ChainSource[]>([]);
   const [chainScores, setChainScores] = useState<ChainScore[]>([]);
+  const [chainRead, setChainRead] = useState<ChainRead | null>(null);
   const [liveDraft, setLiveDraft] = useState("");
   const [chainActive, setChainActive] = useState(false);
   // Generation mode: "quick" (one-shot) vs "agent" (research + refine pipeline).
@@ -129,6 +139,16 @@ export function CreatePage() {
   );
   const [savingCompose, setSavingCompose] = useState(false);
   const [composeError, setComposeError] = useState<string | null>(null);
+
+  // Writing assistant (Grammarly-for-tweets) for the manual compose tab.
+  const assistantOn = isAssistantEnabled();
+  const composeAssistant = useAssistant({
+    text: composeText,
+    onChangeText: setComposeText,
+    voiceType: "post",
+    enabled: assistantOn && composeType === "X_POST" && activeTab === "compose",
+    autoLiveRead: true,
+  });
 
   // Fetch available inspiration posts (for manual selection)
   useEffect(() => {
@@ -298,9 +318,31 @@ export function CreatePage() {
             setLiveDraft(liveText);
             break;
           }
-          case "complete":
-            applyOption(ev.option as GeneratedDraft, append);
+          case "voice_score": {
+            const sc: ChainScore = {
+              iteration: (ev.iteration as number) ?? 0,
+              score: (ev.score as number) ?? 0,
+            };
+            setChainScores((prev) =>
+              [...prev.filter((s) => s.iteration !== sc.iteration), sc].sort(
+                (a, b) => a.iteration - b.iteration
+              )
+            );
             break;
+          }
+          case "read":
+            setChainRead((ev.read as ChainRead) || null);
+            break;
+          case "complete": {
+            const option = ev.option as GeneratedDraft;
+            // The read also rides in metadata so it survives a reload of the
+            // finished option, not just the live stream.
+            const read = (option as { metadata?: { prepublish_read?: ChainRead } })?.metadata
+              ?.prepublish_read;
+            if (read) setChainRead(read);
+            applyOption(option, append);
+            break;
+          }
           case "error":
             setError(String(ev.message || "Generation failed"));
             break;
@@ -367,6 +409,7 @@ export function CreatePage() {
     setChainSteps([]);
     setChainSources([]);
     setChainScores([]);
+    setChainRead(null);
     setLiveDraft("");
     setChainActive(true);
     try {
@@ -416,6 +459,7 @@ export function CreatePage() {
     setChainSteps([]);
     setChainSources([]);
     setChainScores([]);
+    setChainRead(null);
     setLiveDraft("");
     setLastQuery({ mode, query: q });
     try {
@@ -592,7 +636,7 @@ export function CreatePage() {
 
   return (
     <div className="animate-fade-in">
-      <Tabs defaultValue={initialTab}>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-start justify-between">
@@ -901,6 +945,7 @@ export function CreatePage() {
                 scores={chainScores}
                 liveDraft={liveDraft}
                 active={chainActive}
+                read={chainRead}
               />
             </div>
           )}
@@ -1172,7 +1217,28 @@ export function CreatePage() {
                   </div>
                 </div>
 
-                {composeType === "X_POST" ? (
+                {composeType === "X_POST" && assistantOn ? (
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
+                    <HighlightedTextarea
+                      value={composeText}
+                      onChange={setComposeText}
+                      findings={composeAssistant.report.findings}
+                      onAccept={composeAssistant.accept}
+                      onDismiss={composeAssistant.dismiss}
+                      placeholder="What's on your mind?"
+                      minHeightClass="min-h-[180px]"
+                    />
+                    <AssistantPanel
+                      report={composeAssistant.report}
+                      checking={composeAssistant.checking}
+                      stale={composeAssistant.stale}
+                      liveError={composeAssistant.liveError}
+                      onAccept={composeAssistant.accept}
+                      onDismiss={composeAssistant.dismiss}
+                      onDeepCheck={composeAssistant.runDeepCheck}
+                    />
+                  </div>
+                ) : composeType === "X_POST" ? (
                   <div className="space-y-2">
                     <textarea
                       value={composeText}

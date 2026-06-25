@@ -14,6 +14,7 @@ import { refreshVoiceExamples } from "./voice-refresh";
 import { extractPatternsForUser } from "./pattern-extract";
 import { analyzeNicheForUser } from "./niche-analyze";
 import { getAnalyzablePosts } from "./posts-pool";
+import { refreshVoiceVectors } from "./assistant/vectors";
 import { getContextFreshness, type ContextFreshness } from "./freshness";
 import type { NicheProfile } from "@/types/niche";
 
@@ -155,6 +156,13 @@ export async function runVoiceTuneup(
   if (!niche.ok) {
     return { ok: false, status: niche.status, error: niche.error };
   }
+
+  // ── 3b. Rebuild the L2 writing-assistant centroids from the freshened corpus
+  // (best-effort — the live assistant falls back to a cold-start refresh if this
+  // is skipped, so a failure here must never fail the tune-up). ──
+  await refreshVoiceVectors(supabase, userId).catch((e) =>
+    console.error("tuneup: assistant vector refresh failed:", e)
+  );
 
   // ── 4. Assemble the Voice Report from the now-updated stored state ──
   // The assembly reads only persisted tables, so the exact same builder backs

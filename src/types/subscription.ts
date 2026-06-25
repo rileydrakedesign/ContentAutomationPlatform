@@ -12,6 +12,12 @@ export interface PlanConfig {
     scheduling: boolean;
     patternExtraction: boolean;
     insightsChat: boolean;
+    // Writing assistant ("Grammarly for tweets") — the always-on live editor
+    // (Tier-0 deterministic + L2 embedding scores + L3 LLM explanations). This is
+    // a SUBSCRIPTION ENTITLEMENT gate (requireFeature), never a metered quota:
+    // the live loop can't tick a credit on every pause. Currently granted to every
+    // plan (table-stakes); flip free → false to make it a paid feature.
+    writingAssistant: boolean;
     // Agency tier: manage isolated per-client voice profiles (multi-account).
     multiAccount: boolean;
     // Agent surface (v1 API + MCP) metering — in-app UI usage is not metered.
@@ -40,6 +46,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       scheduling: false,
       patternExtraction: false,
       insightsChat: false,
+      writingAssistant: true,
       multiAccount: false,
       monthlyCredits: 100,
       apiRateLimit: 20,
@@ -67,6 +74,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       scheduling: true,
       patternExtraction: true,
       insightsChat: true,
+      writingAssistant: true,
       multiAccount: false,
       monthlyCredits: 2000,
       apiRateLimit: 60,
@@ -93,6 +101,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       scheduling: true,
       patternExtraction: true,
       insightsChat: true,
+      writingAssistant: true,
       multiAccount: false,
       monthlyCredits: 7500,
       apiRateLimit: 120,
@@ -120,6 +129,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       scheduling: true,
       patternExtraction: true,
       insightsChat: true,
+      writingAssistant: true,
       multiAccount: true,
       monthlyCredits: 7500,
       apiRateLimit: 120,

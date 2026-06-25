@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       checkAiGenerationLimit(user.id),
       supabase
         .from("user_voice_settings")
-        .select("id")
+        .select("id, optimization_authenticity")
         .eq("user_id", user.id)
         .limit(1),
       supabase
@@ -66,12 +66,20 @@ export async function GET(request: NextRequest) {
     const onboardingCompleted = user.user_metadata?.onboarding_completed === true;
     const voiceConfigured = (voiceResult.data?.length ?? 0) > 0;
     const xConnected = (xConnectionResult.data?.length ?? 0) > 0;
+    // The writing assistant's authenticity dial — passed so the extension's Tier-0
+    // scores the in-X composer identically to the dashboard (authenticity-first
+    // users get the soft reach nags quieted on both surfaces) (#10).
+    const authenticityRaw = voiceResult.data?.[0]?.optimization_authenticity;
+    const authenticity = typeof authenticityRaw === "number" ? authenticityRaw : null;
 
     return NextResponse.json({
       plan: {
         id: effectivePlan.id,
         name: effectivePlan.name,
         price: effectivePlan.price,
+      },
+      assistant: {
+        authenticity,
       },
       usage: {
         used: usage.limit === Infinity ? 0 : usage.limit - usage.remaining,
