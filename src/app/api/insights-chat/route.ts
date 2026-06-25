@@ -5,6 +5,7 @@ export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
 import { createChatCompletion } from "@/lib/ai";
 import { requireFeature, requireAiGeneration } from "@/lib/stripe/gate";
+import { guardLlmRoute } from "@/lib/api/with-llm-guard";
 import { corsHeaders, handleCors } from "@/lib/cors";
 
 type ChatTurn = { role: "user" | "assistant"; content: string };
@@ -31,6 +32,9 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
+
+    const guard = await guardLlmRoute({ request, userId: user.id });
+    if (!guard.ok) return guard.response;
 
     // Insights chat requires Pro plan
     const featureGate = await requireFeature(user.id, "insightsChat");
@@ -224,6 +228,8 @@ export async function POST(request: NextRequest) {
       temperature: 0.3,
       maxTokens: 600,
       jsonResponse: true,
+      route: "insights-chat",
+      userId: user.id,
     });
 
     let parsed: { answer?: string; sources_used?: string[] };

@@ -15,6 +15,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { getClaude } from "@/lib/ai/providers/claude";
+import { runThroughGateway, gatewayAdmit } from "@/lib/ai/gateway";
+import { recordUsage } from "@/lib/ai/usage";
 import { getAssembledPromptForUser } from "@/lib/openai/prompts/prompt-assembler";
 import { runVoiceCheck, type VoiceCheckResult } from "@/lib/analysis/voice-check";
 
@@ -243,7 +245,7 @@ function buildRevisePrompt(
  * brief plus the deduped sources cited. Handles `pause_turn` so the server-tool
  * loop can resume if it pauses mid-search.
  */
-async function research(topic: string): Promise<{ brief: string; sources: ResearchSource[] }> {
+async function research(topic: string, userId: string): Promise<{ brief: string; sources: ResearchSource[] }> {
   const client = getClaude();
   const messages: Anthropic.MessageParam[] = [
     {
@@ -255,12 +257,23 @@ async function research(topic: string): Promise<{ brief: string; sources: Resear
   let brief = "";
 
   for (let i = 0; i < 5; i++) {
-    const res = await client.messages.create({
+    // Each research turn goes through the gateway: admission gate + backoff +
+    // breaker + token metering, same as one-shot generation.
+    const { value: res } = await runThroughGateway({
+      provider: "claude",
       model: PIPELINE_MODEL,
-      max_tokens: 1500,
-      system: RESEARCH_SYSTEM,
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }],
-      messages,
+      estimatedTokens: 2000,
+      meta: { route: "drafts/generate-agentic:research", userId },
+      exec: async () => {
+        const r = await client.messages.create({
+          model: PIPELINE_MODEL,
+          max_tokens: 1500,
+          system: RESEARCH_SYSTEM,
+          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }],
+          messages,
+        });
+        return { value: r, usage: { input: r.usage.input_tokens, output: r.usage.output_tokens } };
+      },
     });
 
     for (const block of res.content) {
@@ -297,8 +310,12 @@ async function research(topic: string): Promise<{ brief: string; sources: Resear
  */
 async function* streamDraftText(
   params: Anthropic.MessageStreamParams,
-  iteration: number
+  iteration: number,
+  userId: string
 ): AsyncGenerator<PipelineEvent, string> {
+  // Streaming can't use runThroughGateway (it returns incrementally), so gate
+  // admission up front and meter actual usage from the final message.
+  await gatewayAdmit("claude", typeof params.max_tokens === "number" ? params.max_tokens + 500 : 1700);
   const stream = getClaude().messages.stream(params);
   let text = "";
   for await (const event of stream) {
@@ -308,6 +325,14 @@ async function* streamDraftText(
     }
   }
   const final = await stream.finalMessage();
+  await recordUsage({
+    provider: "claude",
+    model: PIPELINE_MODEL,
+    input: final.usage.input_tokens,
+    output: final.usage.output_tokens,
+    route: "drafts/generate-agentic:draft",
+    userId,
+  });
   return (textOf(final) || text).trim();
 }
 
@@ -324,7 +349,7 @@ export async function* runPostPipeline(input: PostPipelineInput): AsyncGenerator
 
   // 1. Research recent, relevant context.
   yield { type: "step", step: "research", status: "running", label: "Researching recent context" };
-  const { brief, sources } = await research(topic);
+  const { brief, sources } = await research(topic, userId);
   yield { type: "research", sources, brief };
   yield {
     type: "step",
@@ -345,7 +370,8 @@ export async function* runPostPipeline(input: PostPipelineInput): AsyncGenerator
       system: voiceSystem,
       messages: [{ role: "user", content: buildDraftPrompt(input, brief) }],
     },
-    0
+    0,
+    userId
   );
   let bestText = cleanDraft(rawDraft);
   yield { type: "step", step: "draft", status: "done", label: "Draft ready" };
@@ -379,7 +405,8 @@ export async function* runPostPipeline(input: PostPipelineInput): AsyncGenerator
         system: voiceSystem,
         messages: [{ role: "user", content: buildRevisePrompt(bestText, bestCheck, draftType, constraints) }],
       },
-      iteration
+      iteration,
+      userId
     );
     const revised = cleanDraft(revisedRaw);
     const newCheck = await runVoiceCheck(supabase, userId, draftCheckText(revised, draftType), "post", checkOptions);

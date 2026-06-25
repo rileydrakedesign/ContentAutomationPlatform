@@ -1,10 +1,15 @@
 import { NextRequest } from "next/server";
 import * as Sentry from "@sentry/nextjs";
-import { createAuthClient } from "@/lib/supabase/server";
+import { createAuthClient, createAdminClient } from "@/lib/supabase/server";
 import { requireAiGeneration } from "@/lib/stripe/gate";
-import { checkRateLimit } from "@/lib/api/rate-limit";
+import { guardLlmRoute } from "@/lib/api/with-llm-guard";
+import { enqueueLlmJob } from "@/lib/qstash/enqueue-llm";
 import { isGenerationApplicablePattern } from "@/lib/analysis/pattern-applicability";
 import { runPostPipeline, type DraftType, type PipelinePattern } from "@/lib/ai/agentic/post-pipeline";
+
+// When on, the heavy chain runs in a QStash worker (enqueue → poll) instead of
+// holding this function open for up to 300s. Off = the original SSE stream.
+const AGENTIC_ASYNC = process.env.AGENTIC_ASYNC === "true";
 
 // The agentic chain makes several Claude calls plus a web-search loop, so give
 // it generous headroom over the one-shot route's 60s.
@@ -24,18 +29,18 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (authError || !user) return json({ error: "Unauthorized" }, 401);
 
+  // Burst guard — Pro/Agent have unlimited daily generations, but this pipeline
+  // runs up to 300s of web-search + multiple Claude calls; the weight-3 cost on
+  // the per-user burst + global tenant-fair tiers stops a loop from fanning out
+  // unbounded LLM spend. Runs before the daily gate so a throttle doesn't burn
+  // generation slots.
+  const guard = await guardLlmRoute({ request, userId: user.id, cost: 3 });
+  if (!guard.ok) return guard.response;
+
   // The Agent pipeline is heavier (web search + draft + voice checks + refine),
   // so it consumes 3 daily generation slots vs Quick's 1.
   const gateError = await requireAiGeneration(user.id, "generate-agentic", 3);
   if (gateError) return gateError;
-
-  // Burst guard — Pro/Agent have unlimited daily generations, but this pipeline
-  // runs up to 300s of web-search + multiple Claude calls; cap concurrency/burst
-  // so a loop can't fan out unbounded LLM spend.
-  const rl = await checkRateLimit(`generate-agentic:${user.id}`, 5);
-  if (!rl.allowed) {
-    return json({ error: "Slow down — too many generations in a row." }, 429);
-  }
 
   const body = await request.json();
   const {
@@ -78,6 +83,46 @@ export async function POST(request: NextRequest) {
     }));
   } catch (e) {
     console.error("[generate-agentic] pattern fetch failed", e);
+  }
+
+  // Async path: enqueue the job and return its id; the client polls
+  // /api/drafts/generation-jobs/[id]. Smooths provider load under spikes.
+  if (AGENTIC_ASYNC) {
+    const admin = await createAdminClient();
+    const { data: job, error: jobErr } = await admin
+      .from("generation_jobs")
+      .insert({
+        user_id: user.id,
+        type: "agentic_post",
+        status: "queued",
+        input: {
+          topic: topic.trim(),
+          draftType,
+          patterns,
+          explicitPatternSelection: explicit,
+          inspiration: inspirationPost || null,
+          instructions: instructions || null,
+          previousVariations: previousVariations || null,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (jobErr || !job) {
+      console.error("[generate-agentic] failed to create job", jobErr);
+      return json({ error: "Could not start generation. Please try again." }, 500);
+    }
+
+    const { messageId } = await enqueueLlmJob({ jobId: job.id, userId: user.id });
+    if (!messageId) {
+      await admin
+        .from("generation_jobs")
+        .update({ status: "failed", error: "Could not enqueue job" })
+        .eq("id", job.id);
+      return json({ error: "Generation is busy right now. Please try again." }, 503);
+    }
+
+    return json({ jobId: job.id, mode: "async" }, 202);
   }
 
   const encoder = new TextEncoder();

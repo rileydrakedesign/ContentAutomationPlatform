@@ -193,6 +193,68 @@ export function CreatePage() {
     }
   };
 
+  // Apply a chain progress event shared by the streaming and polled paths
+  // (step / research / voice_score). draft_delta, complete and error are handled
+  // by each path directly since they differ (live text vs. final result).
+  const applyAgenticEvent = (ev: Record<string, unknown>) => {
+    switch (ev.type) {
+      case "step":
+        setChainSteps((prev) =>
+          upsertStep(prev, {
+            step: ev.step as ChainStepView["step"],
+            status: ev.status as ChainStepView["status"],
+            label: String(ev.label),
+            iteration: ev.iteration as number | undefined,
+          })
+        );
+        break;
+      case "research":
+        setChainSources((ev.sources as ChainSource[]) || []);
+        break;
+      case "voice_score": {
+        const sc: ChainScore = {
+          iteration: (ev.iteration as number) ?? 0,
+          score: (ev.score as number) ?? 0,
+        };
+        setChainScores((prev) =>
+          [...prev.filter((s) => s.iteration !== sc.iteration), sc].sort(
+            (a, b) => a.iteration - b.iteration
+          )
+        );
+        break;
+      }
+    }
+  };
+
+  // Poll an async (QStash-queued) agentic job and drive the same chain UI from
+  // its accumulated progress. Used when generate-agentic returns mode:"async".
+  const consumeAgenticJob = async (jobId: string, append: boolean) => {
+    let applied = 0;
+    for (let i = 0; i < 200; i++) {
+      await new Promise((r) => setTimeout(r, 1500));
+      let res: Response;
+      try {
+        res = await fetch(`/api/drafts/generation-jobs/${jobId}`);
+      } catch {
+        continue;
+      }
+      if (!res.ok) continue;
+      const job = await res.json();
+      const events: Array<Record<string, unknown>> = Array.isArray(job.progress) ? job.progress : [];
+      for (; applied < events.length; applied++) applyAgenticEvent(events[applied]);
+      if (job.status === "done") {
+        const option = job.result?.option as GeneratedDraft | undefined;
+        if (option) applyOption(option, append);
+        return;
+      }
+      if (job.status === "failed") {
+        setError(String(job.error || "Generation failed"));
+        return;
+      }
+    }
+    setError("Generation timed out. Please try again.");
+  };
+
   // Read the agentic SSE stream and drive the chain UI. On `complete`, fold the
   // option into the variation history so the existing result card renders it.
   const consumeAgenticStream = async (
@@ -226,19 +288,6 @@ export function CreatePage() {
         }
 
         switch (ev.type) {
-          case "step":
-            setChainSteps((prev) =>
-              upsertStep(prev, {
-                step: ev.step as ChainStepView["step"],
-                status: ev.status as ChainStepView["status"],
-                label: String(ev.label),
-                iteration: ev.iteration as number | undefined,
-              })
-            );
-            break;
-          case "research":
-            setChainSources((ev.sources as ChainSource[]) || []);
-            break;
           case "draft_delta": {
             const iter = (ev.iteration as number) ?? 0;
             if (iter !== liveIter) {
@@ -249,24 +298,14 @@ export function CreatePage() {
             setLiveDraft(liveText);
             break;
           }
-          case "voice_score": {
-            const sc: ChainScore = {
-              iteration: (ev.iteration as number) ?? 0,
-              score: (ev.score as number) ?? 0,
-            };
-            setChainScores((prev) =>
-              [...prev.filter((s) => s.iteration !== sc.iteration), sc].sort(
-                (a, b) => a.iteration - b.iteration
-              )
-            );
-            break;
-          }
           case "complete":
             applyOption(ev.option as GeneratedDraft, append);
             break;
           case "error":
             setError(String(ev.message || "Generation failed"));
             break;
+          default:
+            applyAgenticEvent(ev);
         }
       }
     }
@@ -336,7 +375,23 @@ export function CreatePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyFromQuery(q)),
       });
-      if (!res.ok || !res.body) {
+      if (!res.ok) {
+        await setGenError(res, "Failed to generate drafts");
+        return;
+      }
+      // Async (QStash-queued) mode returns JSON with a jobId to poll; the
+      // synchronous mode streams Server-Sent Events.
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const data = await res.json();
+        if (data.mode === "async" && data.jobId) {
+          await consumeAgenticJob(data.jobId, append);
+        } else {
+          setError(String(data.error || "Failed to generate drafts"));
+        }
+        return;
+      }
+      if (!res.body) {
         await setGenError(res, "Failed to generate drafts");
         return;
       }

@@ -8,6 +8,7 @@ import { REPLY_SYSTEM_PROMPT } from "@/lib/openai/prompts/reply-prompt";
 import { getAssembledPromptForUser } from "@/lib/openai/prompts/prompt-assembler";
 import { requireAiGeneration } from "@/lib/stripe/gate";
 import { getDualAuthUser } from "@/lib/api/dual-auth";
+import { guardLlmRoute, clientIp, withLlmRateLimitHeaders } from "@/lib/api/with-llm-guard";
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -134,6 +135,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Per-request rate limit (burst + IP + global tenant-fair). Runs before the
+    // daily quota so a throttled request doesn't consume a daily generation slot.
+    const guard = await guardLlmRoute({ request, userId: user.id, ip: clientIp(request) });
+    if (!guard.ok) return guard.response;
+
     // Check AI generation limit (free tier: 5/day)
     const gateError = await requireAiGeneration(user.id, "generate-reply");
     if (gateError) return gateError;
@@ -199,6 +205,8 @@ export async function POST(request: NextRequest) {
         temperature: 0.7,
         maxTokens: 400,
         jsonResponse: true,
+        route: "generate-reply",
+        userId: user.id,
       });
       console.log("[generate-reply] AI call succeeded with provider:", result.provider, "model:", result.model);
     } catch (aiError) {
@@ -272,7 +280,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ replies }, { headers: corsHeaders });
+    return withLlmRateLimitHeaders(
+      NextResponse.json({ replies }, { headers: corsHeaders }),
+      guard.info
+    );
   } catch (error) {
     console.error("Failed to generate replies:", error);
     Sentry.captureException(error, { tags: { route: "generate-reply" } });

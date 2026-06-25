@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import crypto from "crypto";
 
 export interface RateLimitInfo {
@@ -48,6 +48,21 @@ export function withRateLimitHeaders(
   response.headers.set("X-RateLimit-Limit", String(info.limit));
   response.headers.set("X-RateLimit-Remaining", String(info.remaining));
   response.headers.set("X-RateLimit-Reset", String(info.reset));
+  return response;
+}
+
+// Standard 429 response: canonical body + X-RateLimit-* + Retry-After.
+// `scope` names which tier tripped (user/ip/key/global) for client/debug clarity.
+export function rateLimited(info: RateLimitInfo, scope?: string): NextResponse {
+  const retryAfter = Math.max(0, info.reset - Math.floor(Date.now() / 1000));
+  const response = apiError(
+    "Rate limit exceeded",
+    "rate_limited",
+    429,
+    scope ? { scope, retry_after: retryAfter } : { retry_after: retryAfter }
+  );
+  withRateLimitHeaders(response, info);
+  response.headers.set("Retry-After", String(retryAfter));
   return response;
 }
 
