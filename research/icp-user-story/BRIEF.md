@@ -1,5 +1,7 @@
 # Agents For X — ICP & User Story Brief
 
+> **⚠️ PIVOT UPDATE (2026-06-25):** This brief (dated 2026-06-19) predates the **Grammarly-style pivot**. The **strategy below still holds** — ICP, the wedge (closed own-analytics voice loop), market, anti-ICP, pricing, and account-safety urgency are all unchanged. What changed is the **product form**: from an AI that writes *for* you (generation-primary) to a **real-time writing assistant** where *you* write and it keeps the post on-voice and on-algorithm (assistant-primary). This *strengthens* the wedge (now demonstrated live, not claimed) and resolves the riskiest step here — **activation / "sounds like me"** — at the root. Read the reconciliation and all marketing/brand work in **`../marketing-positioning/`** (start with `00-positioning-and-pivot.md`). Where this brief says "generate in your voice," read "keep your writing in your voice as you type."
+
 > **The consolidated, standalone deliverable.** Detail and sourcing live in `00`–`06`. Purpose: GTM/marketing, product prioritization, onboarding. Pre-launch, so conclusions are evidence-backed hypotheses with post-launch tests.
 > **⚠️ One open validation:** Reddit was hard-blocked during research; persona emotional/workflow detail leans on Indie Hackers, HN, and Substack. The behavioral *shape* is solid; an authenticated Reddit pass is the #1 follow-up to confirm intensity and a few specifics. Setup is staged (see README).
 > **Date:** 2026-06-19
