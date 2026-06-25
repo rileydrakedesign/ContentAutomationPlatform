@@ -19,6 +19,7 @@ import { runThroughGateway, gatewayAdmit } from "@/lib/ai/gateway";
 import { recordUsage } from "@/lib/ai/usage";
 import { getAssembledPromptForUser } from "@/lib/openai/prompts/prompt-assembler";
 import { runVoiceCheck, type VoiceCheckResult } from "@/lib/analysis/voice-check";
+import { runPrepublishRead, type PrepublishReadResult } from "@/lib/analysis/prepublish-read";
 
 // Sonnet 4.6 balances quality and latency for the multi-call loop and supports
 // the basic server-side web_search tool. Kept separate from CLAUDE_MODELS so
@@ -55,10 +56,11 @@ export interface GeneratedOption {
     voice_score: number;
     sources: ResearchSource[];
     inspiration_author?: string;
+    prepublish_read?: PrepublishReadResult;
   };
 }
 
-export type StepName = "research" | "draft" | "voice_check" | "iterate";
+export type StepName = "research" | "draft" | "voice_check" | "iterate" | "read";
 
 /** Events streamed to the client so it can render the agentic chain live. */
 export type PipelineEvent =
@@ -66,6 +68,7 @@ export type PipelineEvent =
   | { type: "research"; sources: ResearchSource[]; brief: string }
   | { type: "draft_delta"; text: string; iteration: number }
   | { type: "voice_score"; iteration: number; score: number; deviations: string[]; suggested_edit: string }
+  | { type: "read"; read: PrepublishReadResult }
   | { type: "complete"; option: GeneratedOption; voiceCheck: VoiceCheckResult; sources: ResearchSource[] };
 
 export interface PostPipelineInput {
@@ -425,7 +428,27 @@ export async function* runPostPipeline(input: PostPipelineInput): AsyncGenerator
     yield { type: "step", step: "iterate", status: "done", label: `Pass ${iteration}: ${newCheck.score}/100`, iteration };
   }
 
-  // 5. Emit the final option (same shape the one-shot route returns).
+  // 5. Pre-publish read on the winning draft: how much it resembles the user's
+  // top performers + how X's algorithm will treat it. Best-effort — a failure
+  // here must never fail generation, so it's fully guarded.
+  let read: PrepublishReadResult | undefined;
+  try {
+    yield { type: "step", step: "read", status: "running", label: "Reading engagement fit" };
+    read = await runPrepublishRead(supabase, userId, draftCheckText(bestText, draftType), {
+      draftType,
+    });
+    yield { type: "read", read };
+    yield {
+      type: "step",
+      step: "read",
+      status: "done",
+      label: `Resembles your winners ${read.resemblance_score}/100`,
+    };
+  } catch (e) {
+    console.error("[pipeline] pre-publish read failed", e);
+  }
+
+  // 6. Emit the final option (same shape the one-shot route returns).
   const option: GeneratedOption = {
     type: draftType,
     content: draftType === "X_THREAD" ? { tweets: splitThread(bestText) } : { text: bestText },
@@ -436,6 +459,7 @@ export async function* runPostPipeline(input: PostPipelineInput): AsyncGenerator
       voice_score: bestCheck.score,
       sources,
       ...(inspiration ? { inspiration_author: inspiration.author } : {}),
+      ...(read ? { prepublish_read: read } : {}),
     },
   };
   yield { type: "complete", option, voiceCheck: bestCheck, sources };
