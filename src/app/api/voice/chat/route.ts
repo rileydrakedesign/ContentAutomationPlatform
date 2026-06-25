@@ -13,6 +13,7 @@ import {
   VoiceGuardrails,
 } from "@/types/voice";
 import { requireAiGeneration } from "@/lib/stripe/gate";
+import { guardLlmRoute } from "@/lib/api/with-llm-guard";
 
 // Stage-specific system prompts
 const PROPOSE_CHANGES_PROMPT = `You are a voice configuration assistant helping users define their writing style for social media content.
@@ -310,6 +311,9 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const guard = await guardLlmRoute({ request, userId: user.id });
+    if (!guard.ok) return guard.response;
 
     const gateError = await requireAiGeneration(user.id, "voice-chat");
     if (gateError) return gateError;

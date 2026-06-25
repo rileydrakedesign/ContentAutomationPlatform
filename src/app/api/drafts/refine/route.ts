@@ -3,8 +3,10 @@ import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { requireAiGeneration } from "@/lib/stripe/gate";
+import { guardLlmRoute, withLlmRateLimitHeaders } from "@/lib/api/with-llm-guard";
 import { getAssembledPromptForUser } from "@/lib/openai/prompts/prompt-assembler";
 import { getClaude } from "@/lib/ai/providers/claude";
+import { runThroughGateway } from "@/lib/ai/gateway";
 import {
   cleanDraft,
   splitThread,
@@ -32,6 +34,9 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
+
+    const guard = await guardLlmRoute({ request, userId: user.id });
+    if (!guard.ok) return guard.response;
 
     const gateError = await requireAiGeneration(user.id, "drafts-refine");
     if (gateError) return gateError;
@@ -76,11 +81,20 @@ export async function POST(request: NextRequest) {
       `Output ONLY the revised post text — no preamble, no surrounding quotes, no explanation, no JSON.`,
     ].join("\n\n");
 
-    const response = await getClaude().messages.create({
+    const { value: response } = await runThroughGateway({
+      provider: "claude",
       model: PIPELINE_MODEL,
-      max_tokens: 1200,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
+      estimatedTokens: Math.ceil((systemPrompt.length + userPrompt.length) / 4) + 1200,
+      meta: { route: "drafts/refine", userId: user.id },
+      exec: async () => {
+        const r = await getClaude().messages.create({
+          model: PIPELINE_MODEL,
+          max_tokens: 1200,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userPrompt }],
+        });
+        return { value: r, usage: { input: r.usage.input_tokens, output: r.usage.output_tokens } };
+      },
     });
 
     const textBlock = response.content.find((b) => b.type === "text");
@@ -101,7 +115,10 @@ export async function POST(request: NextRequest) {
       metadata: { generation_type: "refined" },
     };
 
-    return NextResponse.json({ option }, { status: 200, headers: corsHeaders });
+    return withLlmRateLimitHeaders(
+      NextResponse.json({ option }, { status: 200, headers: corsHeaders }),
+      guard.info
+    );
   } catch (error) {
     console.error("Failed to refine draft:", error);
     Sentry.captureException(error, { tags: { route: "drafts/refine" } });

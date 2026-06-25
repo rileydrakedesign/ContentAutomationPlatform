@@ -5,6 +5,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getOpenAI } from "@/lib/openai/client";
+import { runThroughGateway } from "@/lib/ai/gateway";
 import { getAnalyzablePosts } from "./posts-pool";
 import { isGenerationApplicablePattern } from "./pattern-applicability";
 
@@ -78,23 +79,36 @@ Rules:
 
 Return ONLY the JSON array, no other text.`;
 
-  const completion = await getOpenAI().chat.completions.create({
+  const { value: responseText } = await runThroughGateway({
+    provider: "openai",
     model: "gpt-5.4-nano",
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert social media analyst. Analyze posts and extract actionable growth patterns. Return valid JSON only.",
-      },
-      {
-        role: "user",
-        content: analysisPrompt,
-      },
-    ],
-    temperature: 0.3,
-    max_completion_tokens: 2000,
+    estimatedTokens: Math.ceil(analysisPrompt.length / 4) + 2000,
+    meta: { route: "patterns/extract" },
+    exec: async () => {
+      const completion = await getOpenAI().chat.completions.create({
+        model: "gpt-5.4-nano",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert social media analyst. Analyze posts and extract actionable growth patterns. Return valid JSON only.",
+          },
+          {
+            role: "user",
+            content: analysisPrompt,
+          },
+        ],
+        temperature: 0.3,
+        max_completion_tokens: 2000,
+      });
+      return {
+        value: completion.choices[0]?.message?.content || "[]",
+        usage: {
+          input: completion.usage?.prompt_tokens ?? 0,
+          output: completion.usage?.completion_tokens ?? 0,
+        },
+      };
+    },
   });
-
-  const responseText = completion.choices[0]?.message?.content || "[]";
 
   let extractedPatterns: ExtractedPattern[] = [];
   try {

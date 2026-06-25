@@ -1,85 +1,53 @@
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+/**
+ * Thin compatibility shims over the unified limiter core (limiter.ts).
+ *
+ * These preserve the exact signatures and Redis-key prefixes of the original
+ * functions so every existing call site (v1 handler, the in-app burst guards,
+ * auth/login/oauth endpoints) keeps working unchanged. With RATELIMIT_V2 off,
+ * behavior is identical to the pre-refactor implementation; with it on, the
+ * core adds graceful degradation.
+ */
+
+import { enforceRateLimits } from "./limiter";
 import { RateLimitInfo } from "./response";
 
-let redis: Redis | null = null;
-
-function getRedis(): Redis | null {
-  if (redis) return redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  redis = new Redis({ url, token });
-  return redis;
-}
-
-// Check rate limit for an API key.
+// Check rate limit for an API key (or any keyed identity). Sliding window, 1m,
+// "api_v1" namespace — matches the legacy behavior and existing Redis keys.
 export async function checkRateLimit(
   keyId: string,
   limit: number
 ): Promise<{ allowed: true; info: RateLimitInfo } | { allowed: false; info: RateLimitInfo }> {
-  const r = getRedis();
-
-  if (!r) {
-    // Fail closed in production — never serve unlimited traffic.
-    if (process.env.NODE_ENV === "production") {
-      console.error(
-        "Rate limiter has no Redis configured (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN). Rejecting request."
-      );
-      return {
-        allowed: false,
-        info: { limit, remaining: 0, reset: Math.floor(Date.now() / 1000) + 60 },
-      };
-    }
-    // Dev/local: allow without Redis
-    return {
-      allowed: true,
-      info: { limit, remaining: limit, reset: Math.floor(Date.now() / 1000) + 60 },
-    };
-  }
-
-  const ratelimit = new Ratelimit({
-    redis: r,
-    limiter: Ratelimit.slidingWindow(limit, "1 m"),
-    prefix: "api_v1",
-  });
-
-  const result = await ratelimit.limit(keyId);
-
-  const info: RateLimitInfo = {
-    limit: result.limit,
-    remaining: result.remaining,
-    reset: Math.floor(result.reset / 1000),
-  };
-
-  return { allowed: result.success, info };
+  const res = await enforceRateLimits([
+    {
+      scope: "key",
+      key: keyId,
+      algorithm: "slidingWindow",
+      limit,
+      window: "1 m",
+      prefix: "api_v1",
+    },
+  ]);
+  return res.allowed
+    ? { allowed: true, info: res.info }
+    : { allowed: false, info: res.info };
 }
 
-// Rate limit auth endpoints by an arbitrary identifier (IP, email).
-// Same Redis posture as checkRateLimit: fail open in dev, fail closed in prod.
+// Rate limit auth endpoints by an arbitrary identifier (IP, email). Sliding
+// window in the "auth" namespace — matches legacy behavior and Redis keys.
 export async function checkAuthRateLimit(
   identifier: string,
   limit: number,
   window: "1 m" | "1 h"
 ): Promise<boolean> {
-  const r = getRedis();
-
-  if (!r) {
-    if (process.env.NODE_ENV === "production") {
-      console.error(
-        "Auth rate limiter has no Redis configured (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN). Rejecting request."
-      );
-      return false;
-    }
-    return true;
-  }
-
-  const ratelimit = new Ratelimit({
-    redis: r,
-    limiter: Ratelimit.slidingWindow(limit, window),
-    prefix: "auth",
-  });
-
-  const result = await ratelimit.limit(identifier);
-  return result.success;
+  const res = await enforceRateLimits([
+    {
+      scope: "auth",
+      key: identifier,
+      algorithm: "slidingWindow",
+      limit,
+      window,
+      prefix: "auth",
+    },
+  ]);
+  return res.allowed;
 }

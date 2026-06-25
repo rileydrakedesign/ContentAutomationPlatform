@@ -6,6 +6,7 @@ import { createAuthClient } from "@/lib/supabase/server";
 import { createChatCompletion, AIProvider, resolveProvider } from "@/lib/ai";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { requireAiGeneration } from "@/lib/stripe/gate";
+import { guardLlmRoute, withLlmRateLimitHeaders } from "@/lib/api/with-llm-guard";
 import { isGenerationApplicablePattern } from "@/lib/analysis/pattern-applicability";
 
 // Handle CORS preflight
@@ -36,6 +37,9 @@ export async function POST(request: NextRequest) {
         { status: 401, headers: corsHeaders }
       );
     }
+
+    const guard = await guardLlmRoute({ request, userId: user.id });
+    if (!guard.ok) return guard.response;
 
     // Check AI generation limit (free tier: 5/day)
     const gateError = await requireAiGeneration(user.id, "generate-from-topic");
@@ -201,6 +205,8 @@ Return ONLY the JSON array, no other text.`;
       temperature: generateCount === 1 && !instructions ? 0.7 : 0.85,
       maxTokens: 2000,
       jsonResponse: false, // We parse JSON manually from the response
+      route: "generate-from-topic",
+      userId: user.id,
     });
 
     const responseText = result.content || "[]";
@@ -235,13 +241,16 @@ Return ONLY the JSON array, no other text.`;
       },
     }));
 
-    return NextResponse.json(
-      {
-        options,
-        patterns_used: patterns,
-        topic,
-      },
-      { status: 200, headers: corsHeaders }
+    return withLlmRateLimitHeaders(
+      NextResponse.json(
+        {
+          options,
+          patterns_used: patterns,
+          topic,
+        },
+        { status: 200, headers: corsHeaders }
+      ),
+      guard.info
     );
   } catch (error) {
     console.error("Failed to generate from topic:", error);

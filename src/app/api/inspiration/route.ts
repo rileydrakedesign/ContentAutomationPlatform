@@ -6,6 +6,7 @@ import { analyzeInspirationPost } from "@/lib/openai";
 import { getUserProvider } from "@/lib/ai";
 import { corsHeaders, handleCors } from "@/lib/cors";
 import { requireAiGeneration } from "@/lib/stripe/gate";
+import { guardLlmRoute } from "@/lib/api/with-llm-guard";
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -100,6 +101,9 @@ export async function POST(request: NextRequest) {
         { status: 401, headers: corsHeaders }
       );
     }
+
+    const guard = await guardLlmRoute({ request, userId: user.id });
+    if (!guard.ok) return guard.response;
 
     const gateError = await requireAiGeneration(user.id, "inspiration-create");
     if (gateError) return gateError;

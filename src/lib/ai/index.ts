@@ -9,6 +9,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getOpenAI, OPENAI_MODELS } from "./providers/openai";
 import { getClaude, CLAUDE_MODELS } from "./providers/claude";
 import { getGrok, GROK_MODELS } from "./providers/grok";
+import { runThroughGateway, estimateChatTokens } from "./gateway";
+import type { TokenUsage } from "./usage";
 
 export type AIProvider = "openai" | "claude" | "grok";
 export type ModelTier = "fast" | "standard";
@@ -60,12 +62,17 @@ export interface ChatCompletionOptions {
   temperature?: number;
   maxTokens?: number;
   jsonResponse?: boolean;
+  /** Optional attribution for token metering (see usage.ts). */
+  route?: string;
+  userId?: string;
 }
 
 export interface ChatCompletionResult {
   content: string;
   provider: AIProvider;
   model: string;
+  /** Token usage as reported by the provider, when available. */
+  usage?: TokenUsage;
 }
 
 /**
@@ -81,71 +88,64 @@ export async function createChatCompletion(
     temperature = 0.7,
     maxTokens = 4096,
     jsonResponse = false,
+    route,
+    userId,
   } = options;
 
+  const meta = { route, userId };
+
   if (provider === "openai") {
-    return createOpenAICompletion({
-      modelTier,
-      messages,
-      temperature,
-      maxTokens,
-      jsonResponse,
-    });
+    return createOpenAICompletion({ modelTier, messages, temperature, maxTokens, jsonResponse, meta });
   } else if (provider === "grok") {
-    return createGrokCompletion({
-      modelTier,
-      messages,
-      temperature,
-      maxTokens,
-      jsonResponse,
-    });
+    return createGrokCompletion({ modelTier, messages, temperature, maxTokens, jsonResponse, meta });
   } else {
-    return createClaudeCompletion({
-      modelTier,
-      messages,
-      temperature,
-      maxTokens,
-      jsonResponse,
-    });
+    return createClaudeCompletion({ modelTier, messages, temperature, maxTokens, jsonResponse, meta });
   }
 }
 
-async function createOpenAICompletion(options: {
+interface ProviderCompletionOptions {
   modelTier: ModelTier;
   messages: ChatMessage[];
   temperature: number;
   maxTokens: number;
   jsonResponse: boolean;
-}): Promise<ChatCompletionResult> {
-  const { modelTier, messages, temperature, maxTokens, jsonResponse } = options;
-  const model = OPENAI_MODELS[modelTier];
-
-  const completion = await getOpenAI().chat.completions.create({
-    model,
-    messages,
-    temperature,
-    // gpt-5.4 family requires max_completion_tokens (max_tokens is rejected).
-    max_completion_tokens: maxTokens,
-    ...(jsonResponse && { response_format: { type: "json_object" } }),
-  });
-
-  const content = completion.choices[0]?.message?.content?.trim() || "";
-
-  return {
-    content,
-    provider: "openai",
-    model,
-  };
+  meta: { route?: string; userId?: string };
 }
 
-async function createGrokCompletion(options: {
-  modelTier: ModelTier;
-  messages: ChatMessage[];
-  temperature: number;
-  maxTokens: number;
-  jsonResponse: boolean;
-}): Promise<ChatCompletionResult> {
-  const { modelTier, messages, temperature, maxTokens, jsonResponse } = options;
+async function createOpenAICompletion(options: ProviderCompletionOptions): Promise<ChatCompletionResult> {
+  const { modelTier, messages, temperature, maxTokens, jsonResponse, meta } = options;
+  const model = OPENAI_MODELS[modelTier];
+
+  const { value, usage } = await runThroughGateway({
+    provider: "openai",
+    model,
+    estimatedTokens: estimateChatTokens(messages, maxTokens),
+    meta,
+    exec: async () => {
+      const completion = await getOpenAI().chat.completions.create({
+        model,
+        messages,
+        temperature,
+        // gpt-5.4 family requires max_completion_tokens (max_tokens is rejected).
+        max_completion_tokens: maxTokens,
+        ...(jsonResponse && { response_format: { type: "json_object" } }),
+      });
+      const content = completion.choices[0]?.message?.content?.trim() || "";
+      return {
+        value: content,
+        usage: {
+          input: completion.usage?.prompt_tokens ?? 0,
+          output: completion.usage?.completion_tokens ?? 0,
+        },
+      };
+    },
+  });
+
+  return { content: value, provider: "openai", model, usage };
+}
+
+async function createGrokCompletion(options: ProviderCompletionOptions): Promise<ChatCompletionResult> {
+  const { modelTier, messages, temperature, maxTokens, jsonResponse, meta } = options;
   const model = GROK_MODELS[modelTier];
 
   // For JSON responses, add explicit instruction to the system message
@@ -161,41 +161,43 @@ async function createGrokCompletion(options: {
     }
   }
 
-  const completion = await getGrok().chat.completions.create({
-    model,
-    messages: processedMessages,
-    temperature,
-    // grok-4.x is a reasoning model and requires max_completion_tokens.
-    max_completion_tokens: maxTokens,
-    // Grok supports response_format like OpenAI
-    ...(jsonResponse && { response_format: { type: "json_object" as const } }),
-  });
-
-  let content = completion.choices[0]?.message?.content?.trim() || "";
-
-  // Fallback JSON extraction if needed
-  if (jsonResponse && content && !content.startsWith("{")) {
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      content = jsonMatch[0];
-    }
-  }
-
-  return {
-    content,
+  const { value, usage } = await runThroughGateway({
     provider: "grok",
     model,
-  };
+    estimatedTokens: estimateChatTokens(processedMessages, maxTokens),
+    meta,
+    exec: async () => {
+      const completion = await getGrok().chat.completions.create({
+        model,
+        messages: processedMessages,
+        temperature,
+        // grok-4.x is a reasoning model and requires max_completion_tokens.
+        max_completion_tokens: maxTokens,
+        // Grok supports response_format like OpenAI
+        ...(jsonResponse && { response_format: { type: "json_object" as const } }),
+      });
+
+      let content = completion.choices[0]?.message?.content?.trim() || "";
+      // Fallback JSON extraction if needed
+      if (jsonResponse && content && !content.startsWith("{")) {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) content = jsonMatch[0];
+      }
+      return {
+        value: content,
+        usage: {
+          input: completion.usage?.prompt_tokens ?? 0,
+          output: completion.usage?.completion_tokens ?? 0,
+        },
+      };
+    },
+  });
+
+  return { content: value, provider: "grok", model, usage };
 }
 
-async function createClaudeCompletion(options: {
-  modelTier: ModelTier;
-  messages: ChatMessage[];
-  temperature: number;
-  maxTokens: number;
-  jsonResponse: boolean;
-}): Promise<ChatCompletionResult> {
-  const { modelTier, messages, temperature, maxTokens, jsonResponse } = options;
+async function createClaudeCompletion(options: ProviderCompletionOptions): Promise<ChatCompletionResult> {
+  const { modelTier, messages, temperature, maxTokens, jsonResponse, meta } = options;
   const model = CLAUDE_MODELS[modelTier];
 
   // Claude uses a separate system parameter
@@ -218,35 +220,42 @@ async function createClaudeCompletion(options: {
     }
   }
 
-  const response = await getClaude().messages.create({
-    model,
-    max_tokens: maxTokens,
-    temperature,
-    system: systemPrompt,
-    messages: nonSystemMessages.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    })),
-  });
-
-  // Extract text content from Claude's response
-  const textBlock = response.content.find((block) => block.type === "text");
-  let content = textBlock?.type === "text" ? textBlock.text.trim() : "";
-
-  // If JSON response expected, try to extract JSON from the response
-  if (jsonResponse && content && !content.startsWith("{")) {
-    // Try to find JSON object in the response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      content = jsonMatch[0];
-    }
-  }
-
-  return {
-    content,
+  const { value, usage } = await runThroughGateway({
     provider: "claude",
     model,
-  };
+    estimatedTokens: estimateChatTokens(messages, maxTokens),
+    meta,
+    exec: async () => {
+      const response = await getClaude().messages.create({
+        model,
+        max_tokens: maxTokens,
+        temperature,
+        system: systemPrompt,
+        messages: nonSystemMessages.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        })),
+      });
+
+      // Extract text content from Claude's response
+      const textBlock = response.content.find((block) => block.type === "text");
+      let content = textBlock?.type === "text" ? textBlock.text.trim() : "";
+      // If JSON response expected, try to extract JSON from the response
+      if (jsonResponse && content && !content.startsWith("{")) {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) content = jsonMatch[0];
+      }
+      return {
+        value: content,
+        usage: {
+          input: response.usage.input_tokens,
+          output: response.usage.output_tokens,
+        },
+      };
+    },
+  });
+
+  return { content: value, provider: "claude", model, usage };
 }
 
 // Re-export types and providers
