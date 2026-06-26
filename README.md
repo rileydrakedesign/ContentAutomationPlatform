@@ -1,13 +1,20 @@
 # Agents For X
 
-X (Twitter) content platform: generate posts and replies in your own voice,
-schedule and publish them, and track what performs. Next.js 16 app backed by
-Supabase, deployed on Vercel.
+A **real-time writing assistant for X (Twitter)**: you write your own posts and
+replies, and as you type it shows where they drift from your voice and where
+they'll lose to the algorithm — grounded in your own top-performing posts — then
+fixes both in one click. AI generation is an optional on-ramp that seeds the
+editor. Next.js 16 app backed by Supabase, deployed on Vercel.
 
 ## Documentation
 
-Full product & integration docs live in **[`docs/`](docs/README.md)**:
+Full product & integration docs live in **[`docs/`](docs/README.md)** — start
+with the **[PRD](docs/product/prd.md)**:
 
+- **Product** — [PRD](docs/product/prd.md) · [feature catalog](docs/product/product-features.md)
+- **Features (engineering source of truth)** — [writing assistant](docs/features/writing-assistant.md) ·
+  [voice engine](docs/features/voice-engine.md) · [generation](docs/features/generation.md) ·
+  [all subsystems](docs/features/README.md)
 - **API** — [getting started](docs/api/getting-started.md) ·
   [auth & scopes](docs/api/authentication.md) · [credits](docs/api/credits.md) ·
   [errors](docs/api/errors.md) · [examples](docs/api/examples.md)
@@ -68,10 +75,12 @@ Publishing is driven by two paths that share `src/lib/publish/execute.ts`:
    safety net, recovers posts stuck in `publishing`, and publishes anything
    QStash missed.
 
-Crons are defined in `vercel.json` (voice-refresh daily 04:00,
-publish-scheduled every 5 min, analytics-sync daily 06:00, metrics-refresh
-daily 07:00). All require the `CRON_SECRET` bearer header; sub-daily schedules
-require a Vercel Pro plan.
+Crons are defined in `vercel.json`: `daily-ops` (00:30 UTC — the maintenance
+orchestrator: allowance reset, usage rollup, per-user metric/timeline/voice/
+vector refresh) and `publish-scheduled` (05:00 UTC). All require the
+`CRON_SECRET` bearer header. See
+[operations/background-jobs.md](docs/operations/background-jobs.md) for the full
+cron + QStash map.
 
 ## Deploy (Vercel)
 
