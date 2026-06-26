@@ -82,12 +82,26 @@ export function CreatePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabParam = searchParams.get("tab");
-  const initialTab = tabParam === "drafts" ? "drafts" : tabParam === "compose" ? "compose" : "new";
+  const inspirationId = searchParams.get("inspiration");
+  // The editor is the front door: a bare /create lands on the live-assistant
+  // Write tab. Generation is an on-ramp — links that carry a generation intent
+  // (a seeded topic or an inspiration post) still open AI Generate, and any
+  // explicit ?tab= wins.
+  const hasGenerationIntent = !!searchParams.get("topic") || !!inspirationId;
+  const initialTab =
+    tabParam === "drafts"
+      ? "drafts"
+      : tabParam === "new"
+        ? "new"
+        : tabParam === "compose"
+          ? "compose"
+          : hasGenerationIntent
+            ? "new"
+            : "compose";
   // Controlled tab state so the assistant hook (which lives at page scope, not
-  // inside the unmounted TabsContent) can be gated on the Compose tab being
+  // inside the unmounted TabsContent) can be gated on the Write tab being
   // active — otherwise it would run, and spend, on a hidden tab.
   const [activeTab, setActiveTab] = useState(initialTab);
-  const inspirationId = searchParams.get("inspiration");
 
   // Persist in-progress work so navigating away and back doesn't lose it (#8).
   const [topic, setTopic] = usePersistentState("create:topic", "");
@@ -645,15 +659,15 @@ export function CreatePage() {
                 Create
               </h1>
               <p className="text-[var(--color-text-secondary)] text-sm mt-1">
-                Generate content from topics using your patterns
+                Write your post with the live assistant — or generate a starting point
               </p>
             </div>
             <TabsList>
-              <TabsTrigger value="new" icon={<PenSquare className="w-4 h-4" />}>
-                AI Generate
+              <TabsTrigger value="compose" icon={<PenSquare className="w-4 h-4" />}>
+                Write
               </TabsTrigger>
-              <TabsTrigger value="compose" icon={<Edit3 className="w-4 h-4" />}>
-                Compose
+              <TabsTrigger value="new" icon={<Wand2 className="w-4 h-4" />}>
+                AI Generate
               </TabsTrigger>
               <TabsTrigger value="drafts" icon={<FolderOpen className="w-4 h-4" />}>
                 All Drafts
@@ -1212,7 +1226,7 @@ export function CreatePage() {
                       Write your post
                     </h3>
                     <p className="text-xs text-[var(--color-text-muted)]">
-                      Draft your content manually — no AI involved
+                      The assistant flags voice drift and reach risks as you type
                     </p>
                   </div>
                 </div>
