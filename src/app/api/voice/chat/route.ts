@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
-import { getOpenAI } from "@/lib/openai/client";
+import { createChatCompletion } from "@/lib/ai";
 import {
   ChatMessage,
   UserVoiceSettings,
@@ -416,7 +416,8 @@ export async function POST(request: NextRequest) {
         response = await handleVoiceDescription(
           message,
           settings,
-          existingMessages
+          existingMessages,
+          user.id
         );
         break;
 
@@ -424,7 +425,8 @@ export async function POST(request: NextRequest) {
         response = await handleChangesModification(
           message,
           settings,
-          existingMessages
+          existingMessages,
+          user.id
         );
         break;
 
@@ -433,7 +435,8 @@ export async function POST(request: NextRequest) {
           message,
           settings,
           existingMessages,
-          voiceType
+          voiceType,
+          user.id
         );
         break;
 
@@ -441,7 +444,8 @@ export async function POST(request: NextRequest) {
         response = await handleVoiceDescription(
           message,
           settings,
-          existingMessages
+          existingMessages,
+          user.id
         );
     }
 
@@ -501,15 +505,17 @@ export async function POST(request: NextRequest) {
 async function handleVoiceDescription(
   message: string,
   settings: UserVoiceSettings,
-  existingMessages: ChatMessage[]
+  existingMessages: ChatMessage[],
+  userId: string
 ) {
   const conversationHistory = existingMessages.slice(-6).map((msg) => ({
     role: msg.role as "user" | "assistant",
     content: msg.content,
   }));
 
-  const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-5.4-nano",
+  const { content: responseText } = await createChatCompletion({
+    provider: "claude",
+    modelTier: "cheap",
     messages: [
       { role: "system", content: PROPOSE_CHANGES_PROMPT },
       {
@@ -519,11 +525,12 @@ async function handleVoiceDescription(
       ...conversationHistory,
       { role: "user", content: message },
     ],
-    response_format: { type: "json_object" },
+    jsonResponse: true,
     temperature: 0.7,
+    route: "voice/chat",
+    userId,
   });
 
-  const responseText = completion.choices[0]?.message?.content || "{}";
   try {
     return JSON.parse(responseText);
   } catch {
@@ -538,7 +545,8 @@ async function handleVoiceDescription(
 async function handleChangesModification(
   message: string,
   settings: UserVoiceSettings,
-  existingMessages: ChatMessage[]
+  existingMessages: ChatMessage[],
+  userId: string
 ) {
   const pendingChanges = getPendingChanges(existingMessages);
   const conversationHistory = existingMessages.slice(-6).map((msg) => ({
@@ -546,8 +554,9 @@ async function handleChangesModification(
     content: msg.content,
   }));
 
-  const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-5.4-nano",
+  const { content: responseText } = await createChatCompletion({
+    provider: "claude",
+    modelTier: "cheap",
     messages: [
       { role: "system", content: PROCESS_MODIFICATION_PROMPT },
       {
@@ -557,11 +566,12 @@ async function handleChangesModification(
       ...conversationHistory,
       { role: "user", content: message },
     ],
-    response_format: { type: "json_object" },
+    jsonResponse: true,
     temperature: 0.7,
+    route: "voice/chat",
+    userId,
   });
 
-  const responseText = completion.choices[0]?.message?.content || "{}";
   try {
     return JSON.parse(responseText);
   } catch {
@@ -607,17 +617,19 @@ async function handleAcceptChanges(
     );
 
   // Create the transition message to guardrails stage
-  const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-5.4-nano",
+  const { content: responseText } = await createChatCompletion({
+    provider: "claude",
+    modelTier: "cheap",
     messages: [
       { role: "system", content: COLLECT_GUARDRAILS_PROMPT },
       { role: "user", content: "User accepted the proposed changes." },
     ],
-    response_format: { type: "json_object" },
+    jsonResponse: true,
     temperature: 0.7,
+    route: "voice/chat",
+    userId,
   });
 
-  const responseText = completion.choices[0]?.message?.content || "{}";
   let parsed;
   try {
     parsed = JSON.parse(responseText);
@@ -729,8 +741,9 @@ async function handleGuardrailsComplete(
       ? COLLECT_SAMPLE_INPUT_PROMPT_POST
       : COLLECT_SAMPLE_INPUT_PROMPT_REPLY;
 
-  const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-5.4-nano",
+  const { content: responseText } = await createChatCompletion({
+    provider: "claude",
+    modelTier: "cheap",
     messages: [
       { role: "system", content: prompt },
       {
@@ -741,11 +754,12 @@ async function handleGuardrailsComplete(
             : "User skipped adding guardrails.",
       },
     ],
-    response_format: { type: "json_object" },
+    jsonResponse: true,
     temperature: 0.7,
+    route: "voice/chat",
+    userId,
   });
 
-  const responseText = completion.choices[0]?.message?.content || "{}";
   let parsed;
   try {
     parsed = JSON.parse(responseText);
@@ -810,8 +824,9 @@ async function handleSubmitSampleInput(
     sampleInput: input,
   };
 
-  const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-5.4-nano",
+  const { content: responseText } = await createChatCompletion({
+    provider: "claude",
+    modelTier: "cheap",
     messages: [
       { role: "system", content: prompt },
       {
@@ -819,11 +834,12 @@ async function handleSubmitSampleInput(
         content: `Voice settings:\n${JSON.stringify(settings, null, 2)}\n\n${voiceType === "post" ? "Topic/outline" : "Post to reply to"}:\n${input}`,
       },
     ],
-    response_format: { type: "json_object" },
+    jsonResponse: true,
     temperature: 0.8,
+    route: "voice/chat",
+    userId,
   });
 
-  const responseText = completion.choices[0]?.message?.content || "{}";
   let parsed;
   try {
     parsed = JSON.parse(responseText);
@@ -869,7 +885,8 @@ async function handleSampleFeedback(
   message: string,
   settings: UserVoiceSettings,
   existingMessages: ChatMessage[],
-  voiceType: VoiceType
+  voiceType: VoiceType,
+  userId: string
 ) {
   const sampleInput = getSampleInput(existingMessages);
   const lastSample = existingMessages
@@ -884,8 +901,9 @@ async function handleSampleFeedback(
         : msg.content,
   }));
 
-  const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-5.4-nano",
+  const { content: responseText } = await createChatCompletion({
+    provider: "claude",
+    modelTier: "cheap",
     messages: [
       { role: "system", content: PROCESS_FEEDBACK_PROMPT },
       {
@@ -895,11 +913,12 @@ async function handleSampleFeedback(
       ...conversationHistory,
       { role: "user", content: message },
     ],
-    response_format: { type: "json_object" },
+    jsonResponse: true,
     temperature: 0.8,
+    route: "voice/chat",
+    userId,
   });
 
-  const responseText = completion.choices[0]?.message?.content || "{}";
   try {
     return JSON.parse(responseText);
   } catch {

@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
 import { createAuthClient } from "@/lib/supabase/server";
-import { getOpenAI } from "@/lib/openai/client";
+import { createChatCompletion } from "@/lib/ai";
 import { UserVoiceSettings, VoiceType, DEFAULT_VOICE_SETTINGS } from "@/types/voice";
 import { requireAiGeneration } from "@/lib/stripe/gate";
 
@@ -124,14 +124,17 @@ export async function POST(request: NextRequest) {
       prompt += `\n\nContext for the ${voiceType === "reply" ? "original tweet" : "post"}: ${context}`;
     }
 
-    const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-5.4-nano",
+    const result = await createChatCompletion({
+      provider: "claude",
+      modelTier: "cheap",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.8,
-      max_completion_tokens: 200,
+      maxTokens: 200,
+      route: "voice/preview",
+      userId: user.id,
     });
 
-    const preview = completion.choices[0]?.message?.content?.trim() || "";
+    const preview = result.content.trim();
 
     return NextResponse.json({
       preview,

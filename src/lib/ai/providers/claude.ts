@@ -16,4 +16,8 @@ export const CLAUDE_MODELS = {
   fast: "claude-sonnet-4-6",
   // Standard model - latest Sonnet (most capable balance of speed/quality)
   standard: "claude-sonnet-4-6",
+  // Cheap model - Haiku 4.5 for high-volume, cost-sensitive structured tasks
+  // (pattern/niche extraction, voice chat). The gpt-5.4-nano analog: fast,
+  // inexpensive, reliable at JSON-structured output.
+  cheap: "claude-haiku-4-5",
 } as const;

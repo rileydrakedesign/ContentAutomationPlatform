@@ -6,8 +6,7 @@
  * captured_posts as supplement.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getOpenAI } from "@/lib/openai/client";
-import { runThroughGateway } from "@/lib/ai/gateway";
+import { createChatCompletion } from "@/lib/ai";
 import { getAnalyzablePosts } from "./posts-pool";
 import { TopicCluster, NicheProfile } from "@/types/niche";
 
@@ -118,33 +117,25 @@ Rules:
 - Every post should appear in at most one cluster
 - Do not include any text outside the JSON`;
 
-  const { value: raw } = await runThroughGateway({
-    provider: "openai",
-    model: "gpt-5.4-nano",
-    estimatedTokens: Math.ceil(prompt.length / 4) + 2000,
-    meta: { route: "niche/analyze" },
-    exec: async () => {
-      const completion = await getOpenAI().chat.completions.create({
-        model: "gpt-5.4-nano",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert content strategist. Analyse posts and identify niches. Return valid JSON only.",
-          },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.3,
-        max_completion_tokens: 2000,
-      });
-      return {
-        value: completion.choices[0]?.message?.content || "{}",
-        usage: {
-          input: completion.usage?.prompt_tokens ?? 0,
-          output: completion.usage?.completion_tokens ?? 0,
-        },
-      };
-    },
+  // Claude Haiku 4.5 (cheap tier). jsonResponse: true — this prompt asks for a
+  // single JSON object, which the gateway's JSON mode reinforces. The {...}
+  // extraction below stays as a belt-and-suspenders parse.
+  const { content: raw } = await createChatCompletion({
+    provider: "claude",
+    modelTier: "cheap",
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are an expert content strategist. Analyse posts and identify niches. Return valid JSON only.",
+      },
+      { role: "user", content: prompt },
+    ],
+    temperature: 0.3,
+    maxTokens: 2000,
+    jsonResponse: true,
+    route: "niche/analyze",
+    userId,
   });
 
   // ── 6. Parse LLM response ─────────────────────────────────

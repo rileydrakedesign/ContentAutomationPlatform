@@ -13,7 +13,9 @@ import { runThroughGateway, estimateChatTokens } from "./gateway";
 import type { TokenUsage } from "./usage";
 
 export type AIProvider = "openai" | "claude" | "grok";
-export type ModelTier = "fast" | "standard";
+// "cheap" is the high-volume, cost-sensitive tier (structured extraction, voice
+// chat) — on Claude it resolves to Haiku 4.5, the gpt-5.4-nano analog.
+export type ModelTier = "fast" | "standard" | "cheap";
 
 /**
  * Force all post/reply generation onto Claude while keeping the multi-provider

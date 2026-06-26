@@ -18,4 +18,6 @@ export const GROK_MODELS = {
   fast: "grok-4.3",
   // Standard model (most capable)
   standard: "grok-4.3",
+  // Cheap tier (parity with the other providers' tier maps).
+  cheap: "grok-4.3",
 } as const;

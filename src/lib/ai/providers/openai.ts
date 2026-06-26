@@ -18,4 +18,6 @@ export const OPENAI_MODELS = {
   fast: "gpt-5.4-nano",
   // Standard model for content generation
   standard: "gpt-5.4-mini",
+  // Cheap tier (parity with the other providers' tier maps) — nano.
+  cheap: "gpt-5.4-nano",
 } as const;

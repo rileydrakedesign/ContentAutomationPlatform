@@ -218,8 +218,10 @@ export async function POST(request: NextRequest) {
     const trimmedHistory = history.slice(-6).map((t) => ({ role: t.role, content: String(t.content || "") }));
 
     const result = await createChatCompletion({
-      provider: "openai",
-      modelTier: "fast",
+      // User-facing analytics Q&A — Claude Sonnet 4.6 (standard tier) for answer
+      // quality. Routes through the governed gateway (admission + breaker + metering).
+      provider: "claude",
+      modelTier: "standard",
       messages: [
         { role: "system", content: system },
         ...trimmedHistory,
