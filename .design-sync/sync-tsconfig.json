@@ -1,0 +1,10 @@
+{
+  "comment": "Used ONLY by design-sync's esbuild path resolver (cfg.tsconfig). baseUrl is '..' so @/* resolves to the repo's src/ from inside .design-sync/. Add next/* shim mappings here when display-card waves need them.",
+  "compilerOptions": {
+    "baseUrl": "..",
+    "paths": {
+      "@/lib/analysis/assistant": ["src/lib/analysis/assistant/index.ts"],
+      "@/*": ["src/*"]
+    }
+  }
+}
