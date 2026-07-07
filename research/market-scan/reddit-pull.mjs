@@ -110,6 +110,17 @@ async function topComments(permalinkUrl, limit = 8) {
     .map(({ data: c }) => ({ score: c.score, body: (c.body || "").slice(0, 1200) }));
 }
 
+/** Comment fallback when old.reddit.com is blocked: pullpush comment search. */
+async function pullpushComments(permalinkUrl, limit = 8) {
+  const m = permalinkUrl.match(/comments\/([a-z0-9]+)\//);
+  if (!m) return [];
+  const url = `https://api.pullpush.io/reddit/search/comment/?link_id=${m[1]}&size=${limit}&sort=desc&sort_type=score`;
+  const res = await fetch(url, { headers: { "User-Agent": UA } });
+  if (!res.ok) return [];
+  const json = await res.json();
+  return (json?.data ?? []).map((c) => ({ score: c.score, body: (c.body || "").slice(0, 1200) }));
+}
+
 const seen = new Set();
 const rows = [];
 for (const query of QUERIES) {
@@ -131,7 +142,7 @@ for (const query of QUERIES) {
 rows.sort((a, b) => b.comments - a.comments);
 for (const row of rows.slice(0, 40)) {
   try {
-    row.top_comments = await topComments(row.url);
+    row.top_comments = await (usePullpushFallback ? pullpushComments(row.url) : topComments(row.url));
   } catch {
     /* best-effort */
   }
