@@ -9,10 +9,12 @@
  * dominant positive signal, reach is secondary. We move decisively toward that
  * ordering (reply ≫ retweet ≈ bookmark > like) while compressing X's extreme
  * 27× and keeping bookmarks elevated as a high-intent "save" signal. The 2023
- * weights are a snapshot of a system X is actively changing (link penalties,
- * Grok migration) — treat the *ordering* as the durable signal, the exact
- * numbers as tunable. Changing these re-ranks the post pool (posts-pool.ts),
- * which re-derives extracted-pattern multipliers on the next extraction.
+ * numbers are the LAST PUBLISHED coefficients: the 2026 Grok-based ranker
+ * (open-sourced Jan/May 2026, xai-org/x-algorithm) still predicts these same
+ * actions but redacts its live weights — treat the *ordering* as the durable
+ * signal, the exact numbers as tunable (see x-algorithm.ts ALGORITHM_CLAIMS).
+ * Changing these re-ranks the post pool (posts-pool.ts), which re-derives
+ * extracted-pattern multipliers on the next extraction.
  */
 type EngagementFields = Partial<
   Record<
