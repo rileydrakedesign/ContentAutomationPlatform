@@ -31,6 +31,7 @@ import { isGenerationApplicablePattern } from "@/lib/analysis/pattern-applicabil
 import { containsUrl } from "@/lib/billing/credits";
 import {
   buildAlgorithmNotes,
+  claimNote,
   REPLY_DRIVING,
   ENGAGEMENT_BAIT,
   type AlgorithmNote,
@@ -110,7 +111,7 @@ export function computeAlgorithmFlags(
       signal: "reply",
       status: "good",
       label: "Invites replies",
-      note: "Asks a question or takes a stance — replies are the highest-weighted positive signal (~27× a like).",
+      note: claimNote("reply_over_like"),
     });
   } else {
     flags.push({
@@ -127,7 +128,7 @@ export function computeAlgorithmFlags(
       signal: "external_link",
       status: "penalty",
       label: "External link in the post",
-      note: "Links that send people off X are demoted. Consider putting the link in a reply instead of the main post.",
+      note: claimNote("link_reach_gap"),
     });
   }
 
@@ -137,7 +138,7 @@ export function computeAlgorithmFlags(
       signal: "video_dwell",
       status: "good",
       label: "Has native media",
-      note: "Image/video earns playback + dwell time, which the ranker rewards (~20× a like for a held view).",
+      note: claimNote("media_rewarded"),
     });
   }
 
@@ -147,7 +148,7 @@ export function computeAlgorithmFlags(
       signal: "video_dwell",
       status: "good",
       label: opts.isThread ? "Thread — built for dwell" : "Substantial read",
-      note: "Longer, dwell-worthy content earns 'good click' / time-spent credit instead of a scroll-past.",
+      note: claimNote("dwell_rewarded"),
     });
   }
 
@@ -157,7 +158,7 @@ export function computeAlgorithmFlags(
       signal: "negative_feedback",
       status: "caution",
       label: "Reads as engagement-bait",
-      note: "“RT if / follow for / tag someone” style asks risk mutes and “show less” — each costs ~148 likes of score.",
+      note: claimNote("negative_feedback_costly"),
     });
   }
 

@@ -16,7 +16,7 @@
  */
 
 import { findLinks, tweetLengthInfo, DEFAULT_TWEET_LIMIT } from "@/lib/x-api/tweet-text";
-import { REPLY_DRIVING, ENGAGEMENT_BAIT } from "@/lib/analysis/x-algorithm";
+import { REPLY_DRIVING, ENGAGEMENT_BAIT, claimNote } from "@/lib/analysis/x-algorithm";
 import type {
   AssistantReport,
   Badge,
@@ -93,7 +93,7 @@ export function runTier0(input: Tier0Input): AssistantReport {
       class: "reach",
       severity: "problem",
       title: "Link in the main post",
-      why: "Posts with external links are demoted (~30–50%). X wants people to stay on-app — put the link in a reply instead.",
+      why: claimNote("link_reach_gap"),
       span: { quote: u.raw, start: u.start, end: u.end },
       source: "tier0",
       signal: "external_link",
@@ -108,7 +108,7 @@ export function runTier0(input: Tier0Input): AssistantReport {
         class: "reach",
         severity: "warning",
         title: "Reads as engagement-bait",
-        why: '"RT if / follow for / tag someone" asks risk mutes and "show less" — each costs ~148 likes of reach.',
+        why: claimNote("negative_feedback_costly"),
         span: m,
         source: "tier0",
         signal: "negative_feedback",
@@ -162,7 +162,7 @@ export function runTier0(input: Tier0Input): AssistantReport {
       id: "reply-hook",
       status: "good",
       label: "Invites replies",
-      detail: "Asks a question or takes a stance — replies are the strongest reach lever (~27× a like).",
+      detail: claimNote("reply_over_like"),
     });
   } else if (!authenticityFirst) {
     badges.push({
@@ -175,7 +175,7 @@ export function runTier0(input: Tier0Input): AssistantReport {
       id: "chip:reply-hook",
       kind: "nudge",
       label: "End with a question",
-      detail: "A genuine question is the highest-weighted positive signal on X.",
+      detail: "A genuine question is the strongest reach lever you have.",
     });
   }
 
@@ -184,7 +184,7 @@ export function runTier0(input: Tier0Input): AssistantReport {
       id: "media",
       status: "good",
       label: "Has native media",
-      detail: "Image/video earns playback + dwell time, which the ranker rewards (~20× a like for a held view).",
+      detail: claimNote("media_rewarded"),
     });
   }
 
@@ -194,7 +194,7 @@ export function runTier0(input: Tier0Input): AssistantReport {
       id: "dwell",
       status: "good",
       label: input.isThread ? "Thread — built for dwell" : "Substantial read",
-      detail: "Longer, dwell-worthy content earns 'good click' / time-spent credit instead of a scroll-past.",
+      detail: claimNote("dwell_rewarded"),
     });
   }
 
