@@ -1,0 +1,41 @@
+{
+  "pkg": "content-automation",
+  "globalName": "ContentAutomation",
+  "projectId": "7985d8d4-8ef8-4308-a3bd-0bc3f9fb3b02",
+  "shape": "package",
+  "srcDir": "src",
+  "tsconfig": "./.design-sync/sync-tsconfig.json",
+  "cssEntry": "./.design-sync/compiled.css",
+  "readmeHeader": ".design-sync/conventions.md",
+  "guidelinesGlob": [],
+  "overrides": {
+    "ScoreDial": { "cardMode": "column" },
+    "Tabs": { "cardMode": "column" }
+  },
+  "componentSrcMap": {
+    "Button": "src/components/ui/Button.tsx",
+    "IconButton": "src/components/ui/Button.tsx",
+    "Card": "src/components/ui/Card.tsx",
+    "Badge": "src/components/ui/Badge.tsx",
+    "StatusBadge": "src/components/ui/Badge.tsx",
+    "TypeBadge": "src/components/ui/Badge.tsx",
+    "Tabs": "src/components/ui/Tabs.tsx",
+    "Input": "src/components/ui/Input.tsx",
+    "Textarea": "src/components/ui/Input.tsx",
+    "SliderDial": "src/components/ui/SliderDial.tsx",
+    "ScoreDial": "src/components/assistant/ScoreDial.tsx"
+  },
+  "dtsPropsFor": {
+    "Button": "children: React.ReactNode; variant?: \"primary\" | \"secondary\" | \"ghost\" | \"danger\" | \"success\" | \"outline\"; size?: \"sm\" | \"md\" | \"lg\" | \"icon\"; loading?: boolean; icon?: React.ReactNode; iconPosition?: \"left\" | \"right\"; fullWidth?: boolean; glow?: boolean; disabled?: boolean; type?: \"button\" | \"submit\" | \"reset\"; onClick?: React.MouseEventHandler<HTMLButtonElement>; className?: string;",
+    "IconButton": "icon: React.ReactNode; \"aria-label\": string; variant?: \"primary\" | \"secondary\" | \"ghost\" | \"danger\" | \"success\" | \"outline\"; loading?: boolean; glow?: boolean; disabled?: boolean; onClick?: React.MouseEventHandler<HTMLButtonElement>;",
+    "Card": "children: React.ReactNode; className?: string; hover?: boolean; selected?: boolean; glass?: boolean; glow?: boolean; onClick?: () => void;",
+    "Badge": "children: React.ReactNode; variant?: \"default\" | \"primary\" | \"secondary\" | \"success\" | \"warning\" | \"danger\" | \"accent\" | \"outline\"; size?: \"sm\" | \"md\"; dot?: boolean; className?: string;",
+    "StatusBadge": "status: string;",
+    "TypeBadge": "type: string;",
+    "Tabs": "defaultValue?: string; value?: string; onValueChange?: (value: string) => void; children: React.ReactNode; className?: string;",
+    "Input": "label?: string; error?: string; hint?: string; icon?: React.ReactNode; iconPosition?: \"left\" | \"right\"; placeholder?: string; value?: string; defaultValue?: string; type?: string; disabled?: boolean; onChange?: React.ChangeEventHandler<HTMLInputElement>; className?: string;",
+    "Textarea": "label?: string; error?: string; hint?: string; placeholder?: string; value?: string; defaultValue?: string; rows?: number; disabled?: boolean; onChange?: React.ChangeEventHandler<HTMLTextAreaElement>; className?: string;",
+    "SliderDial": "label: string; leftLabel: string; rightLabel: string; value: number; onChange: (value: number) => void; description?: string; showValue?: boolean;",
+    "ScoreDial": "value: number; label?: string; provisional?: boolean; errorCount?: number; size?: number; checking?: boolean;"
+  }
+}

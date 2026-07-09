@@ -217,7 +217,7 @@ Fetch a tweet's text and metrics by ID or full x.com URL. Use this to pull the p
 
 **Get voice settings**
 
-Read the user's voice configuration (tone/energy/stance dials, guardrails, AI model) and their voice examples for the given voice type. Use to understand how generation will sound before generating. Free.
+Read the user's voice configuration (tone/energy/stance dials, guardrails) and their voice examples for the given voice type. Use to understand how the user's voice sounds before you write or generate. Free.
 
 - **REST endpoint:** `GET /api/v1/voice`
 - **Cost:** Free.
@@ -496,7 +496,6 @@ Update the user's voice configuration for a voice type. Only the fields you pass
 | `tone_formal_casual` | integer, optional, min 0, max 100 | 0 = formal, 100 = casual. |
 | `energy_calm_punchy` | integer, optional, min 0, max 100 | 0 = calm, 100 = punchy. |
 | `stance_neutral_opinionated` | integer, optional, min 0, max 100 | 0 = neutral, 100 = opinionated. |
-| `ai_model` | enum, optional, one of `openai`, `claude`, `grok` | Which AI provider generates content in this voice. |
 | `special_notes` | string, optional |  |
 | `guardrails` | object, optional |  |
 

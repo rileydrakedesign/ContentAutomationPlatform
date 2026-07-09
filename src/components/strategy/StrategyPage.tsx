@@ -41,7 +41,7 @@ function NumberStepper({
           const parsed = parseInt(e.target.value, 10);
           onChange(isNaN(parsed) ? 0 : Math.max(0, parsed));
         }}
-        className="w-12 h-7 text-center text-sm font-semibold text-[var(--color-text-primary)] font-mono tabular-nums bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg outline-none focus:border-[var(--color-primary-500)] transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        className="w-12 h-7 text-center text-sm font-semibold text-[var(--color-text-primary)] font-mono tabular-nums bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg outline-none focus:border-[var(--color-accent-500)] transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         min={0}
       />
       <button
@@ -197,8 +197,8 @@ export function StrategyPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <FileText size={18} className="text-blue-400" />
+                <div className="w-9 h-9 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+                  <FileText size={18} className="text-[var(--color-accent-400)]" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-[var(--color-text-primary)]">Posts</p>
@@ -213,8 +213,8 @@ export function StrategyPage() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <Layers size={18} className="text-purple-400" />
+                <div className="w-9 h-9 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+                  <Layers size={18} className="text-[var(--color-accent-400)]" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-[var(--color-text-primary)]">Threads</p>
@@ -229,8 +229,8 @@ export function StrategyPage() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <MessageSquare size={18} className="text-emerald-400" />
+                <div className="w-9 h-9 rounded-lg bg-[var(--color-success-500)]/10 flex items-center justify-center">
+                  <MessageSquare size={18} className="text-[var(--color-success-400)]" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-[var(--color-text-primary)]">Replies</p>
@@ -264,10 +264,10 @@ export function StrategyPage() {
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <button
                       onClick={() => removePillarTarget(pt.pillar)}
-                      className="w-5 h-5 rounded flex items-center justify-center hover:bg-red-500/20 transition-colors flex-shrink-0"
+                      className="w-5 h-5 rounded flex items-center justify-center hover:bg-[var(--color-accent-500)]/20 transition-colors flex-shrink-0"
                       title="Remove topic"
                     >
-                      <XIcon size={12} className="text-[var(--color-text-muted)] hover:text-red-400" />
+                      <XIcon size={12} className="text-[var(--color-text-muted)] hover:text-[var(--color-accent-400)]" />
                     </button>
                     <span className="text-sm text-[var(--color-text-primary)] truncate">
                       {pt.pillar}
@@ -291,7 +291,7 @@ export function StrategyPage() {
                   <button
                     key={pillar}
                     onClick={() => updatePillarTarget(pillar, 1)}
-                    className="text-xs px-2.5 py-1 rounded-full border border-dashed border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary-500)] hover:text-[var(--color-primary-400)] transition-colors flex items-center gap-1"
+                    className="text-xs px-2.5 py-1 rounded-full border border-dashed border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent-500)] hover:text-[var(--color-accent-400)] transition-colors flex items-center gap-1"
                   >
                     <PlusIcon size={10} />
                     {pillar}
@@ -311,21 +311,21 @@ export function StrategyPage() {
                 if (e.key === "Enter") addCustomTopic();
               }}
               placeholder="Add a custom topic..."
-              className="flex-1 h-8 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-[var(--color-primary-500)] transition-colors"
+              className="flex-1 h-8 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent-500)] transition-colors"
             />
             <button
               onClick={addCustomTopic}
               disabled={!newTopic.trim()}
-              className="h-8 px-3 text-xs font-medium bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] rounded-lg hover:bg-[var(--color-primary-500)]/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="h-8 px-3 text-xs font-medium bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] rounded-lg hover:bg-[var(--color-accent-500)]/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               Add
             </button>
           </div>
 
           {pillarMismatch && (
-            <div className="flex items-start gap-2 mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              <AlertCircle size={16} className="text-amber-400 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-amber-300">
+            <div className="flex items-start gap-2 mt-4 p-3 rounded-lg bg-[var(--color-warning-500)]/10 border border-[var(--color-warning-500)]/20">
+              <AlertCircle size={16} className="text-[var(--color-warning-400)] mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-[var(--color-warning-400)]">
                 Topic targets sum to {totalPillarTarget} but you have {totalFormatTarget} posts + threads per week.
                 Consider adjusting so they match.
               </p>

@@ -30,6 +30,13 @@ export {
   type AssistantFindings,
 } from "./merge";
 export {
+  anchorLedger,
+  contradictsSettled,
+  type AcceptedEdit,
+  type AnchoredEdit,
+  type DeclinedSuggestion,
+} from "./ledger";
+export {
   CLASS_STYLE,
   SEVERITY_DECORATION,
   BAND_COLOR,

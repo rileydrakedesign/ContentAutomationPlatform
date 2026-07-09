@@ -5,7 +5,7 @@ export default function NotFound() {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
       <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-10 max-w-md w-full">
-        <div className="mb-2 text-6xl font-bold text-[var(--color-primary-500)]">
+        <div className="mb-2 text-6xl font-bold text-[var(--color-accent-500)]">
           404
         </div>
         <h2 className="mb-2 text-xl font-semibold text-[var(--color-text-primary)]">

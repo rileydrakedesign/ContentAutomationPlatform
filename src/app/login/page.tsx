@@ -91,7 +91,7 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] focus:ring-1 focus:ring-[var(--color-primary-500)] transition"
+                className="w-full px-3 py-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-focus)] focus:ring-1 focus:ring-[var(--color-border-focus)] transition-colors duration-100"
                 placeholder="you@example.com"
               />
             </div>
@@ -106,7 +106,7 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] focus:ring-1 focus:ring-[var(--color-primary-500)] transition"
+                className="w-full px-3 py-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-focus)] focus:ring-1 focus:ring-[var(--color-border-focus)] transition-colors duration-100"
                 placeholder="Your password"
               />
             </div>
@@ -114,7 +114,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-[var(--color-primary-500)] text-white font-medium rounded-lg hover:bg-[var(--color-primary-600)] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 bg-[var(--color-primary-500)] text-[var(--color-text-inverse)] font-medium rounded-lg hover:bg-[var(--color-primary-600)] transition-colors duration-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Logging in..." : "Log in"}
             </button>
@@ -131,7 +131,7 @@ function LoginForm() {
 
           <button
             onClick={handleGoogleLogin}
-            className="w-full py-2.5 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] font-medium rounded-lg hover:bg-[var(--color-bg-hover)] transition flex items-center justify-center gap-2"
+            className="w-full py-2.5 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] font-medium rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors duration-100 flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -156,7 +156,7 @@ function LoginForm() {
 
           <p className="mt-6 text-center text-sm text-[var(--color-text-muted)]">
             Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition">
+            <Link href="/signup" className="text-[var(--color-accent-400)] hover:text-[var(--color-accent-500)] transition-colors duration-100">
               Sign up
             </Link>
           </p>

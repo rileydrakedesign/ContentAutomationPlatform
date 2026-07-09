@@ -1,5 +1,9 @@
 import { ReactNode } from "react";
 
+// GALLEY: badges are typographic, not pills. Base Badge = bracketed uppercase
+// text; StatusBadge = a bordered chip with a square dot; TypeBadge = a "type
+// sort" (single glyph in a metal-type square). See docs/design/galley/galley.css.
+
 type BadgeVariant =
   | "default"
   | "primary"
@@ -20,30 +24,26 @@ interface BadgeProps {
   className?: string;
 }
 
-const variantStyles: Record<BadgeVariant, string> = {
-  default: "bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] border-[var(--color-border-default)]",
-  primary: "bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] border-[var(--color-primary-500)]/20",
-  secondary: "bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] border-[var(--color-border-strong)]",
-  success: "bg-[var(--color-success-500)]/10 text-[var(--color-success-400)] border-[var(--color-success-500)]/20",
-  warning: "bg-[var(--color-warning-500)]/10 text-[var(--color-warning-400)] border-[var(--color-warning-500)]/20",
-  danger: "bg-[var(--color-danger-500)]/10 text-[var(--color-danger-400)] border-[var(--color-danger-500)]/20",
-  accent: "bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border-[var(--color-accent-500)]/20",
-  outline: "bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border-default)]",
-};
-
-const sizeStyles: Record<BadgeSize, string> = {
-  sm: "px-1.5 py-0.5 text-xs",
-  md: "px-2.5 py-1 text-sm",
+// Variant = text color (no background, no border).
+const variantText: Record<BadgeVariant, string> = {
+  default: "text-[var(--color-text-secondary)]",
+  primary: "text-[var(--color-text-primary)] font-bold",
+  secondary: "text-[var(--color-text-secondary)]",
+  success: "text-[var(--color-success-500)]",
+  warning: "text-[var(--color-warning-500)]",
+  danger: "text-[var(--color-accent-400)]",
+  accent: "text-[var(--color-accent-400)]",
+  outline: "text-[var(--color-text-secondary)]",
 };
 
 const dotColors: Record<BadgeVariant, string> = {
   default: "bg-[var(--color-text-muted)]",
-  primary: "bg-[var(--color-primary-400)]",
+  primary: "bg-[var(--color-text-primary)]",
   secondary: "bg-[var(--color-text-secondary)]",
-  success: "bg-[var(--color-success-400)]",
-  warning: "bg-[var(--color-warning-400)]",
-  danger: "bg-[var(--color-danger-400)]",
-  accent: "bg-[var(--color-accent-400)]",
+  success: "bg-[var(--color-success-500)]",
+  warning: "bg-[var(--color-warning-500)]",
+  danger: "bg-[var(--color-accent-500)]",
+  accent: "bg-[var(--color-accent-500)]",
   outline: "bg-[var(--color-text-secondary)]",
 };
 
@@ -54,33 +54,34 @@ export function Badge({
   dot = false,
   className = "",
 }: BadgeProps) {
+  const text = size === "md" ? "text-sm" : "text-xs";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 font-medium rounded-full border ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+      className={`inline-flex items-center gap-[1ch] ${text} uppercase tracking-[0.08em] leading-6 whitespace-nowrap ${variantText[variant]} ${className}`}
     >
-      {dot && (
-        <span className={`w-1.5 h-1.5 rounded-full ${dotColors[variant]}`} />
-      )}
+      {dot && <span className={`inline-block w-[7px] h-[7px] ${dotColors[variant]}`} />}
+      <span className="text-[var(--color-text-muted)]">[</span>
       {children}
+      <span className="text-[var(--color-text-muted)]">]</span>
     </span>
   );
 }
 
-// Predefined status badges
+// GALLEY: a bordered square chip — 7px square dot + uppercase label.
 export function StatusBadge({ status }: { status: string }) {
-  const statusVariants: Record<string, BadgeVariant> = {
-    DRAFT: "warning",
-    POSTED: "success",
-    SCHEDULED: "primary",
-    PENDING: "warning",
-    GENERATED: "primary",
-    APPROVED: "success",
-    REJECTED: "danger",
-    inbox: "warning",
-    triaged: "success",
-    active: "success",
-    paused: "warning",
-    draft: "default",
+  const statusDot: Record<string, string> = {
+    DRAFT: "bg-[var(--color-warning-500)]",
+    POSTED: "bg-[var(--color-success-500)]",
+    SCHEDULED: "bg-[var(--color-warning-500)]",
+    PENDING: "bg-[var(--color-warning-500)]",
+    GENERATED: "bg-[var(--color-text-muted)]",
+    APPROVED: "bg-[var(--color-success-500)]",
+    REJECTED: "bg-[var(--color-accent-500)]",
+    inbox: "bg-[var(--color-warning-500)]",
+    triaged: "bg-[var(--color-success-500)]",
+    active: "bg-[var(--color-success-500)]",
+    paused: "bg-[var(--color-warning-500)]",
+    draft: "bg-[var(--color-text-muted)]",
   };
 
   const labels: Record<string, string> = {
@@ -99,21 +100,22 @@ export function StatusBadge({ status }: { status: string }) {
   };
 
   return (
-    <Badge variant={statusVariants[status] || "default"} dot>
+    <span className="inline-flex items-center gap-[1ch] border border-[var(--color-border-default)] px-[1.5ch] text-xs uppercase tracking-[0.1em] leading-6 text-[var(--color-text-secondary)] whitespace-nowrap">
+      <span className={`inline-block w-[7px] h-[7px] ${statusDot[status] || "bg-[var(--color-text-muted)]"}`} />
       {labels[status] || status}
-    </Badge>
+    </span>
   );
 }
 
-// Type badges for content
+// GALLEY: a "type sort" — a single glyph in a 28px metal-type square.
 export function TypeBadge({ type }: { type: string }) {
-  const typeVariants: Record<string, BadgeVariant> = {
-    X_POST: "default",
-    X_THREAD: "default",
-    NEWS: "success",
-    INSPIRATION: "primary",
-    my_post: "primary",
-    inspiration: "accent",
+  const glyphs: Record<string, string> = {
+    X_POST: "T",
+    X_THREAD: "≡",
+    NEWS: "N",
+    INSPIRATION: "✦",
+    my_post: "◆",
+    inspiration: "✦",
   };
 
   const labels: Record<string, string> = {
@@ -126,8 +128,11 @@ export function TypeBadge({ type }: { type: string }) {
   };
 
   return (
-    <Badge variant={typeVariants[type] || "default"}>
-      {labels[type] || type}
-    </Badge>
+    <span
+      title={labels[type] || type}
+      className="inline-flex items-center justify-center w-7 h-7 border border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] font-bold text-xs shadow-[inset_0_-2px_0_rgba(0,0,0,0.5)]"
+    >
+      {glyphs[type] || (labels[type] || type).charAt(0)}
+    </span>
   );
 }

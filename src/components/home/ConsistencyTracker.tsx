@@ -154,50 +154,27 @@ export function ConsistencyTracker({ posts = [], activityDays, dateRange, classN
     return 4;
   };
 
-  const getActivityColor = (level: number, hasPost: boolean, hasReply: boolean): string => {
-    if (level === 0) return "bg-[var(--color-bg-elevated)]";
-
-    // Posts are blue, replies are green, both is teal
-    if (hasPost && hasReply) {
-      const intensity = level === 1 ? "400/30" : level === 2 ? "400/50" : level === 3 ? "400/70" : "400";
-      return `bg-teal-${intensity}`;
-    }
-    if (hasPost) {
-      const intensity = level === 1 ? "400/30" : level === 2 ? "400/50" : level === 3 ? "400/70" : "400";
-      return `bg-blue-${intensity}`;
-    }
-    if (hasReply) {
-      const intensity = level === 1 ? "400/30" : level === 2 ? "400/50" : level === 3 ? "400/70" : "400";
-      return `bg-emerald-${intensity}`;
-    }
-    return "bg-[var(--color-bg-elevated)]";
-  };
-
-  // Simpler color scheme using opacity
+  // GALLEY: activity heatmap in the design-system palette, matching the legend
+  // (Posts → paper, Replies → sap, Both → ochre). Intensity via alpha.
   const getCellStyle = (posts: number, replies: number): React.CSSProperties => {
     const total = posts + replies;
     if (total === 0) return {};
 
     const hasPost = posts > 0;
     const hasReply = replies > 0;
+    const token =
+      hasPost && hasReply
+        ? "--color-warning-500"
+        : hasPost
+          ? "--color-primary-500"
+          : "--color-success-500";
 
-    // Determine base color
-    let hue: number;
-    if (hasPost && hasReply) {
-      hue = 175; // Teal
-    } else if (hasPost) {
-      hue = 210; // Blue
-    } else {
-      hue = 160; // Green
-    }
-
-    // Intensity based on activity
+    // Alpha scales with activity (30%–90%).
     const intensity = Math.min(total / 10, 1);
-    const lightness = 50 - intensity * 20;
-    const saturation = 60 + intensity * 20;
+    const pct = Math.round(30 + intensity * 60);
 
     return {
-      backgroundColor: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+      backgroundColor: `color-mix(in srgb, var(${token}) ${pct}%, transparent)`,
     };
   };
 
@@ -233,7 +210,7 @@ export function ConsistencyTracker({ posts = [], activityDays, dateRange, classN
             <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
               {summary.totalPosts} posts, {summary.totalReplies} replies
               {summary.currentStreak > 0 && (
-                <span className="ml-2 text-amber-400">
+                <span className="ml-2 text-[var(--color-warning-400)]">
                   🔥 {summary.currentStreak} day streak
                 </span>
               )}
@@ -300,7 +277,7 @@ export function ConsistencyTracker({ posts = [], activityDays, dateRange, classN
                     }
 
                     if (isToday) {
-                      cellStyle.outline = "1.5px solid var(--color-primary-400)";
+                      cellStyle.outline = "1.5px solid var(--color-accent-400)";
                       cellStyle.outlineOffset = -1;
                     }
 
@@ -321,15 +298,15 @@ export function ConsistencyTracker({ posts = [], activityDays, dateRange, classN
         {/* Legend */}
         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-[var(--color-border)]">
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-sm bg-blue-400" />
+            <div className="w-2.5 h-2.5 rounded-sm bg-[var(--color-primary-500)]" />
             <span className="text-[10px] text-[var(--color-text-muted)]">Posts</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-sm bg-emerald-400" />
+            <div className="w-2.5 h-2.5 rounded-sm bg-[var(--color-success-500)]" />
             <span className="text-[10px] text-[var(--color-text-muted)]">Replies</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-sm bg-teal-400" />
+            <div className="w-2.5 h-2.5 rounded-sm bg-[var(--color-warning-500)]" />
             <span className="text-[10px] text-[var(--color-text-muted)]">Both</span>
           </div>
         </div>

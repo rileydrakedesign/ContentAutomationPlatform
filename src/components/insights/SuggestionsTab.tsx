@@ -31,10 +31,10 @@ const SUGGESTION_ICONS: Record<string, React.ReactNode> = {
 };
 
 const SUGGESTION_COLORS: Record<string, string> = {
-  pattern: "bg-violet-500/10 text-violet-400 border-violet-500/20",
-  timing: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  topic: "bg-green-500/10 text-green-400 border-green-500/20",
-  action: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  pattern: "bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border-[var(--color-accent-500)]/20",
+  timing: "bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border-[var(--color-accent-500)]/20",
+  topic: "bg-[var(--color-success-500)]/10 text-[var(--color-success-400)] border-[var(--color-success-500)]/20",
+  action: "bg-[var(--color-warning-500)]/10 text-[var(--color-warning-400)] border-[var(--color-warning-500)]/20",
 };
 
 export function SuggestionsTab() {
@@ -73,8 +73,8 @@ export function SuggestionsTab() {
   if (suggestions.length === 0) {
     return (
       <Card className="p-8 text-center">
-        <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-amber-500/10 flex items-center justify-center">
-          <Lightbulb className="w-6 h-6 text-amber-400" />
+        <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--color-warning-500)]/10 flex items-center justify-center">
+          <Lightbulb className="w-6 h-6 text-[var(--color-warning-400)]" />
         </div>
         <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">
           No Suggestions Yet
@@ -85,7 +85,7 @@ export function SuggestionsTab() {
         </p>
         <Link
           href="/insights?tab=patterns"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-white rounded-lg font-medium transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-[var(--color-text-inverse)] rounded-lg font-medium transition-colors duration-100"
         >
           Extract Patterns
           <ArrowRight className="w-4 h-4" />
@@ -147,13 +147,13 @@ export function SuggestionsTab() {
               className={`p-6 border ${SUGGESTION_COLORS[suggestion.type]}`}
             >
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-[var(--color-bg-elevated)] flex items-center justify-center flex-shrink-0">
                   {SUGGESTION_ICONS[suggestion.type]}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-start justify-between mb-2 gap-3">
                     <h4 className="font-semibold text-[var(--color-text-primary)] text-lg">{suggestion.title}</h4>
-                    <span className="px-3 py-1 bg-white/10 rounded-full text-sm font-medium whitespace-nowrap">
+                    <span className="px-3 py-1 bg-[var(--color-bg-elevated)] rounded-full text-sm font-medium whitespace-nowrap">
                       {suggestion.impact}
                     </span>
                   </div>
@@ -167,7 +167,7 @@ export function SuggestionsTab() {
                             )}`
                           : "/create"
                       }
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] rounded-lg font-medium transition-colors duration-100"
                     >
                       {suggestion.action}
                       <ArrowRight className="w-4 h-4" />

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/Card";
-import { Sparkles, Loader2, ArrowRight, CheckCircle2, Upload } from "lucide-react";
+import { Sparkles, ArrowRight, CheckCircle2, Upload } from "lucide-react";
 import { voiceConfidence } from "@/lib/analysis/voice-confidence";
 
 type Phase = "idle" | "running" | "done" | "empty" | "error";
@@ -64,11 +64,11 @@ export function FirstRunAnalysis({
   if (phase === "idle") return null;
 
   return (
-    <Card className="mb-5 border-[var(--color-primary-500)]/30 bg-[var(--color-primary-500)]/5">
+    <Card className="mb-5 border-[var(--color-accent-500)]/30 bg-[var(--color-accent-500)]/5">
       <CardContent>
         {phase === "running" && (
           <div className="flex items-center gap-3">
-            <Loader2 className="w-5 h-5 text-[var(--color-primary-400)] animate-spin shrink-0" />
+            <span aria-hidden className="inline-block animate-[blink_1s_steps(1)_infinite] text-[var(--color-accent-400)] shrink-0">▌</span>
             <div>
               <p className="text-sm font-semibold text-[var(--color-text-primary)]">
                 Analyzing your account…
@@ -101,7 +101,7 @@ export function FirstRunAnalysis({
                 </div>
                 <Link
                   href="/insights"
-                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--color-primary-500)] text-white text-sm font-medium hover:bg-[var(--color-primary-600)] transition-colors"
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--color-primary-500)] text-[var(--color-text-inverse)] text-sm font-medium hover:bg-[var(--color-primary-600)] transition-colors"
                 >
                   See your Voice Report
                   <ArrowRight className="w-4 h-4" />
@@ -133,7 +133,7 @@ export function FirstRunAnalysis({
         {phase === "empty" && (
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3 min-w-0">
-              <Sparkles className="w-5 h-5 text-[var(--color-primary-400)] shrink-0 mt-0.5" />
+              <Sparkles className="w-5 h-5 text-[var(--color-accent-400)] shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-[var(--color-text-primary)]">
                   Connected — let&apos;s get enough signal to learn your voice
@@ -148,7 +148,7 @@ export function FirstRunAnalysis({
             <div className="shrink-0 flex flex-col gap-2">
               <button
                 onClick={() => onUploadClick?.()}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--color-primary-500)] text-white text-sm font-medium hover:bg-[var(--color-primary-600)] transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--color-primary-500)] text-[var(--color-text-inverse)] text-sm font-medium hover:bg-[var(--color-primary-600)] transition-colors"
               >
                 <Upload className="w-4 h-4" />
                 Import CSV
@@ -165,10 +165,10 @@ export function FirstRunAnalysis({
 
         {phase === "error" && (
           <div className="flex items-center gap-3">
-            <Sparkles className="w-5 h-5 text-[var(--color-primary-400)] shrink-0" />
+            <Sparkles className="w-5 h-5 text-[var(--color-accent-400)] shrink-0" />
             <p className="text-sm text-[var(--color-text-secondary)]">
               Connected! Your first analysis didn&apos;t finish — run a{" "}
-              <Link href="/insights" className="text-[var(--color-primary-400)] hover:underline">
+              <Link href="/insights" className="text-[var(--color-accent-400)] hover:underline">
                 Voice Tune-Up
               </Link>{" "}
               to see what works for you.

@@ -14,7 +14,7 @@ export function FreePlanBanner() {
   const remaining = limit - used;
 
   return (
-    <div className="rounded-xl border border-[var(--color-primary-500)]/20 bg-gradient-to-r from-[var(--color-primary-500)]/5 via-[var(--color-bg-surface)] to-[var(--color-accent-500)]/5 p-4 mb-5">
+    <div className="rounded-xl border border-[var(--color-accent-500)]/20 bg-[var(--color-bg-surface)] p-4 mb-5">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           {/* Plan badge */}
@@ -59,7 +59,7 @@ export function FreePlanBanner() {
         {/* CTA */}
         <Link
           href="/pricing"
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-primary-600)] hover:from-[var(--color-primary-400)] hover:to-[var(--color-primary-500)] text-white transition-all shadow-sm shrink-0"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-400)] text-[var(--color-text-inverse)] transition-colors duration-100 shadow-sm shrink-0"
         >
           Upgrade
           <ArrowRight className="w-3 h-3" />

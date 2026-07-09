@@ -123,15 +123,15 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
     <Card className="p-5 space-y-6">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-[var(--color-primary-400)]" />
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-[var(--color-accent-400)]" />
           </div>
           <h3 className="font-semibold text-[var(--color-text-primary)]">Voice Report</h3>
         </div>
         <button
           onClick={handleShare}
           disabled={shareState === "loading"}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[var(--color-primary-400)] hover:bg-[var(--color-primary-500)]/10 transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[var(--color-accent-400)] hover:bg-[var(--color-accent-500)]/10 transition-colors disabled:opacity-50"
           title="Get a public, shareable link to this Voice Report"
         >
           <Share2 className="w-3.5 h-3.5" />
@@ -152,9 +152,9 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
             <p className="text-sm text-[var(--color-text-secondary)]">{niche_summary}</p>
           )}
           {positioning && (
-            <div className="p-4 rounded-lg bg-[var(--color-primary-500)]/5 border border-[var(--color-primary-500)]/20 space-y-2">
+            <div className="p-4 rounded-lg bg-[var(--color-accent-500)]/5 border border-[var(--color-accent-500)]/20 space-y-2">
               <div className="flex items-start gap-2">
-                <Compass className="w-4 h-4 text-[var(--color-primary-400)] mt-0.5 shrink-0" />
+                <Compass className="w-4 h-4 text-[var(--color-accent-400)] mt-0.5 shrink-0" />
                 <p className="text-sm font-medium text-[var(--color-text-primary)]">
                   {positioning.positioning_statement}
                 </p>
@@ -184,7 +184,7 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
             {content_pillars.map((pillar) => (
               <span
                 key={pillar}
-                className="px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] border border-[var(--color-primary-500)]/20"
+                className="px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border border-[var(--color-accent-500)]/20"
               >
                 {pillar}
               </span>
@@ -210,7 +210,7 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
                     <span className="text-sm font-medium text-[var(--color-text-primary)]">
                       {pattern.pattern_name}
                     </span>
-                    <span className="px-2 py-0.5 bg-green-500/10 text-green-400 rounded-full text-xs font-medium shrink-0">
+                    <span className="px-2 py-0.5 bg-[var(--color-success-500)]/10 text-[var(--color-success-400)] rounded-full text-xs font-medium shrink-0">
                       {pattern.multiplier.toFixed(1)}x
                     </span>
                     {pattern.applies_to_generation === false && (
@@ -228,7 +228,7 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
                   {/* Provenance: demonstrate the depth — show the user's OWN posts
                       this pattern was mined from, not just a claimed multiplier. */}
                   {pattern.source_post_examples && pattern.source_post_examples.length > 0 ? (
-                    <div className="mt-2 pl-2 border-l-2 border-[var(--color-primary-500)]/30 space-y-1.5">
+                    <div className="mt-2 pl-2 border-l-2 border-[var(--color-accent-500)]/30 space-y-1.5">
                       <p className="text-[11px] font-medium text-[var(--color-text-muted)]">
                         Mined from {pattern.sample_count} of your posts — including:
                       </p>
@@ -270,7 +270,7 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
                 </p>
                 <div className="flex items-center gap-3 mt-2 text-xs text-[var(--color-text-muted)]">
                   <span className="flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3 text-green-400" />
+                    <TrendingUp className="w-3 h-3 text-[var(--color-success-400)]" />
                     {Math.round(post.engagement_score).toLocaleString()} engagement
                   </span>
                   <span>{post.impressions.toLocaleString()} impressions</span>
@@ -288,7 +288,7 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
         </h4>
         <div className="p-3 rounded-lg bg-[var(--color-bg-elevated)]/50 border border-[var(--color-border-default)]">
           <div className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
-            <CalendarDays className="w-4 h-4 text-[var(--color-primary-400)]" />
+            <CalendarDays className="w-4 h-4 text-[var(--color-accent-400)]" />
             <span className="font-medium">
               {cadence.avg_posts_per_week.toFixed(1)} posts/week
             </span>
@@ -341,7 +341,7 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
                 </p>
                 <Link
                   href="/voice"
-                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors"
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] transition-colors"
                 >
                   <SlidersHorizontal className="w-3 h-3" />
                   Adjust in your voice settings
@@ -410,7 +410,7 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
                 {inspiration_alignment.note}
               </p>
               {inspiration_alignment.total > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] border border-[var(--color-primary-500)]/20 shrink-0">
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border border-[var(--color-accent-500)]/20 shrink-0">
                   {inspiration_alignment.aligned}/{inspiration_alignment.total}
                 </span>
               )}
@@ -432,7 +432,7 @@ export function VoiceReport({ report }: { report: VoiceReportData }) {
           </p>
         )}
         {context_freshness && !context_freshness.retune_recommended && (
-          <p className="flex items-center gap-1.5 text-xs text-green-400 mt-1">
+          <p className="flex items-center gap-1.5 text-xs text-[var(--color-success-400)] mt-1">
             <Check className="w-3 h-3 shrink-0" />
             Context up to date with your latest analytics
           </p>

@@ -23,7 +23,7 @@ export function FormatSelector({ selected, onChange }: FormatSelectorProps) {
             onClick={() => onChange(type)}
             className={`flex-1 p-4 rounded-lg border text-left transition ${
               selected === type
-                ? "border-[var(--color-primary-400)] bg-[var(--color-primary-400)]/10"
+                ? "border-[var(--color-accent-400)] bg-[var(--color-accent-400)]/10"
                 : "border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] hover:border-[var(--color-border-strong)]"
             }`}
           >

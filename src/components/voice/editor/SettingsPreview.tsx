@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { UserVoiceSettings, VoiceType } from "@/types/voice";
-import { RefreshCw, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 interface SettingsPreviewProps {
   settings: UserVoiceSettings;
@@ -90,10 +90,10 @@ export function SettingsPreview({ settings, voiceType }: SettingsPreviewProps) {
           <button
             onClick={generatePreview}
             disabled={loading}
-            className="flex items-center gap-1 text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] disabled:opacity-50"
+            className="flex items-center gap-1 text-xs text-[var(--color-accent-400)] hover:text-[var(--color-accent-500)] disabled:opacity-50"
           >
             {loading ? (
-              <RefreshCw className="w-3 h-3 animate-spin" />
+              <span aria-hidden className="inline-block animate-[blink_1s_steps(1)_infinite]">▌</span>
             ) : (
               <Sparkles className="w-3 h-3" />
             )}
@@ -129,7 +129,7 @@ function SettingRow({ label, value, displayValue }: SettingRowProps) {
       <span className="text-xs text-[var(--color-text-muted)] w-20">{label}</span>
       <div className="flex-1 h-1.5 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-primary-400)] rounded-full transition-all"
+          className="h-full bg-[var(--color-primary-500)] rounded-full transition-all"
           style={{ width: `${value}%` }}
         />
       </div>

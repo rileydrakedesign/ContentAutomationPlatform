@@ -104,7 +104,7 @@ export function TourTooltip({
                   i === currentIndex
                     ? "bg-[var(--color-primary-500)] w-4 rounded-full"
                     : i < currentIndex
-                    ? "bg-[var(--color-primary-400)]/50"
+                    ? "bg-[var(--color-accent-400)]/50"
                     : "bg-[var(--color-bg-elevated)]"
                 }`}
               />

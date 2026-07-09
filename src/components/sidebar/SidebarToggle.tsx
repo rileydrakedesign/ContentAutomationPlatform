@@ -14,7 +14,7 @@ export function SidebarToggle() {
     >
       <ChevronLeft
         size={20}
-        className={`flex-shrink-0 transition-transform duration-300 ${
+        className={`flex-shrink-0 ${
           isCollapsed ? "rotate-180" : ""
         }`}
       />

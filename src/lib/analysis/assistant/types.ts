@@ -28,7 +28,7 @@ export type FindingClass =
   | "voice" // purple — drifts from how you sound / breaks a guardrail
   | "reach"; // amber — algorithm risk: external link, engagement-bait
 
-/** Underline *style* encodes severity (dotted / solid / double). */
+/** Underline *style* encodes severity (quiet dotted / solid). */
 export type Severity = "suggestion" | "warning" | "problem";
 
 /** Where a finding came from — deterministic Tier-0 vs the LLM Live Read. */
@@ -87,6 +87,13 @@ export interface SuggestionChip {
 
 export type Grade = "A" | "B" | "C" | "D" | "F";
 
+/** A forward-looking "do this next" — the single highest-leverage improvement to
+ *  make next, distinct from fixing an existing span. From the live read. */
+export interface NextStep {
+  label: string;
+  detail: string;
+}
+
 export interface Scores {
   /** Headline 0-100 blend the user pushes upward. Provisional until a Live Read
    *  fills in voice + performance (see score.ts). */
@@ -109,6 +116,13 @@ export interface AssistantReport {
   scores: Scores;
   /** X-accurate character info (reused from tweet-text). */
   charInfo: TweetLengthInfo;
+  /** Forward-looking "do this next" from the live read (null until one runs). */
+  nextStep?: NextStep | null;
+  /** The post's core idea as the live read understood it — the north star every
+   *  suggestion is graded against (null until a read runs). Pinned per session
+   *  and echoed back to later reads so the engine refines ONE post, not a
+   *  drifting series of rewrites. */
+  coreIdea?: string | null;
 }
 
 /** Color/priority metadata for a class — single source of truth for the UI and

@@ -1,7 +1,9 @@
 /**
  * ProseMirror decorations plugin — renders the assistant's underlines as real
  * inline decorations (no overlay/alignment hack). Color = finding class, style =
- * severity (dotted/wavy/double), carried as inline style on the decoration span.
+ * severity (quiet dotted / solid), carried as inline style on the decoration span.
+ * Underlines are deliberately thin and offset so they read as a clean hint, not a
+ * loud squiggle.
  */
 import { Plugin, PluginKey } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
@@ -20,10 +22,13 @@ export function buildDecorations(doc: PMNode, findings: Finding[]): DecorationSe
     const to = offsetToPM(doc, f.span.end);
     if (to <= from) continue;
     const style = CLASS_STYLE[f.class];
+    // Thin + offset = clean hint. Only hard "problem" findings get the slightly
+    // heavier 1.5px line; everything else is a quiet 1px underline.
+    const thickness = f.severity === "problem" ? "1.5px" : "1px";
     decos.push(
       Decoration.inline(from, to, {
         "data-fid": f.id,
-        style: `text-decoration-line:underline;text-decoration-style:${SEVERITY_DECORATION[f.severity]};text-decoration-color:${style.color};text-decoration-thickness:2px;text-underline-offset:2px;`,
+        style: `text-decoration-line:underline;text-decoration-style:${SEVERITY_DECORATION[f.severity]};text-decoration-color:${style.color};text-decoration-thickness:${thickness};text-underline-offset:3px;`,
       })
     );
   }

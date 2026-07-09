@@ -41,7 +41,7 @@ export function OutcomeAttributionCard({ className }: { className?: string }) {
     <Card className={className}>
       <CardContent>
         <div className="flex items-center gap-2 mb-3">
-          <BarChart3 className="w-4 h-4 text-[var(--color-primary-400)]" />
+          <BarChart3 className="w-4 h-4 text-[var(--color-accent-400)]" />
           <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
             Is it working?
           </h3>

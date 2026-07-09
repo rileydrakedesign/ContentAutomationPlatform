@@ -199,8 +199,8 @@ export function InsightsHub({ posts, uploadedAt, onUploadClick, compact }: Insig
   };
 
   const getTrendIcon = (trend?: "up" | "down" | "neutral") => {
-    if (trend === "up") return <TrendingUp className="w-3 h-3 text-emerald-400" />;
-    if (trend === "down") return <TrendingDown className="w-3 h-3 text-red-400" />;
+    if (trend === "up") return <TrendingUp className="w-3 h-3 text-[var(--color-success-400)]" />;
+    if (trend === "down") return <TrendingDown className="w-3 h-3 text-[var(--color-accent-400)]" />;
     return null;
   };
 
@@ -278,8 +278,8 @@ export function InsightsHub({ posts, uploadedAt, onUploadClick, compact }: Insig
                 className="p-3 bg-[var(--color-bg-elevated)] rounded-lg overflow-hidden"
               >
                 <div className="flex items-start gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center shrink-0">
-                    <Icon className="w-3.5 h-3.5 text-[var(--color-primary-400)]" />
+                  <div className="w-7 h-7 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center shrink-0">
+                    <Icon className="w-3.5 h-3.5 text-[var(--color-accent-400)]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1 min-w-0">

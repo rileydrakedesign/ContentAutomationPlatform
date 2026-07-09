@@ -1,6 +1,6 @@
 "use client";
 
-import { InspirationPostsTab } from "@/components/voice/InspirationPostsTab";
+import { InspirationPostsTab } from "@/components/library/InspirationPostsTab";
 
 export function LibraryPage() {
   return (

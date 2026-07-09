@@ -68,3 +68,10 @@ railway_error.md
 
 # raw marketing media (too large for git)
 landing-page-assets/
+
+# design-sync (claude.ai/design)
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules

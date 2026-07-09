@@ -2,7 +2,26 @@
 
 /* ============================================
    CONTENT AUTOMATION PLATFORM - DESIGN SYSTEM
+   Visual direction: GALLEY (see docs/design/galley/)
    ============================================ */
+
+/* iA Writer Quattro — the writing surface font (--font-writer).
+   TODO: self-host the woff2 (SIL-OFL, github.com/iaolo/iA-Fonts) instead of
+   the CDN; JetBrains Mono is the fallback until then. */
+@font-face {
+  font-family: "iA Writer Quattro";
+  src: url("https://cdn.jsdelivr.net/gh/iaolo/iA-Fonts@master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "iA Writer Quattro";
+  src: url("https://cdn.jsdelivr.net/gh/iaolo/iA-Fonts@master/iA%20Writer%20Quattro/Webfonts/iAWriterQuattroS-Italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
 
 /* ============================================
    DESIGN TOKENS
@@ -10,63 +29,77 @@
 
 :root {
   /* ---- Colors ---- */
-  /* Background layers (darkest to lightest) */
-  --color-bg-base: #020617;
-  --color-bg-surface: #0F172A;
-  --color-bg-elevated: #1E293B;
-  --color-bg-hover: #334155;
+  /* GALLEY: ink — warm near-black backgrounds (darkest to lightest) */
+  --color-bg-base: #0C0B09;
+  --color-bg-surface: #121110;
+  --color-bg-elevated: #191713;
+  --color-bg-hover: #242118;
 
-  /* Glass effects */
-  --color-glass-subtle: rgba(255, 255, 255, 0.03);
-  --color-glass-medium: rgba(255, 255, 255, 0.06);
-  --color-glass-strong: rgba(255, 255, 255, 0.10);
+  /* Glass effects (paper-tinted; elevation abolished, kept subtle) */
+  --color-glass-subtle: rgba(234, 230, 218, 0.03);
+  --color-glass-medium: rgba(234, 230, 218, 0.06);
+  --color-glass-strong: rgba(234, 230, 218, 0.10);
 
-  /* Borders */
-  --color-border-subtle: rgba(255, 255, 255, 0.06);
-  --color-border-default: rgba(255, 255, 255, 0.10);
-  --color-border-strong: rgba(255, 255, 255, 0.15);
-  --color-border-focus: #6366F1;
+  /* Borders — "rules" (paper on ink) */
+  --color-border-subtle: rgba(234, 230, 218, 0.13);
+  --color-border-default: rgba(234, 230, 218, 0.24);
+  --color-border-strong: rgba(234, 230, 218, 0.42);
+  --color-border-focus: #E04B24;
 
-  /* Text */
-  --color-text-primary: #F8FAFC;
-  --color-text-secondary: #94A3B8;
-  --color-text-muted: #64748B;
-  --color-text-inverse: #020617;
+  /* Text — unbleached "paper" */
+  --color-text-primary: #EAE6DA;
+  --color-text-secondary: #A6A193;
+  --color-text-muted: #6F6B5F;
+  --color-text-inverse: #0C0B09;
 
-  /* Primary (Indigo) */
-  --color-primary-50: #EEF2FF;
-  --color-primary-100: #E0E7FF;
-  --color-primary-200: #C7D2FE;
-  --color-primary-300: #A5B4FC;
-  --color-primary-400: #818CF8;
-  --color-primary-500: #6366F1;
-  --color-primary-600: #4F46E5;
-  --color-primary-700: #4338CA;
+  /* Back-compat aliases — legacy token names still referenced in a few
+     feature components; point them at their GALLEY equivalents so they
+     resolve instead of rendering as undefined (transparent). */
+  --color-border: var(--color-border-default);
+  --color-bg-card: var(--color-bg-surface);
+  --color-bg-default: var(--color-bg-base);
+  --color-bg-primary: var(--color-bg-base);
+  --color-bg-secondary: var(--color-bg-surface);
+  --color-bg-tertiary: var(--color-bg-elevated);
+  --color-text-tertiary: var(--color-text-muted);
 
-  /* Accent (Orange) */
-  --color-accent-400: #FB923C;
-  --color-accent-500: #F97316;
-  --color-accent-600: #EA580C;
+  /* Primary — "paper" (letterpress block: paper bg, ink text) */
+  --color-primary-50: #FBFAF5;
+  --color-primary-100: #F5F3EA;
+  --color-primary-200: #EDEADD;
+  --color-primary-300: #E0DBCB;
+  --color-primary-400: #FFFDF4;
+  --color-primary-500: #EAE6DA;
+  --color-primary-600: #D6D1C2;
+  --color-primary-700: #C2BCA8;
 
-  /* Success (Green) */
-  --color-success-400: #4ADE80;
-  --color-success-500: #22C55E;
-  --color-success-600: #16A34A;
+  /* Accent — "rubric", the copyeditor's red pencil */
+  --color-accent-400: #F0653D;
+  --color-accent-500: #E04B24;
+  --color-accent-600: #A53315;
 
-  /* Warning (Amber) */
-  --color-warning-400: #FBBF24;
-  --color-warning-500: #F59E0B;
-  --color-warning-600: #D97706;
+  /* Success — sap green */
+  --color-success-400: #A7BE92;
+  --color-success-500: #93AC7C;
+  --color-success-600: #7A9463;
 
-  /* Danger (Red) */
-  --color-danger-400: #F87171;
-  --color-danger-500: #EF4444;
-  --color-danger-600: #DC2626;
+  /* Warning — ochre (also highlight/praise ink) */
+  --color-warning-400: #E6B85C;
+  --color-warning-500: #D9A441;
+  --color-warning-600: #BE8C2E;
+
+  /* Danger — shares rubric */
+  --color-danger-400: #F0653D;
+  --color-danger-500: #E04B24;
+  --color-danger-600: #A53315;
 
   /* ---- Typography ---- */
-  --font-heading: var(--font-space-grotesk), system-ui, sans-serif;
-  --font-body: var(--font-dm-sans), system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* GALLEY: monospace everywhere (The Monospace Web). */
+  --font-heading: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-body: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  /* Writing surface ONLY (editor body, draft previews, proof copy). */
+  --font-writer: "iA Writer Quattro", var(--font-jetbrains-mono), ui-monospace, monospace;
 
   /* Font sizes */
   --text-xs: 0.75rem;
@@ -93,27 +126,27 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
 
-  /* ---- Radii ---- */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.5rem;
-  --radius-full: 9999px;
+  /* ---- Radii — abolished (GALLEY: zero everywhere; kept, not deleted) ---- */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-full: 0px;
 
-  /* ---- Shadows ---- */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
-  --shadow-glow-primary: 0 0 20px rgba(99, 102, 241, 0.3);
-  --shadow-glow-accent: 0 0 20px rgba(249, 115, 22, 0.3);
-  --shadow-glow-success: 0 0 20px rgba(34, 197, 94, 0.3);
+  /* ---- Shadows — abolished (depth comes from rules, not elevation) ---- */
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-glow-primary: none;
+  --shadow-glow-accent: none;
+  --shadow-glow-success: none;
 
-  /* ---- Transitions ---- */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* ---- Transitions — mechanical, not organic (GALLEY: linear, no easing) ---- */
+  --transition-fast: 100ms linear;
+  --transition-base: 100ms linear;
+  --transition-slow: 150ms linear;
 
   /* ---- Z-index scale ---- */
   --z-dropdown: 10;
@@ -130,6 +163,29 @@
   --color-foreground: var(--color-text-primary);
   --font-sans: var(--font-body);
   --font-mono: var(--font-mono);
+}
+
+/* GALLEY: neutralize Tailwind's OWN fixed utility scales app-wide. `rounded-lg`
+   etc. already read our zeroed --radius-* tokens, but `rounded-full` and the
+   `shadow-*` utilities inline literals — so flatten them at the source. This
+   makes every feature component go flat/shadowless with no per-file edits. */
+@theme {
+  --radius-full: 0px;
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
+  --shadow-lg: 0 0 #0000;
+  --shadow-xl: 0 0 #0000;
+  --shadow-2xl: 0 0 #0000;
+  --inset-shadow-2xs: 0 0 #0000;
+  --inset-shadow-xs: 0 0 #0000;
+  --inset-shadow-sm: 0 0 #0000;
+  --drop-shadow-xs: 0 0 #0000;
+  --drop-shadow-sm: 0 0 #0000;
+  --drop-shadow-md: 0 0 #0000;
+  --drop-shadow-lg: 0 0 #0000;
+  --drop-shadow-xl: 0 0 #0000;
 }
 
 /* ============================================
@@ -153,6 +209,12 @@ body {
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
   min-height: 100vh;
+  font-variant-ligatures: none;
+}
+
+/* GALLEY: mechanical blink for the block cursor (buttons/loading, editor caret). */
+@keyframes blink {
+  50% { opacity: 0; }
 }
 
 /* Headings */

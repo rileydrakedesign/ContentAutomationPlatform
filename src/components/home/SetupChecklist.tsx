@@ -87,12 +87,12 @@ export function SetupChecklist({
                 </h2>
               </div>
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                Your voice is tuned. Generate content that sounds like you, ship, and iterate.
+                Your voice is tuned. Write posts that sound like you — the assistant checks voice and reach as you type.
               </p>
             </div>
             <Link href="/create">
               <Button variant="primary" size="sm" glow>
-                Create
+                Write
               </Button>
             </Link>
           </div>
@@ -136,12 +136,12 @@ export function SetupChecklist({
                   className={`p-4 rounded-xl border transition-colors ${
                     item.done
                       ? "bg-[var(--color-bg-elevated)] border-[var(--color-border-default)]"
-                      : "bg-[var(--color-primary-500)]/5 border-[var(--color-primary-500)]/15"
+                      : "bg-[var(--color-accent-500)]/5 border-[var(--color-accent-500)]/15"
                   }`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-[var(--color-bg-elevated)] flex items-center justify-center shrink-0">
                         <Icon className="w-4 h-4 text-[var(--color-text-secondary)]" />
                       </div>
                       <div>

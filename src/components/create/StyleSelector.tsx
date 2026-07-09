@@ -57,10 +57,10 @@ export function StyleSelector({
               <button
                 key={value}
                 onClick={() => onApplyAsChange(value)}
-                className={`px-3 py-1.5 rounded text-xs transition ${
+                className={`px-3 py-1.5 rounded text-xs transition-colors duration-100 ${
                   applyAs === value
-                    ? "bg-[var(--color-primary-500)] text-white"
-                    : "bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]/80"
+                    ? "bg-[var(--color-primary-500)] text-[var(--color-text-inverse)]"
+                    : "bg-[var(--color-bg-hover)] text-[var(--color-text-inverse)] hover:bg-[var(--color-bg-hover)]/80"
                 }`}
               >
                 {label}
@@ -76,14 +76,14 @@ export function StyleSelector({
           <button
             key={post.id}
             onClick={() => onToggle(post.id)}
-            className={`w-full p-3 rounded-lg border text-left transition ${
+            className={`w-full p-3 rounded-lg border text-left transition-colors duration-100 ${
               selectedIds.includes(post.id)
-                ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10"
+                ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/10"
                 : "border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] hover:border-[var(--color-border-strong)]"
             }`}
           >
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs px-2 py-0.5 rounded border bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] border-[var(--color-primary-500)]/20">
+              <span className="text-xs px-2 py-0.5 rounded border bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border-[var(--color-accent-500)]/20">
                 Inspiration
               </span>
               {post.author_handle && (

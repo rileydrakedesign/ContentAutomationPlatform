@@ -79,17 +79,17 @@ export function NextBestAction({ drafts, xConnected }: NextBestActionProps) {
           };
 
   return (
-    <Card className="border-[var(--color-primary-500)]/30 bg-[var(--color-primary-500)]/5">
+    <Card className="border-[var(--color-accent-500)]/30 bg-[var(--color-accent-500)]/5">
       <CardContent>
         <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="w-4 h-4 text-[var(--color-primary-400)]" />
-          <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-primary-400)]">
+          <Sparkles className="w-4 h-4 text-[var(--color-accent-400)]" />
+          <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-accent-400)]">
             Next best action
           </span>
         </div>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center text-[var(--color-primary-400)] shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center text-[var(--color-accent-400)] shrink-0">
               {action.icon}
             </div>
             <div className="min-w-0">
@@ -103,7 +103,7 @@ export function NextBestAction({ drafts, xConnected }: NextBestActionProps) {
           </div>
           <Link
             href={action.href}
-            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--color-primary-500)] text-white text-sm font-medium hover:bg-[var(--color-primary-600)] transition-colors"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--color-primary-500)] text-[var(--color-text-inverse)] text-sm font-medium hover:bg-[var(--color-primary-600)] transition-colors"
           >
             {action.cta}
             <ArrowRight className="w-4 h-4" />

@@ -60,6 +60,11 @@ export function usePersistentState<T>(
   const [hydrated, setHydrated] = useState(false);
   // Guard so we don't write `initial` back over a stored value before hydration.
   const didHydrate = useRef(false);
+  // Latest value/key for the teardown flush handler (bound once, must read fresh).
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const keyRef = useRef(key);
+  keyRef.current = key;
 
   useEffect(() => {
     setValue(readPersistedValue(key, initial));
@@ -73,6 +78,25 @@ export function usePersistentState<T>(
     if (!didHydrate.current) return;
     writePersistedValue(key, value);
   }, [key, value]);
+
+  // The write effect above commits a tick after each change. A fast navigation —
+  // e.g. a two-finger swipe-to-go-back gesture — can tear the page down before
+  // that tick runs, losing the last keystrokes. Flush the freshest value
+  // synchronously on tab-hide / pagehide so in-progress edits always survive.
+  useEffect(() => {
+    const flush = () => {
+      if (didHydrate.current) writePersistedValue(keyRef.current, valueRef.current);
+    };
+    const onVisibility = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   const clear = useCallback(() => {
     try {

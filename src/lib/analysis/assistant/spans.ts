@@ -48,32 +48,76 @@ export function resolveQuote(
 }
 
 /**
- * Resolve every finding's span against the current text. A finding whose quote
- * can't be found verbatim loses its span (becomes a panel-only card) — never an
- * underline drawn at a guessed position. Findings already carrying valid offsets
- * (e.g. deterministic Tier-0) are re-validated against the text and dropped only
- * if the quote no longer matches there.
+ * Resolve every finding's span against the current text, and invalidate what the
+ * user already fixed themselves.
+ *
+ * Two distinct cases for a quote that can't be found verbatim:
+ *   - The finding NEVER had a span (the LLM paraphrased): it stays a panel-only
+ *     card — we never draw an underline at a guessed position.
+ *   - The finding HAD an anchored span and the quote has since disappeared: the
+ *     user edited that text away, so the suggestion is resolved — a live finding
+ *     is DROPPED entirely (a stale card is a nag about fixed text), and a Tier-0
+ *     finding is stripped to a card (Tier-0 recomputes fresh every keystroke, so
+ *     this is only a same-render safety net).
  */
 export function resolveFindings(text: string, findings: Finding[]): Finding[] {
-  return findings.map((f) => {
-    if (!f.span) return f;
+  const out: Finding[] = [];
+  for (const f of findings) {
+    if (!f.span) {
+      out.push(f);
+      continue;
+    }
     const { quote, start } = f.span;
     // Trust an existing offset if the text still matches there exactly.
     if (
       typeof start === "number" &&
       text.slice(start, start + quote.length) === quote
     ) {
-      return { ...f, span: { quote, start, end: start + quote.length } };
+      out.push({ ...f, span: { quote, start, end: start + quote.length } });
+      continue;
     }
     const resolved = resolveQuote(text, quote, start);
-    if (!resolved) {
-      // Couldn't anchor — strip the span, keep the card.
-      const { span: _drop, ...rest } = f;
-      void _drop;
-      return rest;
+    if (resolved) {
+      out.push({ ...f, span: { quote, ...resolved } });
+      continue;
     }
-    return { ...f, span: { quote, ...resolved } };
-  });
+    // De-anchored: the quoted text no longer exists → the user fixed it.
+    if (f.source === "live") continue; // invalidate — never nag about fixed text
+    const { span: _drop, ...rest } = f;
+    void _drop;
+    out.push(rest);
+  }
+  return out;
+}
+
+/**
+ * Minimal-edit guardrail on an LLM rewrite (deterministic — counters the
+ * documented LLM overcorrection failure mode: models over-edit, replacing
+ * acceptable text beyond what the finding warrants). A fix survives only when
+ * it is a genuine span-sized edit:
+ *   - the span actually anchored (a fix authored for an unanchorable quote
+ *     would replace the WHOLE draft via applyReplacement — never allow that
+ *     from the LLM),
+ *   - it isn't a no-op restating the quote,
+ *   - it stays within minimal-edit bounds of the quote (not a free rewrite),
+ *   - the quote isn't secretly most of the draft (a whole-post rewrite in span
+ *     clothing).
+ * A rejected fix keeps the finding (the "what/why" may still be right) but
+ * drops the one-click replacement.
+ */
+export function guardedFix(
+  fix: string | undefined,
+  quote: string,
+  anchored: boolean,
+  draftLength: number
+): string | undefined {
+  if (!fix) return undefined;
+  const f = String(fix).trim();
+  if (!f || !anchored) return undefined;
+  if (f === quote.trim()) return undefined; // no-op "fix" — reverses nothing
+  if (f.length > quote.length * 2.5 + 20) return undefined; // not a minimal edit
+  if (quote.length > draftLength * 0.8) return undefined; // whole-post rewrite
+  return f;
 }
 
 export interface RenderSegment {
