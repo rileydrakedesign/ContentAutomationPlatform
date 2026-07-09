@@ -12,7 +12,7 @@
  * signal the extension pill renders) with replies capped at REPLY_HEAT_CAP for
  * targeting (see below), scaled by context multipliers.
  */
-import { opportunityTraction } from "@/lib/utils/engagement";
+import { opportunityTraction, weightedEngagement } from "@/lib/utils/engagement";
 import type { EnrichedSearchTweet } from "./search-mapping";
 
 export interface OpportunityAssessment {
@@ -96,22 +96,76 @@ function freshnessReason(t: EnrichedSearchTweet, nowMs: number): string | null {
   return null;
 }
 
+/**
+ * Velocity (§3.3 "freshness + velocity"): Δ weighted engagement between two
+ * metric snapshots of the same post — the candidate-pool sweeps store the
+ * previous snapshot precisely for this. "Accelerating" beats "big": a post
+ * gaining engagement NOW is where a reply gets seen.
+ */
+export interface MetricsSnapshot {
+  like_count?: number;
+  retweet_count?: number;
+  reply_count?: number;
+  bookmark_count?: number;
+  impression_count?: number;
+}
+
+function snapshotEngagement(m: MetricsSnapshot): number {
+  // Canonical weights via engagement.ts — never a local copy (G5).
+  return weightedEngagement({
+    likes: m.like_count,
+    retweets: m.retweet_count,
+    replies: m.reply_count,
+    bookmarks: m.bookmark_count,
+    impressions: m.impression_count,
+  });
+}
+
+const VELOCITY_MIN_INTERVAL_MS = 10 * 60 * 1000; // need a real interval to divide by
+
+export function velocityFactor(
+  latest: MetricsSnapshot,
+  prev: MetricsSnapshot,
+  prevSweptAtMs: number,
+  nowMs: number
+): { mult: number; reason: string | null } {
+  const dtMs = nowMs - prevSweptAtMs;
+  if (!Number.isFinite(dtMs) || dtMs < VELOCITY_MIN_INTERVAL_MS) {
+    return { mult: 1, reason: null };
+  }
+  const delta = snapshotEngagement(latest) - snapshotEngagement(prev);
+  const perHour = delta / (dtMs / 3_600_000);
+  if (perHour >= 30) {
+    return { mult: 1.3, reason: `Accelerating — +${Math.round(perHour)} engagement/hour` };
+  }
+  if (perHour <= 1) {
+    return { mult: 0.9, reason: null }; // gone quiet — quietly rank down
+  }
+  return { mult: 1, reason: null };
+}
+
 export function assessOpportunity(
   t: EnrichedSearchTweet,
-  nowMs: number
+  nowMs: number,
+  extras: { prevMetrics?: MetricsSnapshot | null; prevSweptAtMs?: number | null } = {}
 ): OpportunityAssessment {
   const base = opportunityBase(t, nowMs);
   const band = authorBandFactor(t);
   const competition = competitionFactor(t);
+  const velocity =
+    extras.prevMetrics && extras.prevSweptAtMs && t.metrics
+      ? velocityFactor(t.metrics, extras.prevMetrics, extras.prevSweptAtMs, nowMs)
+      : { mult: 1, reason: null as string | null };
 
   const reasons: string[] = [];
+  if (velocity.reason) reasons.push(velocity.reason);
   if (band.reason) reasons.push(band.reason);
   if (competition.reason) reasons.push(competition.reason);
   const fresh = freshnessReason(t, nowMs);
   if (fresh) reasons.push(fresh);
 
   return {
-    score: base * band.mult * competition.mult,
+    score: base * band.mult * competition.mult * velocity.mult,
     reasons,
   };
 }

@@ -76,4 +76,30 @@ describe("assessOpportunity — Opportunity 2.0 v0.5 (author band · competition
       10
     );
   });
+
+  it("velocity: an accelerating candidate (pool snapshots) outranks a stalled twin", () => {
+    const t = target({ followers: 25_000, replies: 10, views: 20_000, likes: 300 });
+    const prevSweptAtMs = NOW - 60 * 60_000; // snapshot 1h ago
+    const accelerating = assessOpportunity(t, NOW, {
+      prevMetrics: { like_count: 100, retweet_count: 2, reply_count: 5, impression_count: 5_000 },
+      prevSweptAtMs,
+    });
+    const stalled = assessOpportunity(t, NOW, {
+      prevMetrics: t.metrics!, // identical snapshot — nothing moved
+      prevSweptAtMs,
+    });
+    expect(accelerating.score).toBeGreaterThan(stalled.score);
+    expect(accelerating.reasons.join(" ")).toContain("Accelerating");
+    expect(stalled.reasons.join(" ")).not.toContain("Accelerating");
+  });
+
+  it("velocity needs a real interval — a snapshot 2 minutes ago is ignored", () => {
+    const t = target({});
+    const res = assessOpportunity(t, NOW, {
+      prevMetrics: { like_count: 0 },
+      prevSweptAtMs: NOW - 2 * 60_000,
+    });
+    expect(res.reasons.join(" ")).not.toContain("Accelerating");
+    expect(res.score).toBeCloseTo(assessOpportunity(t, NOW).score, 10);
+  });
 });

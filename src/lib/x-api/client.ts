@@ -398,7 +398,10 @@ export async function getTweetsBatch(
 export async function searchRecentTweets(
   accessToken: string,
   query: string,
-  maxResults: number = 10
+  maxResults: number = 10,
+  // Delta sweeps (Radar): only posts newer than this ID. X bills per post
+  // returned, so cursored sweeps pay only for NEW posts each pass.
+  sinceId?: string
 ): Promise<{ data: XTweetV2[]; includes?: { users?: XUserV2[] } }> {
   const url = `${X_API_BASE}/2/tweets/search/recent`;
 
@@ -408,6 +411,7 @@ export async function searchRecentTweets(
     accessToken,
     {
       query,
+      ...(sinceId ? { since_id: sinceId } : {}),
       // reply_settings + entities (with author_id expansion) let the consumer
       // determine reply eligibility per post without extra API calls. These
       // fields are free on all paid v2 tiers. Author public_metrics powers the

@@ -24,6 +24,7 @@ import { isVoiceCheckSurfaced } from "@/lib/voice/publish-gate";
 import { parseGateError } from "@/lib/utils/gate-error";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { compileWatchQueries, type CompiledWatchQuery } from "@/lib/x-api/watch-queries";
+import { RadarQueue, type QueueItem } from "./RadarQueue";
 
 interface ReplyTarget {
   id: string;
@@ -211,10 +212,53 @@ export function ReplyFinderPage() {
     }
   }
 
+  // Radar queue integration: targets opened from a queue card carry their
+  // queue-item id so the handoff can close the loop (state → replied).
+  const [queueItemByPost, setQueueItemByPost] = useState<Record<string, string>>({});
+  const [queueRefreshNonce, setQueueRefreshNonce] = useState(0);
+
+  function handleQueueWriteReply(item: QueueItem) {
+    const target: ReplyTarget = {
+      id: item.post.post_id,
+      text: item.post.text,
+      created_at: item.post.posted_at,
+      metrics: item.post.metrics,
+      author: {
+        username: item.post.author_username,
+        name: item.post.author_name,
+        followers_count: item.post.author_followers,
+      },
+      // Queue items were repliable at sweep time; a publish-time change
+      // surfaces in X's own composer after the handoff.
+      reply_eligibility: "open",
+      opportunity: { score: Number(item.score) || 0, reasons: item.reasons },
+    };
+    setQueueItemByPost((prev) => ({ ...prev, [target.id]: item.id }));
+    setTargets((prev) => [target, ...prev.filter((x) => x.id !== target.id)]);
+    setSearched(true);
+    openComposer(target);
+  }
+
   function finishHandoff(t: ReplyTarget) {
     // Drop the handed-off post from the list and close the composer.
     setTargets((prev) => prev.filter((x) => x.id !== t.id));
     setActiveId(null);
+    // Close the Radar loop: a handoff from a queue card marks it replied.
+    const queueItemId = queueItemByPost[t.id];
+    if (queueItemId) {
+      fetch(`/api/radar/queue/${queueItemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state: "replied" }),
+      })
+        .catch(() => {})
+        .finally(() => setQueueRefreshNonce((n) => n + 1));
+      setQueueItemByPost((prev) => {
+        const next = { ...prev };
+        delete next[t.id];
+        return next;
+      });
+    }
   }
 
   // Best tier: extension assist. bridge.js (the extension's dashboard content
@@ -311,6 +355,10 @@ export function ReplyFinderPage() {
           reply to, so you grow without risking your account.
         </p>
       </div>
+
+      {/* Radar daily queue (beta) — pre-hunted targets; search below stays as
+          the manual escape hatch. */}
+      <RadarQueue onWriteReply={handleQueueWriteReply} refreshNonce={queueRefreshNonce} />
 
       {/* Search */}
       <Card>
