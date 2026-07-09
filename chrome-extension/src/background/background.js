@@ -403,6 +403,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // Tier 2 of the reply handoff (PRD_CORE §4.4), relayed from the dashboard by
+  // bridge.js: stash the composed reply, open the post's tab — the x.com
+  // content script picks the pending handoff up, clicks the native reply
+  // button, and prefills the composer (never posts; the human hits Post).
+  if (message.type === 'REPLY_HANDOFF') {
+    (async () => {
+      try {
+        const p = message.payload || {};
+        const targetPostId = String(p.target_post_id || '');
+        const text = String(p.text || '').trim();
+        if (!/^\d+$/.test(targetPostId) || !text) {
+          sendResponse({ success: false, error: 'invalid handoff payload' });
+          return;
+        }
+        // Only ever navigate to an x.com/twitter.com status page for this post.
+        let url = `https://x.com/i/status/${targetPostId}`;
+        try {
+          const u = new URL(String(p.target_url || ''));
+          if (
+            (u.hostname === 'x.com' || u.hostname === 'twitter.com') &&
+            u.pathname.includes(`/status/${targetPostId}`)
+          ) {
+            url = u.href;
+          }
+        } catch (e) {
+          // keep the /i/status fallback
+        }
+        await chrome.storage.local.set({
+          pendingReplyHandoff: { target_post_id: targetPostId, text, ts: Date.now() },
+        });
+        await chrome.tabs.create({ url });
+        sendResponse({ success: true });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
   if (message.type === 'SAVE_NICHE_POST') {
     saveInspirationPost(message.payload)
       .then(async (result) => {

@@ -44,6 +44,12 @@ fs.copyFileSync(
   path.join(distDir, 'content.css')
 );
 
+// Copy the dashboard bridge (reply handoff tier 2)
+fs.copyFileSync(
+  path.join(srcDir, 'content', 'bridge.js'),
+  path.join(distDir, 'bridge.js')
+);
+
 // Copy background script
 fs.copyFileSync(
   path.join(srcDir, 'background', 'background.js'),

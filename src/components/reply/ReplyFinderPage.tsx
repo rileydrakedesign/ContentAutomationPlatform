@@ -179,6 +179,41 @@ export function ReplyFinderPage() {
     setActiveId(null);
   }
 
+  // Best tier: extension assist. bridge.js (the extension's dashboard content
+  // script) marks its presence on <html data-afx-extension> and relays the
+  // handoff to the extension, which opens the post and prefills X's NATIVE
+  // reply composer — where the writing assistant mounts reply-aware for final
+  // tweaks. Resolves false (→ intent fallback) if the extension isn't there or
+  // doesn't ack in time.
+  function handoffViaExtension(t: ReplyTarget): Promise<boolean> {
+    if (typeof document === "undefined" || !document.documentElement.dataset.afxExtension) {
+      return Promise.resolve(false);
+    }
+    return new Promise((resolve) => {
+      const done = (ok: boolean) => {
+        window.removeEventListener("message", onMessage);
+        clearTimeout(timer);
+        resolve(ok);
+      };
+      const onMessage = (e: MessageEvent) => {
+        if (e.source !== window || e.origin !== window.location.origin) return;
+        const d = e.data as { type?: string; target_post_id?: string; ok?: boolean } | null;
+        if (d?.type === "AFX_REPLY_HANDOFF_ACK" && d.target_post_id === t.id) done(!!d.ok);
+      };
+      const timer = setTimeout(() => done(false), 1500);
+      window.addEventListener("message", onMessage);
+      window.postMessage(
+        {
+          type: "AFX_REPLY_HANDOFF",
+          target_post_id: t.id,
+          target_url: targetUrl(t),
+          text: replyText,
+        },
+        window.location.origin
+      );
+    });
+  }
+
   // Default tier: X Web Intent — opens X's composer on the post, prefilled.
   async function replyOnX(t: ReplyTarget) {
     if (!replyText.trim()) return;
@@ -186,10 +221,13 @@ export function ReplyFinderPage() {
     setComposerError(null);
     try {
       await recordHandoff(t);
-      const intentUrl = `https://x.com/intent/post?in_reply_to=${encodeURIComponent(
-        t.id
-      )}&text=${encodeURIComponent(replyText)}`;
-      window.open(intentUrl, "_blank", "noopener,noreferrer");
+      const viaExtension = await handoffViaExtension(t);
+      if (!viaExtension) {
+        const intentUrl = `https://x.com/intent/post?in_reply_to=${encodeURIComponent(
+          t.id
+        )}&text=${encodeURIComponent(replyText)}`;
+        window.open(intentUrl, "_blank", "noopener,noreferrer");
+      }
       finishHandoff(t);
     } finally {
       setPosting(false);

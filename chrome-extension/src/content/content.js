@@ -1752,8 +1752,11 @@ function hideToneDropdown(dropdown) {
   }
 }
 
-// Wait for composer and inject reply text
-async function injectReplyText(text, replyMeta = null) {
+// Wait for composer and inject reply text.
+// opts.skipSendLogger: the tier-2 handoff already persisted its record via the
+// dashboard (/api/reply/handoff) — attaching the send logger too would write a
+// duplicate reply-pool row.
+async function injectReplyText(text, replyMeta = null, opts = {}) {
   // Wait for the reply modal to appear (max 3 seconds)
   let attempts = 0;
   const maxAttempts = 30;
@@ -1856,7 +1859,7 @@ async function injectReplyText(text, replyMeta = null) {
 
         if (injected) {
           console.log('[Content Pipeline] Reply injected successfully (paste)');
-          attachReplySendLogger(text, replyMeta);
+          if (!opts.skipSendLogger) attachReplySendLogger(text, replyMeta);
           return;
         }
 
@@ -1869,7 +1872,7 @@ async function injectReplyText(text, replyMeta = null) {
 
         await new Promise(resolve => setTimeout(resolve, 100));
         console.log('[Content Pipeline] Reply injected via insertText fallback');
-        attachReplySendLogger(text, replyMeta);
+        if (!opts.skipSendLogger) attachReplySendLogger(text, replyMeta);
         return;
       }
     }
@@ -2182,6 +2185,76 @@ if (isExtensionContextValid()) {
         // Re-score
         scoreAndDisplayOpportunity(article);
       });
+    }
+  });
+}
+
+// ===========================================
+// REPLY HANDOFF TIER 2 (PRD_CORE §4.4)
+// ===========================================
+// The dashboard hands a composed reply to the extension (bridge.js →
+// background REPLY_HANDOFF → this tab). If a fresh pending handoff matches the
+// status page we just opened, click the focal tweet's native reply button and
+// prefill X's composer via the DraftJS paste pipeline. The writing assistant
+// (assistant-ui.js) mounts on that composer reply-aware. We NEVER post — the
+// user reviews and hits Post themselves. The dashboard already persisted the
+// handoff record, so the send logger is skipped (no duplicate reply-pool row).
+
+const HANDOFF_MAX_AGE_MS = 2 * 60 * 1000;
+
+async function maybeRunPendingHandoff() {
+  try {
+    if (!isExtensionContextValid()) return;
+
+    const statusMatch = location.pathname.match(/\/status\/(\d+)/);
+    if (!statusMatch) return;
+    const pageStatusId = statusMatch[1];
+
+    const { pendingReplyHandoff: pending } = await chrome.storage.local.get('pendingReplyHandoff');
+    if (!pending || pending.target_post_id !== pageStatusId) return;
+    if (Date.now() - (pending.ts || 0) > HANDOFF_MAX_AGE_MS) {
+      chrome.storage.local.remove('pendingReplyHandoff');
+      return;
+    }
+
+    // Wait for the focal tweet to render (X hydrates the status page slowly).
+    const deadline = Date.now() + 10_000;
+    let replyButton = null;
+    while (Date.now() < deadline && !replyButton) {
+      const articles = document.querySelectorAll('article[data-testid="tweet"]');
+      for (const article of articles) {
+        if (article.querySelector(`a[href*="/status/${pageStatusId}"]`)) {
+          replyButton = article.querySelector('[data-testid="reply"]');
+          if (replyButton) break;
+        }
+      }
+      if (!replyButton) await new Promise((r) => setTimeout(r, 250));
+    }
+    if (!replyButton) {
+      console.warn('[Content Pipeline] Handoff: focal tweet not found — leaving pending record');
+      return;
+    }
+
+    // Consume once (before injecting, so a composer re-render can't double-run).
+    await chrome.storage.local.remove('pendingReplyHandoff');
+
+    console.log('[Content Pipeline] Running reply handoff for', pageStatusId);
+    replyButton.click();
+    await injectReplyText(pending.text, null, { skipSendLogger: true });
+  } catch (e) {
+    console.warn('[Content Pipeline] Reply handoff failed:', e);
+  }
+}
+
+maybeRunPendingHandoff();
+
+// The handoff tab is opened by the background AFTER this script may already be
+// running (SPA nav within an existing x.com tab won't re-run us) — also react
+// to the pending record appearing while we're loaded.
+if (isExtensionContextValid()) {
+  chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && changes.pendingReplyHandoff?.newValue) {
+      maybeRunPendingHandoff();
     }
   });
 }
