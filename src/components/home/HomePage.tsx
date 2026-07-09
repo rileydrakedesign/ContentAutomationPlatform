@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { QuickActionsBar } from "./QuickActionsBar";
-// (removed) AnalyticsTabs — looked visually out of place on dashboard
 import { ConsistencyTracker } from "./ConsistencyTracker";
 import { ContentSidebar } from "./ContentSidebar";
 import { InsightsHub } from "./InsightsHub";
@@ -127,7 +126,7 @@ export function HomePage() {
             Dashboard
           </h1>
           <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-            Tune your voice, then ship content that sounds like you
+            Tune your voice, then write posts that sound like you — checked for voice and reach as you type
           </p>
         </div>
         <QuickActionsBar onUploadClick={() => setShowUploadDrawer(true)} />

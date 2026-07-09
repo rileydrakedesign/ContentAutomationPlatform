@@ -20,14 +20,14 @@ export default function AgentForXLanding() {
               style={{ height: 24 }}
             >
               <span
-                className="font-extrabold text-white uppercase tracking-tight whitespace-nowrap block"
+                className="font-extrabold text-[var(--color-text-primary)] uppercase tracking-tight whitespace-nowrap block"
                 style={{ fontSize: 32, lineHeight: 1, marginTop: -5 }}
               >
                 Agents For
               </span>
             </span>
             <span
-              className="bg-amber-500 flex items-center justify-center flex-shrink-0 rounded overflow-hidden"
+              className="bg-[var(--color-warning-500)] flex items-center justify-center flex-shrink-0 rounded overflow-hidden"
               style={{ width: 24, height: 24 }}
             >
               <Image src="/x-logo.png" alt="X" width={30} height={30} />
@@ -46,19 +46,13 @@ export default function AgentForXLanding() {
         {/* Decorative glow blobs */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-32 left-1/4 h-[500px] w-[500px] rounded-full blur-3xl opacity-[0.12]"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(99,102,241,0.6) 0%, transparent 70%)",
-          }}
+          className="pointer-events-none absolute -top-32 left-1/4 h-[500px] w-[500px] rounded-full"
+          style={{ background: "transparent" }}
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-16 right-1/4 h-[400px] w-[400px] rounded-full blur-3xl opacity-[0.10]"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(249,115,22,0.5) 0%, transparent 70%)",
-          }}
+          className="pointer-events-none absolute -top-16 right-1/4 h-[400px] w-[400px] rounded-full"
+          style={{ background: "transparent" }}
         />
 
         <div className="relative flex w-full max-w-3xl flex-col items-center text-center">
@@ -80,9 +74,9 @@ export default function AgentForXLanding() {
               animationFillMode: "backwards",
             }}
           >
-            ai content tuned to{" "}
-            <span className="gradient-text">
-              your voice on x
+            see why your posts land —{" "}
+            <span className="text-[var(--color-accent-400)]">
+              as you write them
             </span>
           </h1>
 
@@ -94,8 +88,9 @@ export default function AgentForXLanding() {
               animationFillMode: "backwards",
             }}
           >
-            analyze your niche. tune your voice. generate content that sounds
-            like you — and performs like your best posts.
+            you write the post. as you type, we show where it drifts from your
+            voice and where it&apos;ll lose to the algorithm — grounded in your
+            own best posts — and fix both in one click.
           </p>
 
           {/* CTAs */}
@@ -135,9 +130,9 @@ export default function AgentForXLanding() {
               animationFillMode: "backwards",
             }}
           >
-            <FeatureCard title="save posts" desc="one-click from your timeline" />
-            <FeatureCard title="ai replies" desc="in your voice, 5 tones" />
-            <FeatureCard title="publish" desc="draft, schedule, post" />
+            <FeatureCard title="live underlines" desc="cite the real x mechanics" />
+            <FeatureCard title="voice match" desc="scored from your own top posts" />
+            <FeatureCard title="one-click fixes" desc="you keep the pen" />
           </div>
         </div>
       </main>
@@ -152,14 +147,14 @@ export default function AgentForXLanding() {
               style={{ height: 14 }}
             >
               <span
-                className="font-extrabold text-white uppercase tracking-tight whitespace-nowrap block"
+                className="font-extrabold text-[var(--color-text-primary)] uppercase tracking-tight whitespace-nowrap block"
                 style={{ fontSize: 18, lineHeight: 1, marginTop: -3 }}
               >
                 Agents For
               </span>
             </span>
             <span
-              className="bg-amber-500 flex items-center justify-center flex-shrink-0 rounded overflow-hidden"
+              className="bg-[var(--color-warning-500)] flex items-center justify-center flex-shrink-0 rounded overflow-hidden"
               style={{ width: 14, height: 14 }}
             >
               <Image src="/x-logo.png" alt="X" width={18} height={18} />

@@ -17,6 +17,7 @@ server** for AI agents.
 | You want to… | Start here |
 | --- | --- |
 | Understand the product (the *why*) | [product/prd.md](product/prd.md) · [product/product-features.md](product/product-features.md) |
+| See where we're headed (future direction) | [product/direction.md](product/direction.md) |
 | Learn how a subsystem works (the *how*, for builders) | [features/](features/README.md) |
 | Understand the real-time writing assistant | [features/writing-assistant.md](features/writing-assistant.md) |
 | See how the system fits together | [architecture/overview.md](architecture/overview.md) · [architecture/loop.md](architecture/loop.md) |
@@ -24,6 +25,7 @@ server** for AI agents.
 | Call the REST API | [api/getting-started.md](api/getting-started.md) → [auth](api/authentication.md), [credits](api/credits.md), [errors](api/errors.md), [examples](api/examples.md) |
 | Connect Claude / an agent over MCP | [mcp/overview.md](mcp/overview.md) → [setup](mcp/setup.md), [tools](mcp/tools.md) |
 | Look up a data model | [reference/data-models.md](reference/data-models.md) |
+| See which AI model each endpoint calls | [reference/model-call-index.md](reference/model-call-index.md) |
 | See business economics | [business/cost-analysis.md](business/cost-analysis.md) · [business/cogs.md](business/cogs.md) |
 | Run / deploy / schedule jobs | [operations/deployment.md](operations/deployment.md) · [operations/background-jobs.md](operations/background-jobs.md) |
 | Strategy / positioning / ICP / copy | [`research/`](../research/README.md) |
@@ -32,7 +34,7 @@ server** for AI agents.
 
 ```
 docs/
-  product/        ⭐ PRD + current-state feature catalog — the product definition
+  product/        ⭐ PRD + current-state feature catalog + forward direction — the product definition
   features/       ⭐ engineering source-of-truth, one doc per subsystem
   architecture/   how it fits together: overview, voice-system, publishing, loop, user-journey
   guides/         user-facing feature how-tos: tune-up, patterns, reply, analytics, strategy

@@ -174,8 +174,8 @@ export function GrowthTrendChart({ posts }: Props) {
                 onClick={() => setWindow(w)}
                 className="text-xs px-2 py-0.5 rounded transition-colors"
                 style={{
-                  backgroundColor: window === w ? "rgba(99,102,241,0.2)" : "transparent",
-                  color: window === w ? "rgb(129,140,248)" : "var(--color-text-tertiary)",
+                  backgroundColor: window === w ? "rgba(224,75,36,0.18)" : "transparent",
+                  color: window === w ? "var(--color-accent-400)" : "var(--color-text-tertiary)",
                 }}
               >
                 {w}d
@@ -199,8 +199,8 @@ export function GrowthTrendChart({ posts }: Props) {
             {/* Gradient fill for impressions */}
             <defs>
               <linearGradient id="impGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgb(99,102,241)" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="rgb(99,102,241)" stopOpacity="0.02" />
+                <stop offset="0%" stopColor="var(--color-accent-500)" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="var(--color-accent-500)" stopOpacity="0.02" />
               </linearGradient>
             </defs>
 
@@ -252,7 +252,7 @@ export function GrowthTrendChart({ posts }: Props) {
             <path
               d={buildPath(impPoints)}
               fill="none"
-              stroke="rgb(99,102,241)"
+              stroke="var(--color-accent-500)"
               strokeWidth={2}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -262,7 +262,7 @@ export function GrowthTrendChart({ posts }: Props) {
             <path
               d={buildPath(engPoints)}
               fill="none"
-              stroke="rgb(45,212,191)"
+              stroke="var(--color-text-secondary)"
               strokeWidth={1.5}
               strokeDasharray="4 3"
               strokeLinecap="round"
@@ -290,7 +290,7 @@ export function GrowthTrendChart({ posts }: Props) {
                   cx={impPoints[hoverIdx].x}
                   cy={impPoints[hoverIdx].y}
                   r={4}
-                  fill="rgb(99,102,241)"
+                  fill="var(--color-accent-500)"
                   stroke="var(--color-bg-surface)"
                   strokeWidth={2}
                 />
@@ -298,7 +298,7 @@ export function GrowthTrendChart({ posts }: Props) {
                   cx={engPoints[hoverIdx].x}
                   cy={engPoints[hoverIdx].y}
                   r={3}
-                  fill="rgb(45,212,191)"
+                  fill="var(--color-text-secondary)"
                   stroke="var(--color-bg-surface)"
                   strokeWidth={2}
                 />
@@ -330,10 +330,10 @@ export function GrowthTrendChart({ posts }: Props) {
                 <p className="font-medium text-[var(--color-text-primary)]">
                   {formatDateLabel(hoverData.date)}
                 </p>
-                <p style={{ color: "rgb(129,140,248)" }}>
+                <p style={{ color: "var(--color-accent-400)" }}>
                   Imp: {formatNumber(Math.round(hoverData.avgImpressions))}
                 </p>
-                <p style={{ color: "rgb(45,212,191)" }}>
+                <p style={{ color: "var(--color-text-secondary)" }}>
                   Eng: {formatNumber(Math.round(hoverData.avgEngagement))}
                 </p>
               </div>
@@ -344,11 +344,11 @@ export function GrowthTrendChart({ posts }: Props) {
         {/* Legend */}
         <div className="flex items-center gap-4 mt-2">
           <div className="flex items-center gap-1.5">
-            <div style={{ width: 16, height: 2, backgroundColor: "rgb(99,102,241)", borderRadius: 1 }} />
+            <div style={{ width: 16, height: 2, backgroundColor: "var(--color-accent-500)", borderRadius: 1 }} />
             <span className="text-[10px] text-[var(--color-text-tertiary)]">Impressions ({window}d avg)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div style={{ width: 16, height: 2, backgroundColor: "rgb(45,212,191)", borderRadius: 1, backgroundImage: "repeating-linear-gradient(90deg, rgb(45,212,191) 0 4px, transparent 4px 7px)" }} />
+            <div style={{ width: 16, height: 2, backgroundColor: "var(--color-text-secondary)", borderRadius: 1, backgroundImage: "repeating-linear-gradient(90deg, var(--color-text-secondary) 0 4px, transparent 4px 7px)" }} />
             <span className="text-[10px] text-[var(--color-text-tertiary)]">Engagement ({window}d avg)</span>
           </div>
         </div>

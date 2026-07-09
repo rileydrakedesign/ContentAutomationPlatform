@@ -60,8 +60,8 @@ export function ProposedChangesCard({
   }
 
   return (
-    <div className="mt-3 p-4 bg-[var(--color-primary-500)]/10 border border-[var(--color-primary-500)]/20 rounded-xl">
-      <p className="text-xs font-medium text-[var(--color-primary-400)] mb-3">
+    <div className="mt-3 p-4 bg-[var(--color-accent-500)]/10 border border-[var(--color-accent-500)]/20 rounded-xl">
+      <p className="text-xs font-medium text-[var(--color-accent-400)] mb-3">
         Proposed settings changes:
       </p>
       <div className="space-y-2 mb-4">

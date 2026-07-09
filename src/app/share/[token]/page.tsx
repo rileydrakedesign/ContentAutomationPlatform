@@ -38,7 +38,7 @@ export default async function SharedVoiceReport({
       <div className="max-w-xl mx-auto space-y-6">
         {/* Header — branded, screenshot-ready */}
         <div className="text-center space-y-1">
-          <p className="text-xs uppercase tracking-wide text-[var(--color-primary-400)] font-semibold">
+          <p className="text-xs uppercase tracking-wide text-[var(--color-accent-400)] font-semibold">
             Voice Report
           </p>
           <h1 className="text-2xl font-semibold">{who}&apos;s voice, by the data</h1>
@@ -48,7 +48,7 @@ export default async function SharedVoiceReport({
         </div>
 
         {report.positioning_statement && (
-          <div className="rounded-xl border border-[var(--color-primary-500)]/20 bg-[var(--color-primary-500)]/5 p-4 text-center">
+          <div className="rounded-xl border border-[var(--color-accent-500)]/20 bg-[var(--color-accent-500)]/10 p-4 text-center">
             <p className="text-sm font-medium">{report.positioning_statement}</p>
           </div>
         )}
@@ -66,13 +66,13 @@ export default async function SharedVoiceReport({
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold">{p.pattern_name}</span>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-400">
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--color-success-500)]/10 text-[var(--color-success-400)]">
                     {p.multiplier.toFixed(1)}× engagement
                   </span>
                 </div>
                 <p className="text-xs text-[var(--color-text-secondary)] mt-1">{p.pattern_value}</p>
                 {p.example && (
-                  <p className="mt-2 pl-2 border-l-2 border-[var(--color-primary-500)]/30 text-[11px] text-[var(--color-text-muted)] line-clamp-2">
+                  <p className="mt-2 pl-2 border-l-2 border-[var(--color-accent-500)]/30 text-[11px] text-[var(--color-text-muted)] line-clamp-2">
                     &ldquo;{p.example}&rdquo;
                   </p>
                 )}
@@ -89,7 +89,7 @@ export default async function SharedVoiceReport({
             <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">
               {report.top_post.text}
             </p>
-            <p className="text-xs text-green-400 mt-2">
+            <p className="text-xs text-[var(--color-success-400)] mt-2">
               {report.top_post.engagement_score.toLocaleString()} weighted engagement
             </p>
           </div>
@@ -99,7 +99,7 @@ export default async function SharedVoiceReport({
         <div className="text-center pt-2">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)]"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-accent-400)] hover:text-[var(--color-accent-500)]"
           >
             Tune your own voice with Agents For X →
           </Link>

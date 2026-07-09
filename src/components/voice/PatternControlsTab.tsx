@@ -97,8 +97,8 @@ export function PatternControlsTab() {
   if (patterns.length === 0) {
     return (
       <div className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-lg p-8 text-center">
-        <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-          <Sparkles className="w-6 h-6 text-[var(--color-primary-400)]" />
+        <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+          <Sparkles className="w-6 h-6 text-[var(--color-accent-400)]" />
         </div>
         <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">No Patterns Extracted Yet</h3>
         <p className="text-[var(--color-text-secondary)] mb-4 max-w-md mx-auto">
@@ -116,7 +116,7 @@ export function PatternControlsTab() {
           <div>
             <h3 className="text-lg font-medium text-[var(--color-text-primary)]">Extracted Patterns</h3>
             <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-              Enable patterns to apply them when generating content from topics.
+              Enable patterns so the assistant flags when they&apos;re missing — and generation applies them.
             </p>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-success-500)]/10 text-[var(--color-success-400)] rounded-full text-sm">
@@ -143,7 +143,7 @@ export function PatternControlsTab() {
                     key={pattern.id}
                     className={`flex items-start justify-between p-4 rounded-lg border transition-colors ${
                       pattern.is_enabled
-                        ? "bg-[var(--color-bg-elevated)]/50 border-[var(--color-primary-500)]/30"
+                        ? "bg-[var(--color-bg-elevated)]/50 border-[var(--color-accent-500)]/30"
                         : "bg-[var(--color-bg-elevated)]/20 border-[var(--color-border-default)]/50"
                     }`}
                   >
@@ -169,12 +169,12 @@ export function PatternControlsTab() {
 
                     <button
                       onClick={() => handleTogglePattern(pattern.id, pattern.is_enabled)}
-                      className={`relative ml-4 w-12 h-6 rounded-full transition-colors ${
-                        pattern.is_enabled ? "bg-[var(--color-primary-500)]" : "bg-[var(--color-border-strong)]"
+                      className={`relative ml-4 w-12 h-6 rounded-full transition-colors duration-100 ${
+                        pattern.is_enabled ? "bg-[var(--color-accent-500)]" : "bg-[var(--color-border-strong)]"
                       }`}
                     >
                       <span
-                        className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                        className={`absolute top-1 w-4 h-4 bg-[var(--color-text-primary)] rounded-full ${
                           pattern.is_enabled ? "left-7" : "left-1"
                         }`}
                       />
@@ -189,9 +189,9 @@ export function PatternControlsTab() {
 
       <div className="bg-[var(--color-bg-base)]/50 border border-[var(--color-border-default)]/50 rounded-lg p-4">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-[var(--color-primary-500)]/10 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-[var(--color-accent-500)]/10 flex items-center justify-center flex-shrink-0">
             <svg
-              className="w-4 h-4 text-[var(--color-primary-400)]"
+              className="w-4 h-4 text-[var(--color-accent-400)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -206,8 +206,8 @@ export function PatternControlsTab() {
           </div>
           <div>
             <p className="text-sm text-[var(--color-text-secondary)]">
-              Enabled patterns are automatically applied when you generate content from
-              the Create page. The AI will try to incorporate these proven techniques.
+              Enabled patterns power the assistant — it flags when a high-lift pattern is
+              missing as you write, and generation weaves them in. Disabled patterns are ignored.
             </p>
           </div>
         </div>

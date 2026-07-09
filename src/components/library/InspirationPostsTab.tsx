@@ -145,8 +145,8 @@ export function InspirationPostsTab() {
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-              <FileText className="w-4 h-4 text-[var(--color-primary-400)]" />
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+              <FileText className="w-4 h-4 text-[var(--color-accent-400)]" />
             </div>
             <div>
               <div className="relative">

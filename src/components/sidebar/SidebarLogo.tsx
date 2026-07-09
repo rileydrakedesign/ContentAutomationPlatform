@@ -11,7 +11,7 @@ export function SidebarLogo() {
 
   const xBox = (
     <div
-      className="bg-amber-500 flex items-center justify-center flex-shrink-0 rounded overflow-hidden"
+      className="bg-[var(--color-accent-500)] flex items-center justify-center flex-shrink-0 rounded overflow-hidden"
       style={{ width: BOX_H, height: BOX_H }}
     >
       <Image

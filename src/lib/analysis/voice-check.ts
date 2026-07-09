@@ -34,19 +34,11 @@ export async function runVoiceCheck(
   voiceType: VoiceType,
   options?: VoiceCheckOptions
 ): Promise<VoiceCheckResult> {
-  const [systemPrompt, { data: voiceSettings }] = await Promise.all([
-    options?.systemPromptOverride
-      ? Promise.resolve(options.systemPromptOverride)
-      : getAssembledPromptForUser(supabase, userId, voiceType),
-    supabase
-      .from("user_voice_settings")
-      .select("ai_model")
-      .eq("user_id", userId)
-      .eq("voice_type", voiceType)
-      .single(),
-  ]);
+  const systemPrompt = options?.systemPromptOverride
+    ? options.systemPromptOverride
+    : await getAssembledPromptForUser(supabase, userId, voiceType);
 
-  const aiProvider: AIProvider = resolveProvider(voiceSettings?.ai_model as string | null);
+  const aiProvider: AIProvider = resolveProvider();
 
   const constraintsNote = options?.constraints?.trim()
     ? `\n\nIMPORTANT — the user gave explicit, intentional direction for THIS draft that may diverge from their usual voice. Do NOT lower the score for following it; judge voice match on tone, vocabulary, and personality, not on choices the user explicitly requested:\n${options.constraints.trim()}`

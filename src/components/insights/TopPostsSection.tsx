@@ -71,7 +71,7 @@ export function TopPostsSection() {
         <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Top Performing Posts</h2>
         <Link
           href="/insights?tab=overview#performance"
-          className="text-sm text-[var(--color-warning-400)] hover:text-amber-300 transition"
+          className="text-sm text-[var(--color-warning-400)] hover:text-[var(--color-warning-500)] transition-colors duration-100"
         >
           View all
         </Link>
@@ -102,7 +102,7 @@ export function TopPostsSection() {
                     href={post.post_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[var(--color-warning-400)] hover:text-amber-300 transition"
+                  className="text-[var(--color-warning-400)] hover:text-[var(--color-warning-500)] transition-colors duration-100"
                 >
                     View
                   </a>

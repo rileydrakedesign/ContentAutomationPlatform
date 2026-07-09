@@ -17,7 +17,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { embedText, EMBED_MODEL } from "@/lib/ai/embeddings";
+import { embedText, embedOneCached, EMBED_MODEL } from "@/lib/ai/embeddings";
 import { getAnalyzablePosts } from "@/lib/analysis/posts-pool";
 
 // ── Pure vector math (unit-tested) ──────────────────────────────────────────
@@ -131,6 +131,7 @@ interface VectorRow {
   sample_count: number;
   winners_count: number;
   calibration: Calibration | null;
+  updated_at: string | null;
 }
 
 async function loadVectorRow(
@@ -139,7 +140,7 @@ async function loadVectorRow(
 ): Promise<VectorRow | null> {
   const { data } = await supabase
     .from("user_assistant_vectors")
-    .select("voice_centroid, winners_centroid, dims, model, sample_count, winners_count, calibration")
+    .select("voice_centroid, winners_centroid, dims, model, sample_count, winners_count, calibration, updated_at")
     .eq("user_id", userId)
     .maybeSingle();
   if (!data) return null;
@@ -153,8 +154,13 @@ async function loadVectorRow(
     sample_count: Number(data.sample_count) || 0,
     winners_count: Number(data.winners_count) || 0,
     calibration: (data.calibration as Calibration | null) ?? null,
+    updated_at: (data.updated_at as string | null) ?? null,
   };
 }
+
+/** Centroids built on a fresh corpus drift stale as the user posts more; rebuild
+ *  in the background once they're older than this. */
+const CENTROID_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
 // ── Refresh: (re)build centroids ────────────────────────────────────────────
 
@@ -248,6 +254,8 @@ export interface ScoreResult {
   resemblance_score: number;
   /** No usable centroid yet — scores are neutral placeholders; trigger a refresh. */
   cold_start: boolean;
+  /** Centroids exist but are old; caller should kick a background refresh. */
+  stale: boolean;
 }
 
 const NEUTRAL_VOICE = 70;
@@ -265,10 +273,12 @@ export async function scoreDraft(
 ): Promise<ScoreResult> {
   const row = await loadVectorRow(supabase, userId);
   if (!row || row.voice_centroid.length === 0) {
-    return { voice_score: NEUTRAL_VOICE, resemblance_score: NEUTRAL_RESEMBLANCE, cold_start: true };
+    return { voice_score: NEUTRAL_VOICE, resemblance_score: NEUTRAL_RESEMBLANCE, cold_start: true, stale: false };
   }
 
-  const [vec] = await embedText([text]);
+  // Cached by content hash: the L3 calibration sample (and any re-score of the
+  // same draft) reuses this vector instead of re-embedding.
+  const vec = await embedOneCached(text);
   const draftVec = normalize(vec);
 
   const voiceCos = cosine(draftVec, row.voice_centroid);
@@ -276,10 +286,12 @@ export async function scoreDraft(
     ? cosine(draftVec, row.winners_centroid)
     : voiceCos;
 
+  const age = row.updated_at ? Date.now() - new Date(row.updated_at).getTime() : 0;
   return {
     voice_score: mapCosineToScore(voiceCos, row.calibration),
     resemblance_score: mapCosineToScore(winnersCos, row.calibration),
     cold_start: false,
+    stale: age > CENTROID_STALE_MS,
   };
 }
 
@@ -298,7 +310,8 @@ export async function recordCalibrationSample(
   try {
     const row = await loadVectorRow(supabase, userId);
     if (!row || row.voice_centroid.length === 0) return;
-    const [vec] = await embedText([text]);
+    // Almost always a cache hit — L2 just scored (and embedded) this same draft.
+    const vec = await embedOneCached(text);
     const cos = cosine(normalize(vec), row.voice_centroid);
     const next = accumulateCalibration(row.calibration, cos, llmVoiceScore);
     const { error } = await supabase

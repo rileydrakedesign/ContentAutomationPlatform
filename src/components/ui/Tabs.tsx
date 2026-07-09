@@ -57,14 +57,11 @@ interface TabsListProps {
 }
 
 export function TabsList({ children, className = "", variant = "default" }: TabsListProps) {
-  const variantStyles = {
-    default: "inline-flex gap-1 bg-[var(--color-bg-surface)] p-1 rounded-xl border border-[var(--color-border-subtle)]",
-    pills: "inline-flex gap-2",
-    underline: "inline-flex gap-6 border-b border-[var(--color-border-default)]",
-  };
-
+  // GALLEY: newspaper section heads — one rule with an uppercase row on top.
+  // The `variant` prop is kept for API compatibility; all render as the rule row.
+  void variant;
   return (
-    <div className={`${variantStyles[variant]} ${className}`}>
+    <div className={`flex gap-[4ch] border-b border-[var(--color-border-default)] ${className}`}>
       {children}
     </div>
   );
@@ -86,29 +83,23 @@ export function TabsTrigger({ value, children, className = "", count, icon }: Ta
     <button
       onClick={() => setActiveTab(value)}
       className={`
-        px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
-        flex items-center gap-2 cursor-pointer
+        relative pb-3 text-xs uppercase tracking-[0.1em] leading-6
+        flex items-center gap-[1ch] cursor-pointer bg-transparent
+        transition-colors duration-100 ease-linear
         ${isActive
-          ? "bg-[var(--color-primary-500)] text-white shadow-[var(--shadow-glow-primary)]"
-          : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]"
+          ? "text-[var(--color-text-primary)] font-bold"
+          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
         }
         ${className}
       `}
     >
-      {icon && <span className="w-4 h-4">{icon}</span>}
+      {icon && <span className="w-3.5 h-3.5 flex items-center">{icon}</span>}
       {children}
       {count !== undefined && (
-        <span
-          className={`
-            text-xs px-2 py-0.5 rounded-full font-medium
-            ${isActive
-              ? "bg-white/20 text-white"
-              : "bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]"
-            }
-          `}
-        >
-          {count}
-        </span>
+        <span className="text-[var(--color-text-muted)]">({count})</span>
+      )}
+      {isActive && (
+        <span className="absolute left-0 right-0 -bottom-px border-b-2 border-[var(--color-accent-500)]" />
       )}
     </button>
   );

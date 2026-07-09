@@ -68,7 +68,7 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
         </p>
         <button
           onClick={onUploadClick}
-          className="px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-white text-sm rounded-lg transition-colors"
+          className="px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-[var(--color-text-inverse)] text-sm rounded-lg transition-colors duration-100"
         >
           Upload CSV
         </button>
@@ -119,7 +119,7 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
               <select
                 value={postsSortBy}
                 onChange={(e) => setPostsSortBy(e.target.value as SortKey)}
-                className="px-2 py-1 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)]"
+                className="px-2 py-1 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-500)]"
               >
                 <option value="engagement">Engagement</option>
                 <option value="recent">Recent</option>
@@ -169,7 +169,7 @@ export function PerformanceTab({ posts, uploadedAt, onUploadClick, loading }: Pe
               <select
                 value={repliesSortBy}
                 onChange={(e) => setRepliesSortBy(e.target.value as SortKey)}
-                className="px-2 py-1 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)]"
+                className="px-2 py-1 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-500)]"
               >
                 <option value="engagement">Engagement</option>
                 <option value="recent">Recent</option>

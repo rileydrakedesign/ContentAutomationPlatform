@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImagePlus, X, Loader2, AlertCircle } from "lucide-react";
+import { ImagePlus, X, AlertCircle } from "lucide-react";
 import type { AttachedMedia } from "@/lib/x-api/media";
 
 /**
@@ -82,7 +82,7 @@ export function MediaUploader({
           title={atMax ? "Attachment limit reached" : "Attach image, GIF, or video"}
         >
           {uploading ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <span aria-hidden className="inline-block animate-[blink_1s_steps(1)_infinite]">▌</span>
           ) : (
             <ImagePlus className="w-3.5 h-3.5" />
           )}
@@ -135,7 +135,7 @@ export function MediaUploader({
                 <button
                   type="button"
                   onClick={() => removeAt(i)}
-                  className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 text-white hover:bg-black/80"
+                  className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 text-[var(--color-text-primary)] hover:bg-black/80"
                   title="Remove"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -146,7 +146,7 @@ export function MediaUploader({
                   value={m.alt_text || ""}
                   onChange={(e) => setAlt(i, e.target.value)}
                   placeholder="Alt text (accessibility)…"
-                  className="w-full text-[11px] bg-transparent border-b border-[var(--color-border-subtle)] py-1 text-[var(--color-text-secondary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)]"
+                  className="w-full text-[11px] bg-transparent border-b border-[var(--color-border-subtle)] py-1 text-[var(--color-text-secondary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent-500)]"
                 />
               </div>
             </div>

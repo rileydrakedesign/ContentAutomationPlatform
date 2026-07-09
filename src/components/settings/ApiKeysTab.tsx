@@ -191,7 +191,7 @@ export function ApiKeysTab() {
                   <button
                     type="button"
                     onClick={selectAllScopes}
-                    className="text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] cursor-pointer"
+                    className="text-xs text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] cursor-pointer"
                   >
                     Select All
                   </button>
@@ -218,7 +218,7 @@ export function ApiKeysTab() {
                           key={scope}
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all border ${
                             formScopes.includes(scope)
-                              ? "bg-[var(--color-primary-500)]/10 border-[var(--color-primary-500)]/30 text-[var(--color-primary-400)]"
+                              ? "bg-[var(--color-accent-500)]/10 border-[var(--color-accent-500)]/30 text-[var(--color-accent-400)]"
                               : "bg-[var(--color-bg-elevated)] border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)]"
                           }`}
                         >

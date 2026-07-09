@@ -1,13 +1,16 @@
 # MCP server — overview
 
-The Agents For X **MCP** (Model Context Protocol) server lets Claude and other
-AI agents draft, voice-check, schedule, and publish X posts and replies **in your
-voice**, read your analytics, and manage your patterns, inspiration, niche, and
-strategy — all through your Agents For X account.
+The Agents For X **MCP** (Model Context Protocol) server brings **the real-time
+writing assistant for X** to Claude and other AI agents: the agent fetches your
+voice context and writes posts and replies **in your voice**, voice-checks them
+against what performs for you, then drafts, schedules, and publishes — plus reads
+your analytics and manages your patterns, inspiration, niche, and strategy, all
+through your Agents For X account.
 
-Generation and voice-checking run against your saved voice settings, examples,
-and proven patterns on the server, so the agent doesn't need to know your style;
-it asks for context or content and gets it in your voice.
+The preferred loop is **write → check**: `get_writing_context` returns your voice
+settings, examples, and proven patterns so the agent writes in your style, then
+`check_draft` scores the draft against them. Server-side generation stays as a
+labeled fallback for when the agent can't write directly.
 
 ## Two transports, one tool set
 

@@ -7,9 +7,9 @@ import { useSidebar } from "./SidebarContext";
 import { useSubscription } from "@/components/auth/SubscriptionProvider";
 
 const navLinks = [
+  { href: "/create", label: "Write", icon: PenSquare },
   { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/insights", label: "Insights", icon: BarChart2, proFeatures: ["patternExtraction", "insightsChat"] },
-  { href: "/create", label: "Create", icon: PenSquare },
   { href: "/reply", label: "Reply", icon: Reply, proFeatures: ["xApiSync"] },
   { href: "/queue", label: "Queue", icon: CalendarClock, proFeatures: ["scheduling"] },
   { href: "/voice", label: "Voice", icon: Sliders },
@@ -50,7 +50,7 @@ export function SidebarNav() {
                   transition-all duration-200
                   cursor-pointer
                   ${active
-                    ? "bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] shadow-[var(--shadow-glow-primary)]"
+                    ? "bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] shadow-[var(--shadow-glow-primary)]"
                     : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-text-primary)]"
                   }
                   ${isCollapsed ? "justify-center" : ""}
@@ -60,7 +60,7 @@ export function SidebarNav() {
                 <Icon
                   size={20}
                   className={`flex-shrink-0 transition-colors duration-200 ${
-                    active ? "text-[var(--color-primary-400)]" : ""
+                    active ? "text-[var(--color-accent-400)]" : ""
                   }`}
                 />
                 {!isCollapsed && (
@@ -69,7 +69,7 @@ export function SidebarNav() {
                       {link.label}
                     </span>
                     {hasProFeatures && (
-                      <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] border border-[var(--color-primary-500)]/20">
+                      <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border border-[var(--color-accent-500)]/20">
                         <Lock className="w-2.5 h-2.5" />
                         PRO
                       </span>

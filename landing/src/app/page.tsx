@@ -27,10 +27,10 @@ import {
 const APP_URL = "https://app.agentsforx.com";
 
 const CYCLING_WORDS = [
-  "niche analysis",
-  "your proven patterns",
-  "voice examples",
-  "a voice check",
+  "a coach in the corner",
+  "voice checks as you type",
+  "the algorithm, decoded",
+  "your patterns, applied",
 ];
 
 /* ------------------------------------------------------------------ */
@@ -237,12 +237,12 @@ export default function LandingPage() {
             }}
           >
             <span style={{ color: "var(--color-text-muted)" }}>
-              Tune your{" "}
+              Write your{" "}
             </span>
             <span style={{ color: "var(--color-text-primary)" }}>
               &#x1D54F;{" "}
             </span>
-            <span style={{ color: "var(--color-text-muted)" }}>voice with </span>
+            <span style={{ color: "var(--color-text-muted)" }}>posts with </span>
             <br className="hidden sm:block" />
             <span
               className="inline-block overflow-hidden align-bottom"
@@ -281,8 +281,10 @@ export default function LandingPage() {
               animationDelay: "0.35s",
             }}
           >
-            Analyze your niche, tune your voice, and generate content that
-            sounds like you — and performs like your best posts.
+            A real-time writing assistant for X. As you type your own posts and
+            replies, it shows you where they drift from your voice and where
+            they&apos;ll lose to the algorithm — grounded in your own top posts and
+            how X actually ranks — and fixes both in one click. You keep the pen.
           </p>
 
           {/* CTAs */}
@@ -515,7 +517,7 @@ function Testimonials() {
     {
       name: "Sarah K.",
       handle: "@sarahk_writes",
-      body: "The pattern extraction alone is worth the subscription. It found my best hook style and now every generated post starts with that energy.",
+      body: "The pattern extraction alone is worth the subscription. It found my best hook style — now the assistant flags the moment a draft drifts away from it.",
       date: "9:30 AM · Mar 8, 2026",
       likes: 89,
       retweets: 14,
@@ -700,8 +702,9 @@ function PainSolution() {
           className="text-lg sm:text-xl leading-relaxed"
           style={{ color: "var(--color-text-secondary)" }}
         >
-          You know consistent posting drives growth. But writing daily, finding
-          your voice, tracking what works, and publishing on schedule?
+          Two things decide whether a post lands: whether it sounds like you,
+          and what the algorithm does with it. You can&apos;t see either one.
+          So you guess.
         </p>
         <p
           className="mt-6 text-xl sm:text-2xl font-semibold"
@@ -710,8 +713,8 @@ function PainSolution() {
             color: "var(--color-text-primary)",
           }}
         >
-          That&apos;s a full-time job.{" "}
-          <span className="gradient-text">We automated it.</span>
+          Stop guessing.{" "}
+          <span className="gradient-text">See it as you type.</span>
         </p>
       </div>
     </section>
@@ -724,26 +727,26 @@ function FeatureShowcase() {
     {
       badge: "Chrome Extension",
       badgeIcon: <Chrome size={12} />,
-      title: "Save inspiration. Generate replies. Without leaving X.",
+      title: "Your writing assistant, right inside X.",
       description:
-        "One-click save any post to your inspiration library. Generate context-aware replies in your voice — directly in your timeline. No tab switching, no copy-paste.",
+        "One-click save any post to your inspiration library. And as you write posts or replies in X's own composer, the assistant checks voice and reach in real time — no tab switching, no copy-paste.",
       bullets: [
         { icon: <Sparkles size={16} />, text: "One-click post capture" },
-        { icon: <MessageSquare size={16} />, text: "In-timeline reply generation" },
-        { icon: <Zap size={16} />, text: "5 tone presets for any context" },
+        { icon: <MessageSquare size={16} />, text: "In-timeline voice & reach checks" },
+        { icon: <Zap size={16} />, text: "In-voice replies when you want them" },
       ],
       image: "/chrome-extension.png",
     },
     {
-      badge: "Voice Engine",
+      badge: "Writing Assistant",
       badgeIcon: <Brain size={12} />,
-      title: "Your voice. Infinite firepower.",
+      title: "Write like yourself — every time.",
       description:
-        "Fine-tune 4 voice dials, set guardrails, pin examples. The AI learns how you write — not how everyone writes. Every output sounds like you, not a bot.",
+        "Your voice is learned from your own posted tweets — your cadence, not a generic tone setting. As you type, the assistant scores how much your draft sounds like you and points at the exact words that drift — so nothing ships sounding like a bot.",
       bullets: [
-        { icon: <Target size={16} />, text: "4 tunable voice dials" },
-        { icon: <Layers size={16} />, text: "Custom guardrails & rules" },
-        { icon: <RefreshCw size={16} />, text: "Auto-refreshing examples" },
+        { icon: <Target size={16} />, text: "Live voice match score" },
+        { icon: <Layers size={16} />, text: "Learned from your own posts" },
+        { icon: <RefreshCw size={16} />, text: "Hover the why, accept the fix" },
       ],
       image: "/voice.png",
     },
@@ -752,7 +755,7 @@ function FeatureShowcase() {
       badgeIcon: <BarChart3 size={12} />,
       title: "Find what works. Then do more of it.",
       description:
-        "ML-powered pattern extraction analyzes your top posts to find your winning hooks, formats, and timing. Apply those patterns to every new piece of content.",
+        "ML-powered pattern extraction analyzes your top posts to find your winning hooks, formats, and timing. The assistant nudges you when a high-lift pattern is missing as you write.",
       bullets: [
         { icon: <Sparkles size={16} />, text: "Hook & format detection" },
         { icon: <BarChart3 size={16} />, text: "Engagement multiplier scoring" },
@@ -922,8 +925,8 @@ function HowItWorks() {
     },
     {
       num: 2,
-      title: "Generate in your voice",
-      desc: "Create posts, threads, and replies powered by your patterns and voice settings. Multiple variations, one click.",
+      title: "Write with a coach in the corner",
+      desc: "Write your own posts and replies. The assistant flags where they drift from your voice or lose to the algorithm — and fixes both in one click. Want a starting point? Generate one.",
     },
     {
       num: 3,
@@ -1009,10 +1012,10 @@ function FeatureGrid() {
     {
       title: "Content Creation",
       items: [
-        { text: "AI post & thread generation", ai: true },
-        { text: "Multi-model AI (Claude, GPT, Grok)", ai: true },
+        { text: "Real-time writing assistant", ai: true },
+        { text: "Voice & reach checks as you type", ai: true },
         { text: "Inspiration library", ai: false },
-        { text: "Topic-based generation", ai: true },
+        { text: "AI starting points (topic → draft)", ai: true },
         { text: "Draft management", ai: false },
       ],
     },
@@ -1032,7 +1035,7 @@ function FeatureGrid() {
         { text: "Visual calendar scheduling", ai: false },
         { text: "Optimal time posting", ai: true },
         { text: "Content strategy planner", ai: false },
-        { text: "Pattern-guided generation", ai: true },
+        { text: "Pattern-aware suggestions", ai: true },
         { text: "Chrome extension", ai: false },
       ],
     },
@@ -1117,6 +1120,7 @@ function Pricing() {
       period: "/month",
       description: "Get started and explore the core tools.",
       features: [
+        "Real-time writing assistant",
         "CSV & extension imports",
         "5 AI generations per day",
         "Manual posting",
@@ -1294,19 +1298,19 @@ function FAQ() {
   const faqs = [
     {
       q: "How does the Chrome extension work?",
-      a: "Install it once and it adds controls directly to your X timeline. You can save any post as inspiration with one click, and generate AI replies in your voice without leaving the page.",
+      a: "Install it once and it brings the writing assistant into your X timeline. Save any post as inspiration with one click, and as you write posts or replies in X, it checks voice and reach in real time.",
     },
     {
-      q: "Will the AI content sound like me?",
-      a: "Yes. The voice engine uses your pinned examples, dial settings, and guardrails to match your writing style. You can fine-tune formality, energy, humor, and more.",
+      q: "Will my posts still sound like me?",
+      a: "Yes — because you write them. The assistant learns your voice from your own posted tweets — your cadence, not a generic tone setting — and flags the moment a draft drifts. Every suggestion is yours to accept or dismiss.",
     },
     {
-      q: "What AI models are available?",
-      a: "You can choose between Claude, GPT, and Grok for content generation. Switch anytime from your voice settings.",
+      q: "Does the AI write my posts for me?",
+      a: "No — you write them. The assistant checks voice and reach as you type; generation is just an optional starting point when you want one. It's powered by Claude.",
     },
     {
       q: "How does pattern extraction work?",
-      a: "Upload your X analytics CSV or sync via the API. Our ML analyzes your top-performing posts to find hook styles, formats, timing patterns, and engagement triggers — then applies them to new content.",
+      a: "Upload your X analytics CSV or sync via the API. Our ML analyzes your top-performing posts to find hook styles, formats, timing patterns, and engagement triggers — then checks every draft against them as you write.",
     },
     {
       q: "Can I schedule posts?",
@@ -1314,7 +1318,7 @@ function FAQ() {
     },
     {
       q: "Is there a free trial?",
-      a: "The free plan is always free with 5 AI generations per day. Pro features come with a 7-day free trial — cancel anytime.",
+      a: "The free plan is always free — including the real-time writing assistant and 5 AI generations per day. Pro features come with a 7-day free trial — cancel anytime.",
     },
     {
       q: "How do I import my analytics?",
@@ -1451,8 +1455,8 @@ function FinalCTA() {
           className="mt-4 text-base sm:text-lg"
           style={{ color: "var(--color-text-secondary)" }}
         >
-          Join hundreds of creators using AI agents to write better, post
-          smarter, and grow faster.
+          Join hundreds of creators writing their own posts — with a coach that
+          keeps them on-voice and on-algorithm.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
           <a href={`${APP_URL}/signup`}>
@@ -1511,7 +1515,7 @@ function Footer() {
               className="mt-3 text-sm"
               style={{ color: "var(--color-text-muted)" }}
             >
-              AI agents that grow your &#x1D54F; presence.
+              The real-time writing assistant for &#x1D54F;.
             </p>
           </div>
 

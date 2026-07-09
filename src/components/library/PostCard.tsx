@@ -48,7 +48,7 @@ export function PostCard({
             {isMyPost && onPromoteToInspiration && (
               <button
                 onClick={() => onPromoteToInspiration(post.id)}
-                className="text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition"
+                className="text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] transition"
               >
                 Use as inspiration
               </button>

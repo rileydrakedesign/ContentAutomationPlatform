@@ -19,24 +19,26 @@ export function Card({
   glow = false,
   onClick,
 }: CardProps) {
+  // GALLEY: flat — 1px hairline rule, ink-1 surface, zero radius, no shadow.
+  // Depth is border/background shifts, never elevation. See galley.css (.card).
   const baseClasses = glass
-    ? "backdrop-blur-xl rounded-xl"
-    : "bg-[var(--color-bg-surface)] rounded-xl";
+    ? "backdrop-blur-xl rounded-none"
+    : "bg-[var(--color-bg-surface)] rounded-none";
 
   const backgroundClass = glass
     ? "bg-[var(--color-glass-medium)]"
     : "";
 
   const borderClass = selected
-    ? "border border-[var(--color-primary-500)]"
+    ? glow
+      ? "border border-[var(--color-border-focus)]"
+      : "border border-[var(--color-border-strong)]"
     : "border border-[var(--color-border-default)]";
 
-  const shadowClass = glow && selected
-    ? "shadow-[var(--shadow-glow-primary)]"
-    : "shadow-[var(--shadow-md)]";
+  const shadowClass = "";
 
   const hoverClass = hover
-    ? "hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-elevated)] transition-all duration-200 cursor-pointer active:scale-[0.99]"
+    ? "hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-elevated)] transition-colors duration-100 ease-linear cursor-pointer"
     : "";
 
   const clickableClass = onClick && !hover ? "cursor-pointer" : "";
@@ -109,7 +111,9 @@ interface CardFooterProps {
 
 export function CardFooter({ children, className = "" }: CardFooterProps) {
   return (
-    <div className={`p-4 pt-0 flex items-center gap-2 ${className}`}>
+    <div
+      className={`p-4 border-t border-dotted border-[var(--color-border-default)] flex items-center gap-2 ${className}`}
+    >
       {children}
     </div>
   );

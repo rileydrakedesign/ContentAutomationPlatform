@@ -21,7 +21,7 @@ export function SidebarUpgradeBanner() {
         <Link
           href="/pricing"
           title="Upgrade to Pro"
-          className="flex items-center justify-center w-full h-10 rounded-xl bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-accent-500)] text-white hover:opacity-90 transition"
+          className="flex items-center justify-center w-full h-10 rounded-xl bg-[var(--color-primary-500)] text-[var(--color-text-inverse)] hover:bg-[var(--color-primary-400)] transition-colors duration-100"
         >
           <Zap className="w-4 h-4" />
         </Link>
@@ -31,10 +31,10 @@ export function SidebarUpgradeBanner() {
 
   return (
     <div className="px-3 pb-3">
-      <div className="rounded-xl bg-gradient-to-br from-[var(--color-primary-500)]/10 to-[var(--color-accent-500)]/10 border border-[var(--color-primary-500)]/20 p-3.5">
+      <div className="rounded-xl bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] p-3.5">
         <div className="flex items-center gap-2 mb-2">
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-accent-500)] flex items-center justify-center">
-            <Zap className="w-3.5 h-3.5 text-white" />
+          <div className="w-6 h-6 rounded-lg bg-[var(--color-accent-500)] flex items-center justify-center">
+            <Zap className="w-3.5 h-3.5 text-[var(--color-text-inverse)]" />
           </div>
           <span className="text-xs font-semibold text-[var(--color-text-primary)]">Free Plan</span>
         </div>
@@ -60,7 +60,7 @@ export function SidebarUpgradeBanner() {
 
         <Link
           href="/pricing"
-          className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-primary-600)] hover:from-[var(--color-primary-400)] hover:to-[var(--color-primary-500)] text-white transition-all shadow-sm"
+          className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg text-xs font-semibold bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-400)] text-[var(--color-text-inverse)] transition-colors duration-100 shadow-sm"
         >
           <Zap className="w-3 h-3" />
           Upgrade to Pro

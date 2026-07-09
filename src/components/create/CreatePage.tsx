@@ -9,11 +9,10 @@ import { Badge } from "@/components/ui/Badge";
 import { TopicInput } from "./TopicInput";
 import { PatternSelector } from "./PatternSelector";
 import { DraftsList } from "./DraftsList";
-import { VoiceCheckPanel } from "./VoiceCheckPanel";
 import { HighlightedTextarea } from "@/components/compose/HighlightedTextarea";
-import { AssistantPanel } from "@/components/assistant/AssistantPanel";
+import { AssistantScorePanel, AssistantSuggestionList } from "@/components/assistant/AssistantPanel";
 import { useAssistant } from "@/components/assistant/useAssistant";
-import { isAssistantEnabled } from "@/lib/assistant/flag";
+import { useVoiceGuardrails } from "@/components/assistant/useVoiceGuardrails";
 import {
   AgenticChain,
   type ChainStepView,
@@ -49,7 +48,7 @@ import {
   writePersistedValue,
   removePersistedValue,
 } from "@/hooks/usePersistentState";
-import { CharCounter } from "@/components/compose/CharCounter";
+import { ThreadTweetEditor } from "@/components/compose/ThreadTweetEditor";
 
 type DraftType = "X_POST" | "X_THREAD";
 
@@ -153,14 +152,19 @@ export function CreatePage() {
   );
   const [savingCompose, setSavingCompose] = useState(false);
   const [composeError, setComposeError] = useState<string | null>(null);
+  // Which thread tweet has the assistant's full attention (score panel + auto
+  // L3 read). Every tweet still gets underlines + the L2 score.
+  const [composeFocusedTweet, setComposeFocusedTweet] = useState(0);
 
   // Writing assistant (Grammarly-for-tweets) for the manual compose tab.
-  const assistantOn = isAssistantEnabled();
+  const { avoidWords, authenticity } = useVoiceGuardrails("post");
   const composeAssistant = useAssistant({
     text: composeText,
     onChangeText: setComposeText,
     voiceType: "post",
-    enabled: assistantOn && composeType === "X_POST" && activeTab === "compose",
+    avoidWords,
+    authenticity,
+    enabled: composeType === "X_POST" && activeTab === "compose",
     autoLiveRead: true,
   });
 
@@ -597,28 +601,6 @@ export function CreatePage() {
     }
   };
 
-  const getDraftText = (draft: GeneratedDraft): string => {
-    if (typeof draft.content.text === "string") return draft.content.text;
-    if (Array.isArray(draft.content.tweets)) return draft.content.tweets.join("\n\n");
-    if (Array.isArray(draft.content.posts)) return draft.content.posts.join("\n\n");
-    return "";
-  };
-
-  const applyVoiceEditToDraft = (index: number, newText: string) => {
-    setGeneratedDrafts((prev) =>
-      prev.map((d, i) => {
-        if (i !== index) return d;
-        if (Array.isArray(d.content.tweets)) {
-          return { ...d, content: { ...d.content, tweets: newText.split(/\n{2,}/) } };
-        }
-        if (Array.isArray(d.content.posts)) {
-          return { ...d, content: { ...d.content, posts: newText.split(/\n{2,}/) } };
-        }
-        return { ...d, content: { ...d.content, text: newText } };
-      })
-    );
-  };
-
   // Carry the manually-composed post to the transient editor — same deliberate
   // save model as the AI flow: it's only persisted if the user saves it there.
   const handleContinueCompose = () => {
@@ -727,8 +709,8 @@ export function CreatePage() {
               <Card>
                 <CardContent>
                   <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-                      <Lightbulb className="w-4 h-4 text-[var(--color-primary-400)]" />
+                    <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+                      <Lightbulb className="w-4 h-4 text-[var(--color-accent-400)]" />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -764,9 +746,9 @@ export function CreatePage() {
                     <button
                       onClick={() => setDraftType("X_POST")}
                       className={`
-                        relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer text-left
+                        relative p-4 rounded-xl border-2 transition-colors duration-100 cursor-pointer text-left
                         ${draftType === "X_POST"
-                          ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10"
+                          ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/10"
                           : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
                         }
                       `}
@@ -774,7 +756,7 @@ export function CreatePage() {
                       {draftType === "X_POST" && (
                         <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-[var(--color-primary-500)]" />
                       )}
-                      <FileText className={`w-5 h-5 mb-2 ${draftType === "X_POST" ? "text-[var(--color-primary-400)]" : "text-[var(--color-text-secondary)]"}`} />
+                      <FileText className={`w-5 h-5 mb-2 ${draftType === "X_POST" ? "text-[var(--color-accent-400)]" : "text-[var(--color-text-secondary)]"}`} />
                       <p className={`text-sm font-medium ${draftType === "X_POST" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
                         Single Post
                       </p>
@@ -786,9 +768,9 @@ export function CreatePage() {
                     <button
                       onClick={() => setDraftType("X_THREAD")}
                       className={`
-                        relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer text-left
+                        relative p-4 rounded-xl border-2 transition-colors duration-100 cursor-pointer text-left
                         ${draftType === "X_THREAD"
-                          ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10"
+                          ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/10"
                           : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
                         }
                       `}
@@ -796,7 +778,7 @@ export function CreatePage() {
                       {draftType === "X_THREAD" && (
                         <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-[var(--color-primary-500)]" />
                       )}
-                      <List className={`w-5 h-5 mb-2 ${draftType === "X_THREAD" ? "text-[var(--color-primary-400)]" : "text-[var(--color-text-secondary)]"}`} />
+                      <List className={`w-5 h-5 mb-2 ${draftType === "X_THREAD" ? "text-[var(--color-accent-400)]" : "text-[var(--color-text-secondary)]"}`} />
                       <p className={`text-sm font-medium ${draftType === "X_THREAD" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
                         Thread
                       </p>
@@ -880,13 +862,13 @@ export function CreatePage() {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setMode("quick")}
-                      className={`relative p-3 rounded-xl border-2 transition-all duration-200 cursor-pointer text-left ${
+                      className={`relative p-3 rounded-xl border-2 transition-colors duration-100 cursor-pointer text-left ${
                         mode === "quick"
-                          ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10"
+                          ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/10"
                           : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
                       }`}
                     >
-                      <Zap className={`w-5 h-5 mb-1.5 ${mode === "quick" ? "text-[var(--color-primary-400)]" : "text-[var(--color-text-secondary)]"}`} />
+                      <Zap className={`w-5 h-5 mb-1.5 ${mode === "quick" ? "text-[var(--color-accent-400)]" : "text-[var(--color-text-secondary)]"}`} />
                       <p className={`text-sm font-medium ${mode === "quick" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
                         Quick
                       </p>
@@ -897,13 +879,13 @@ export function CreatePage() {
 
                     <button
                       onClick={() => setMode("agent")}
-                      className={`relative p-3 rounded-xl border-2 transition-all duration-200 cursor-pointer text-left ${
+                      className={`relative p-3 rounded-xl border-2 transition-colors duration-100 cursor-pointer text-left ${
                         mode === "agent"
-                          ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10"
+                          ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/10"
                           : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
                       }`}
                     >
-                      <Bot className={`w-5 h-5 mb-1.5 ${mode === "agent" ? "text-[var(--color-primary-400)]" : "text-[var(--color-text-secondary)]"}`} />
+                      <Bot className={`w-5 h-5 mb-1.5 ${mode === "agent" ? "text-[var(--color-accent-400)]" : "text-[var(--color-text-secondary)]"}`} />
                       <p className={`text-sm font-medium ${mode === "agent" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
                         Agent
                       </p>
@@ -1014,7 +996,7 @@ export function CreatePage() {
                         title="Regenerate — re-run the same prompt"
                         className="flex items-center justify-center w-8 h-8 rounded-md border border-[var(--color-border-default)] text-[var(--color-text-secondary)] disabled:opacity-40 hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] transition-colors"
                       >
-                        <RefreshCw className={`w-4 h-4 ${regenerating ? "animate-spin" : ""}`} />
+                        <RefreshCw className="w-4 h-4" />
                       </button>
                     )}
                   </div>
@@ -1065,9 +1047,9 @@ export function CreatePage() {
                     <div className="flex items-center gap-2 mb-3">
                       <button
                         onClick={() => handleFeedback(index, 'like')}
-                        className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${
+                        className={`flex items-center justify-center w-8 h-8 rounded-full border transition-colors duration-100 ${
                           feedbackMap[index] === 'like'
-                            ? 'border-green-500/50 bg-green-500/10 text-green-400'
+                            ? 'border-[var(--color-success-500)]/50 bg-[var(--color-success-500)]/10 text-[var(--color-success-400)]'
                             : 'border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-secondary)]'
                         }`}
                         title="Like this generation"
@@ -1076,9 +1058,9 @@ export function CreatePage() {
                       </button>
                       <button
                         onClick={() => handleFeedback(index, 'dislike')}
-                        className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${
+                        className={`flex items-center justify-center w-8 h-8 rounded-full border transition-colors duration-100 ${
                           feedbackMap[index] === 'dislike'
-                            ? 'border-red-500/50 bg-red-500/10 text-red-400'
+                            ? 'border-[var(--color-danger-500)]/50 bg-[var(--color-danger-500)]/10 text-[var(--color-danger-400)]'
                             : 'border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-secondary)]'
                         }`}
                         title="Dislike this generation"
@@ -1086,13 +1068,6 @@ export function CreatePage() {
                         <ThumbsDown className="w-4 h-4" />
                       </button>
                     </div>
-
-                    <VoiceCheckPanel
-                      text={getDraftText(draft)}
-                      voiceType="post"
-                      onApplyEdit={(newText) => applyVoiceEditToDraft(index, newText)}
-                      className="mb-3"
-                    />
 
                     <Button
                       fullWidth
@@ -1110,7 +1085,7 @@ export function CreatePage() {
                 <Card>
                   <CardContent className="py-4 space-y-3">
                     <div className="flex items-center gap-2">
-                      <Wand2 className="w-4 h-4 text-[var(--color-primary-400)]" />
+                      <Wand2 className="w-4 h-4 text-[var(--color-accent-400)]" />
                       <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
                         Refine this draft
                       </h4>
@@ -1122,7 +1097,7 @@ export function CreatePage() {
                         if (e.key === "Enter" && !refining && !aiLimitReached && regenInstructions.trim()) handleRefine();
                       }}
                       placeholder='Feedback: "make it longer, add bullet points", "punchier hook", "less formal"…'
-                      className="w-full h-10 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] transition-colors"
+                      className="w-full h-10 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent-500)] transition-colors"
                     />
                     <Button
                       variant="secondary"
@@ -1148,7 +1123,7 @@ export function CreatePage() {
         </TabsContent>
 
         <TabsContent value="compose">
-          <div className="max-w-2xl mx-auto space-y-6">
+          <div className="max-w-3xl mx-auto space-y-6">
             {/* Format Selection */}
             <Card>
               <CardContent>
@@ -1170,9 +1145,9 @@ export function CreatePage() {
                   <button
                     onClick={() => setComposeType("X_POST")}
                     className={`
-                      relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer text-left
+                      relative p-4 rounded-xl border-2 transition-colors duration-100 cursor-pointer text-left
                       ${composeType === "X_POST"
-                        ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10"
+                        ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/10"
                         : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
                       }
                     `}
@@ -1180,7 +1155,7 @@ export function CreatePage() {
                     {composeType === "X_POST" && (
                       <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-[var(--color-primary-500)]" />
                     )}
-                    <FileText className={`w-5 h-5 mb-2 ${composeType === "X_POST" ? "text-[var(--color-primary-400)]" : "text-[var(--color-text-secondary)]"}`} />
+                    <FileText className={`w-5 h-5 mb-2 ${composeType === "X_POST" ? "text-[var(--color-accent-400)]" : "text-[var(--color-text-secondary)]"}`} />
                     <p className={`text-sm font-medium ${composeType === "X_POST" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
                       Single Post
                     </p>
@@ -1192,9 +1167,9 @@ export function CreatePage() {
                   <button
                     onClick={() => setComposeType("X_THREAD")}
                     className={`
-                      relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer text-left
+                      relative p-4 rounded-xl border-2 transition-colors duration-100 cursor-pointer text-left
                       ${composeType === "X_THREAD"
-                        ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10"
+                        ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/10"
                         : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
                       }
                     `}
@@ -1202,7 +1177,7 @@ export function CreatePage() {
                     {composeType === "X_THREAD" && (
                       <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-[var(--color-primary-500)]" />
                     )}
-                    <List className={`w-5 h-5 mb-2 ${composeType === "X_THREAD" ? "text-[var(--color-primary-400)]" : "text-[var(--color-text-secondary)]"}`} />
+                    <List className={`w-5 h-5 mb-2 ${composeType === "X_THREAD" ? "text-[var(--color-accent-400)]" : "text-[var(--color-text-secondary)]"}`} />
                     <p className={`text-sm font-medium ${composeType === "X_THREAD" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
                       Thread
                     </p>
@@ -1218,8 +1193,8 @@ export function CreatePage() {
             <Card>
               <CardContent>
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-                    <Edit3 className="w-4 h-4 text-[var(--color-primary-400)]" />
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+                    <Edit3 className="w-4 h-4 text-[var(--color-accent-400)]" />
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -1231,36 +1206,36 @@ export function CreatePage() {
                   </div>
                 </div>
 
-                {composeType === "X_POST" && assistantOn ? (
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
-                    <HighlightedTextarea
-                      value={composeText}
-                      onChange={setComposeText}
-                      findings={composeAssistant.report.findings}
-                      onAccept={composeAssistant.accept}
-                      onDismiss={composeAssistant.dismiss}
-                      placeholder="What's on your mind?"
-                      minHeightClass="min-h-[180px]"
-                    />
-                    <AssistantPanel
+                {composeType === "X_POST" ? (
+                  <div className="space-y-4">
+                    {/* Editor + holistic score share one row; the score block is
+                        centered inline with the editor. Suggestions flow below. */}
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
+                      <HighlightedTextarea
+                        value={composeText}
+                        onChange={setComposeText}
+                        findings={composeAssistant.report.findings}
+                        onAccept={composeAssistant.accept}
+                        onDismiss={composeAssistant.dismiss}
+                        placeholder="What's on your mind?"
+                        minHeightClass="min-h-[180px]"
+                      />
+                      <AssistantScorePanel
+                        report={composeAssistant.report}
+                        hasContent={composeText.trim().length > 0}
+                        checking={composeAssistant.checking}
+                        stale={composeAssistant.stale}
+                        liveError={composeAssistant.liveError}
+                        scoreUnavailable={composeAssistant.scoreUnavailable}
+                      />
+                    </div>
+                    <AssistantSuggestionList
                       report={composeAssistant.report}
+                      hasContent={composeText.trim().length > 0}
                       checking={composeAssistant.checking}
-                      stale={composeAssistant.stale}
-                      liveError={composeAssistant.liveError}
                       onAccept={composeAssistant.accept}
                       onDismiss={composeAssistant.dismiss}
-                      onDeepCheck={composeAssistant.runDeepCheck}
                     />
-                  </div>
-                ) : composeType === "X_POST" ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={composeText}
-                      onChange={(e) => setComposeText(e.target.value)}
-                      placeholder="What's on your mind?"
-                      className="w-full min-h-[180px] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] transition-colors resize-y"
-                    />
-                    <CharCounter text={composeText} />
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -1272,11 +1247,17 @@ export function CreatePage() {
                           </span>
                           {composeThreadTweets.length > 1 && (
                             <button
-                              onClick={() =>
+                              onClick={() => {
                                 setComposeThreadTweets((prev) =>
                                   prev.filter((_, i) => i !== index)
-                                )
-                              }
+                                );
+                                setComposeFocusedTweet((f) =>
+                                  Math.min(
+                                    f > index ? f - 1 : f,
+                                    Math.max(0, composeThreadTweets.length - 2)
+                                  )
+                                );
+                              }}
                               className="flex items-center gap-1 text-xs text-[var(--color-danger-400)] hover:text-[var(--color-danger-300)] transition-colors"
                             >
                               <Trash2 className="w-3 h-3" />
@@ -1284,23 +1265,30 @@ export function CreatePage() {
                             </button>
                           )}
                         </div>
-                        <textarea
-                          value={tweet}
-                          onChange={(e) => {
+                        <ThreadTweetEditor
+                          text={tweet}
+                          onChangeText={(v) => {
                             const updated = [...composeThreadTweets];
-                            updated[index] = e.target.value;
+                            updated[index] = v;
                             setComposeThreadTweets(updated);
                           }}
+                          index={index}
+                          total={composeThreadTweets.length}
+                          focused={composeFocusedTweet === index}
+                          onFocus={() => setComposeFocusedTweet(index)}
+                          avoidWords={avoidWords}
+                          authenticity={authenticity}
                           placeholder={index === 0 ? "Start your thread..." : "Continue the thread..."}
-                          className="w-full min-h-[100px] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] transition-colors resize-y"
                         />
-                        <CharCounter text={tweet} />
                       </div>
                     ))}
                     {composeThreadTweets.length < 25 && (
                       <button
-                        onClick={() => setComposeThreadTweets((prev) => [...prev, ""])}
-                        className="flex items-center gap-1.5 text-sm text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors"
+                        onClick={() => {
+                          setComposeThreadTweets((prev) => [...prev, ""]);
+                          setComposeFocusedTweet(composeThreadTweets.length);
+                        }}
+                        className="flex items-center gap-1.5 text-sm text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] transition-colors"
                       >
                         <Plus className="w-4 h-4" />
                         Add tweet
@@ -1309,23 +1297,6 @@ export function CreatePage() {
                   </div>
                 )}
 
-                <div className="mt-4 pt-4 border-t border-[var(--color-border-subtle)]">
-                  <VoiceCheckPanel
-                    text={
-                      composeType === "X_POST"
-                        ? composeText
-                        : composeThreadTweets.filter((t) => t.trim()).join("\n\n")
-                    }
-                    voiceType="post"
-                    onApplyEdit={(newText) => {
-                      if (composeType === "X_POST") {
-                        setComposeText(newText);
-                      } else {
-                        setComposeThreadTweets(newText.split(/\n{2,}/));
-                      }
-                    }}
-                  />
-                </div>
               </CardContent>
             </Card>
 

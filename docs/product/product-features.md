@@ -19,7 +19,7 @@
 | One-click Accept / Dismiss fixes | ✅ | Span-anchored replacements | ↑ |
 | Decorated editor (ProseMirror inline decorations) | ✅ | Replaced the textarea overlay | ↑ |
 | L1 local grammar/clarity (WASM) | ⏸ | Planned; tiny filler list is the placeholder | ↑ |
-| Thread-level scoring (per-tweet + hook strength) | ⏸ | Phase 4 | ↑ |
+| Per-tweet thread assistant (underlines + score + live read) | ✅ | `ThreadTweetEditor` in both thread editors (2026-07-04); whole-thread aggregate score still ⏸ | ↑ |
 
 ## Generate (on-ramps)
 
@@ -71,8 +71,8 @@
 
 | Feature | Status | Notes | SoT |
 |---|---|---|---|
-| Reply target finder | ✅ | `/reply`, search → reply-targets | [reply-finder](../features/reply-finder.md) |
-| Opportunity score (should I reply?) | 🟡 | **Duplicated** server vs extension — known seam | ↑ |
+| Reply target finder | ✅ | `/reply`, search → reply-targets; composer runs the **live assistant** (reply voice) — in-app metered voice-check removed 2026-07-04 | [reply-finder](../features/reply-finder.md) |
+| Opportunity score (should I reply?) | ✅ | Reconciled onto canonical `weightedEngagement` (2026-07-04) | ↑ |
 | In-extension reply pill + generate | ✅ | `extension_replies` | [chrome-extension](../features/chrome-extension.md) |
 
 ## Surfaces & integration

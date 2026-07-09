@@ -49,7 +49,7 @@ export function DraftCard({ draft, onDelete }: DraftCardProps) {
       <div className="flex items-center gap-3">
         <Link
           href={`/drafts/${draft.id}`}
-          className="text-sm text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition"
+          className="text-sm text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] transition"
         >
           Edit
         </Link>

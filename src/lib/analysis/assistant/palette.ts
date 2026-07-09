@@ -9,29 +9,31 @@
 
 import type { FindingClass, Severity } from "./types";
 
+// GALLEY palette (hex, not CSS vars — shared with the extension content script).
 export const CLASS_STYLE: Record<FindingClass, { color: string; label: string }> = {
-  correctness: { color: "#F87171", label: "Correctness" }, // red
-  clarity: { color: "#818CF8", label: "Clarity" }, // indigo
-  voice: { color: "#A78BFA", label: "Voice" }, // violet
-  reach: { color: "#FBBF24", label: "Reach" }, // amber
+  correctness: { color: "#E04B24", label: "Correctness" }, // rubric
+  clarity: { color: "#A6A193", label: "Clarity" }, // paper
+  voice: { color: "#93AC7C", label: "Voice" }, // sap
+  reach: { color: "#D9A441", label: "Reach" }, // ochre
 };
 
-/** text-decoration-style per severity. */
-export const SEVERITY_DECORATION: Record<Severity, "dotted" | "wavy" | "double"> = {
+/** text-decoration-style per severity. Clean underlines only (no squiggly/wavy):
+ *  a quiet dotted line for soft suggestions, a solid line for things to fix. */
+export const SEVERITY_DECORATION: Record<Severity, "dotted" | "solid"> = {
   suggestion: "dotted",
-  warning: "wavy",
-  problem: "double",
+  warning: "solid",
+  problem: "solid",
 };
 
-/** Score-band colors (orb, panel, badges). */
+/** Score-band colors (orb, panel, badges) — GALLEY: sap / ochre / rubric. */
 export const BAND_COLOR = {
-  good: "#4ADE80",
-  warning: "#FBBF24",
-  danger: "#F87171",
+  good: "#93AC7C",
+  warning: "#D9A441",
+  danger: "#E04B24",
 } as const;
 
 export const BADGE_COLOR = {
-  good: "#4ADE80",
-  caution: "#FBBF24",
-  info: "#818CF8",
+  good: "#93AC7C",
+  caution: "#D9A441",
+  info: "#A6A193",
 } as const;

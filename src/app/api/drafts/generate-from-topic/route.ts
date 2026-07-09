@@ -102,15 +102,7 @@ export async function POST(request: NextRequest) {
       patterns = (patternData || []).filter(isGenerationApplicablePattern);
     }
 
-    // Fetch user's voice settings including AI model preference
-    const { data: voiceSettings } = await supabase
-      .from("user_voice_settings")
-      .select("optimization_authenticity, tone_formal_casual, energy_calm_punchy, stance_neutral_opinionated, guardrails, ai_model")
-      .eq("user_id", user.id)
-      .eq("voice_type", "post")
-      .single();
-
-    const aiProvider: AIProvider = resolveProvider(voiceSettings?.ai_model as string | null);
+    const aiProvider: AIProvider = resolveProvider();
 
     // Voice dials, guardrails, examples, and default patterns all come from
     // the assembled system prompt (one canonical tuned context). The user

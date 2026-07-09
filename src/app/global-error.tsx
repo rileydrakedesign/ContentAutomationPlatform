@@ -23,8 +23,8 @@ export default function GlobalError({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#0a0a0f",
-          color: "#e4e4e7",
+          backgroundColor: "#0C0B09",
+          color: "#EAE6DA",
           fontFamily:
             '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         }}
@@ -52,7 +52,7 @@ export default function GlobalError({
           <p
             style={{
               fontSize: "0.875rem",
-              color: "#a1a1aa",
+              color: "#A6A193",
               marginBottom: "1.5rem",
             }}
           >
@@ -64,10 +64,10 @@ export default function GlobalError({
               padding: "0.625rem 1.25rem",
               fontSize: "0.875rem",
               fontWeight: 500,
-              color: "#fff",
-              backgroundColor: "#6366f1",
+              color: "#0C0B09",
+              backgroundColor: "#EAE6DA",
               border: "none",
-              borderRadius: "0.5rem",
+              borderRadius: "0",
               cursor: "pointer",
             }}
           >

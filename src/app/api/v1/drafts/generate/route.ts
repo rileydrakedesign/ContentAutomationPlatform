@@ -1,7 +1,7 @@
 import { withApiAuth, apiSuccess, apiError, apiOptions } from "@/lib/api/v1-handler";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { createChatCompletion, AIProvider } from "@/lib/ai";
+import { createChatCompletion, AIProvider, resolveProvider } from "@/lib/ai";
 import {
   CREDIT_COSTS,
   requireCredits,
@@ -95,15 +95,7 @@ export const POST = withApiAuth(["drafts:generate"], async ({ auth, request }) =
     patterns = data || [];
   }
 
-  // Fetch voice settings + AI model (post or reply voice)
-  const { data: voiceSettings } = await supabase
-    .from("user_voice_settings")
-    .select("optimization_authenticity, tone_formal_casual, energy_calm_punchy, stance_neutral_opinionated, guardrails, ai_model")
-    .eq("user_id", auth.userId)
-    .eq("voice_type", voiceType)
-    .single();
-
-  const aiProvider: AIProvider = (voiceSettings?.ai_model as AIProvider) || "openai";
+  const aiProvider: AIProvider = resolveProvider();
 
   // Voice examples and default patterns come from the assembled system
   // prompt (one canonical tuned context). The user prompt only carries

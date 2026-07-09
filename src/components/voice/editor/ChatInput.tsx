@@ -43,13 +43,13 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
         onKeyDown={handleKeyDown}
         disabled={disabled}
         placeholder={placeholder || "Describe how you want your voice to sound..."}
-        className="flex-1 px-4 py-3 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] text-sm placeholder-[var(--color-text-muted)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)] disabled:opacity-50"
+        className="flex-1 px-4 py-3 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl text-[var(--color-text-primary)] text-sm placeholder-[var(--color-text-muted)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-500)] disabled:opacity-50"
         rows={1}
       />
       <button
         onClick={handleSubmit}
         disabled={!message.trim() || disabled}
-        className="p-3 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-[var(--color-text-primary)] rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="p-3 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-[var(--color-text-inverse)] rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         <Send className="w-5 h-5" />
       </button>

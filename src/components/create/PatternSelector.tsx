@@ -108,10 +108,10 @@ export function PatternSelector({
               onClick={() => togglePattern(pattern.id)}
               className={`
                 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
-                transition-all duration-200 cursor-pointer
+                transition-colors duration-100 cursor-pointer
                 ${isSelected
-                  ? "bg-[var(--color-primary-500)] text-white shadow-[var(--shadow-glow-primary)]"
-                  : "bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] hover:border-[var(--color-border-strong)]"
+                  ? "bg-[var(--color-primary-500)] text-[var(--color-text-inverse)]"
+                  : "bg-[var(--color-bg-elevated)] text-[var(--color-text-inverse)] border border-[var(--color-border-default)] hover:border-[var(--color-border-strong)]"
                 }
               `}
             >
@@ -124,7 +124,7 @@ export function PatternSelector({
               {pattern.multiplier > 1.2 && (
                 <span
                   className={`text-xs ${
-                    isSelected ? "text-white/80" : "text-[var(--color-success-400)]"
+                    isSelected ? "text-[var(--color-text-inverse)]/80" : "text-[var(--color-success-400)]"
                   }`}
                 >
                   {pattern.multiplier.toFixed(1)}x

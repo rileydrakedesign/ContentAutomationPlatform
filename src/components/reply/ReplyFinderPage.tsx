@@ -14,12 +14,12 @@ import {
   BarChart3,
   Sparkles,
   Send,
-  AudioLines,
   ShieldCheck,
 } from "lucide-react";
-import { useVoiceCheck } from "@/components/create/useVoiceCheck";
-import { VoiceCheckResult } from "@/components/create/VoiceCheckResult";
-import { isVoiceCheckSurfaced } from "@/lib/voice/publish-gate";
+import { HighlightedTextarea } from "@/components/compose/HighlightedTextarea";
+import { AssistantScorePanel, AssistantSuggestionList } from "@/components/assistant/AssistantPanel";
+import { useAssistant } from "@/components/assistant/useAssistant";
+import { useVoiceGuardrails } from "@/components/assistant/useVoiceGuardrails";
 import { parseGateError } from "@/lib/utils/gate-error";
 import { usePersistentState } from "@/hooks/usePersistentState";
 
@@ -66,12 +66,18 @@ export function ReplyFinderPage() {
   const [posting, setPosting] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
 
-  const { checking, result, checkedText, error: voiceError, check } = useVoiceCheck("reply");
-
-  const voiceChecked = isVoiceCheckSurfaced({
-    hasResult: result !== null,
-    checkedText,
-    currentText: replyText,
+  // Live writing assistant — the same underlines/score/accept-fix loop as the
+  // draft editor, running against the user's REPLY voice. Only one composer is
+  // open at a time, so a single page-level hook instance tracks the active text.
+  const { avoidWords, authenticity } = useVoiceGuardrails("reply");
+  const assistant = useAssistant({
+    text: replyText,
+    onChangeText: setReplyText,
+    voiceType: "reply",
+    avoidWords,
+    authenticity,
+    enabled: activeId !== null,
+    autoLiveRead: true,
   });
 
   async function runSearch() {
@@ -136,13 +142,6 @@ export function ReplyFinderPage() {
     }
   }
 
-  // Voice-check is optional (handoff #6): Post reply ships immediately;
-  // Voice-check & reply runs the 3-credit check and surfaces the score first.
-  async function handleVoiceCheckReply() {
-    if (!replyText.trim()) return;
-    await check(replyText);
-  }
-
   async function postReply(t: ReplyTarget) {
     if (!replyText.trim()) return;
     setPosting(true);
@@ -199,7 +198,8 @@ export function ReplyFinderPage() {
           Reply
         </h1>
         <p className="text-[var(--color-text-secondary)] text-sm mt-1">
-          Find high-traction posts you can actually reply to, then reply in your voice.
+          Find high-traction posts you can actually reply to, then write your reply in your
+          voice — with the assistant checking it live as you type.
         </p>
       </div>
 
@@ -238,10 +238,10 @@ export function ReplyFinderPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setSort(sort === "traction" ? "relevance" : "traction")}
-                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors ${
+                className={`inline-flex items-center gap-[1ch] px-[2ch] py-[7px] leading-6 rounded-none text-xs font-bold uppercase tracking-[0.08em] border transition-colors duration-100 ${
                   sort === "traction"
-                    ? "border-[var(--color-primary-500)]/40 bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)]"
-                    : "border-[var(--color-border-default)] text-[var(--color-text-secondary)]"
+                    ? "border-[var(--color-accent-500)]/50 bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)]"
+                    : "border-[var(--color-border-strong)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                 }`}
                 title="Rank repliable posts by momentum (engagement decayed by age)"
               >
@@ -312,7 +312,7 @@ export function ReplyFinderPage() {
                     href={t.author?.username ? `https://x.com/${t.author.username}/status/${t.id}` : `https://x.com/i/status/${t.id}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="ml-auto text-[var(--color-primary-400)] hover:underline"
+                    className="ml-auto text-[var(--color-accent-400)] hover:underline"
                   >
                     view on X ↗
                   </a>
@@ -320,19 +320,21 @@ export function ReplyFinderPage() {
 
                 {!isActive ? (
                   <Button variant="secondary" size="sm" onClick={() => openComposer(t)} icon={<ReplyIcon className="w-4 h-4" />}>
-                    Reply in my voice
+                    Write a reply
                   </Button>
                 ) : (
                   <div className="pt-2 border-t border-[var(--color-border-subtle)] space-y-3">
+                    {/* Writing-first: the composer is the main event; generated
+                        options are optional starting points that seed it. */}
                     <div className="flex items-center gap-2">
                       <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => generateReplies(t)}
                         loading={generating}
-                        icon={<Sparkles className="w-4 h-4 text-[var(--color-primary-400)]" />}
+                        icon={<Sparkles className="w-4 h-4 text-[var(--color-accent-400)]" />}
                       >
-                        {options.length > 0 ? "Regenerate options" : "Generate replies"}
+                        {options.length > 0 ? "More starting points" : "Suggest starting points"}
                       </Button>
                       <button onClick={() => setActiveId(null)} className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]">
                         cancel
@@ -340,78 +342,70 @@ export function ReplyFinderPage() {
                     </div>
 
                     {options.length > 0 && (
-                      <div className="grid grid-cols-1 gap-2">
-                        {options.map((opt, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setReplyText(opt)}
-                            className={`text-left text-sm rounded-lg border px-3 py-2 transition-colors ${
-                              replyText === opt
-                                ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10 text-[var(--color-text-primary)]"
-                                : "border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-default)]"
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    <textarea
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      placeholder="Write your reply, or pick a generated option above…"
-                      className="w-full min-h-[90px] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] resize-y"
-                    />
-
-                    {voiceError && (
-                      <div className="rounded-xl border border-[var(--color-danger-500)]/30 bg-[var(--color-danger-500)]/5 px-4 py-3">
-                        <p className="text-sm text-[var(--color-danger-400)]">{voiceError}</p>
-                      </div>
-                    )}
-                    {result && (
-                      <VoiceCheckResult
-                        result={result}
-                        currentText={replyText}
-                        checkedText={checkedText}
-                        onApplyEdit={setReplyText}
-                      />
-                    )}
-                    {!result && replyText.trim() && (
-                      <div className="flex items-start gap-2 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-3 py-2">
-                        <AudioLines className="w-4 h-4 text-[var(--color-primary-400)] shrink-0 mt-0.5" />
-                        <p className="text-xs text-[var(--color-text-secondary)]">
-                          Post directly, or run an optional voice check (3 credits) first to
-                          see how well this reply sounds like you before it ships.
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-[var(--color-text-muted)]">
+                          Starting points — pick one, then make it yours below.
                         </p>
+                        <div className="grid grid-cols-1 gap-2">
+                          {options.map((opt, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setReplyText(opt)}
+                              className={`text-left text-sm rounded-lg border px-3 py-2 transition-colors ${
+                                replyText === opt
+                                  ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/10 text-[var(--color-text-primary)]"
+                                  : "border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-default)]"
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
+
+                    {/* Editor + inline score share one row (reply cards are
+                        narrower than the create page, so the score column is
+                        slimmer); suggestions flow full-width below. */}
+                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_200px] lg:items-center">
+                      <HighlightedTextarea
+                        value={replyText}
+                        onChange={setReplyText}
+                        findings={assistant.report.findings}
+                        onAccept={assistant.accept}
+                        onDismiss={assistant.dismiss}
+                        placeholder="Write your reply — the assistant checks voice and clarity as you type…"
+                        minHeightClass="min-h-[100px]"
+                      />
+                      <AssistantScorePanel
+                        report={assistant.report}
+                        hasContent={replyText.trim().length > 0}
+                        checking={assistant.checking}
+                        stale={assistant.stale}
+                        liveError={assistant.liveError}
+                        scoreUnavailable={assistant.scoreUnavailable}
+                      />
+                    </div>
+                    <AssistantSuggestionList
+                      report={assistant.report}
+                      hasContent={replyText.trim().length > 0}
+                      checking={assistant.checking}
+                      onAccept={assistant.accept}
+                      onDismiss={assistant.dismiss}
+                    />
 
                     {composerError && (
                       <p className="text-sm text-[var(--color-danger-400)]">{composerError}</p>
                     )}
 
-                    <div className="flex flex-wrap items-center gap-2">
-                      {/* Primary: post immediately, no check required */}
-                      <Button
-                        onClick={() => postReply(t)}
-                        loading={posting}
-                        disabled={posting || checking || !replyText.trim()}
-                        icon={<Send className="w-4 h-4" />}
-                      >
-                        {posting ? "Posting…" : "Post reply"}
-                      </Button>
-                      {/* Secondary: optional voice-check first */}
-                      <Button
-                        variant="secondary"
-                        onClick={handleVoiceCheckReply}
-                        loading={checking}
-                        disabled={posting || checking || !replyText.trim() || voiceChecked}
-                        icon={<AudioLines className="w-4 h-4" />}
-                      >
-                        {checking ? "Checking voice…" : voiceChecked ? "Voice-checked ✓" : "Voice-check & reply"}
-                      </Button>
-                    </div>
+                    <Button
+                      onClick={() => postReply(t)}
+                      loading={posting}
+                      disabled={posting || !replyText.trim()}
+                      icon={<Send className="w-4 h-4" />}
+                    >
+                      {posting ? "Posting…" : "Post reply"}
+                    </Button>
                   </div>
                 )}
               </CardContent>

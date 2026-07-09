@@ -90,7 +90,7 @@ export function ContentSidebar({
             className="w-full flex items-center justify-between p-2 -m-2 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
           >
             <div className="flex items-center gap-2">
-              <CurrentIcon className="w-4 h-4 text-[var(--color-primary-400)]" />
+              <CurrentIcon className="w-4 h-4 text-[var(--color-accent-400)]" />
               <span className="text-sm font-medium text-[var(--color-text-primary)]">
                 {currentOption.label}
               </span>
@@ -101,7 +101,7 @@ export function ContentSidebar({
               )}
             </div>
             <ChevronDown
-              className={`w-4 h-4 text-[var(--color-text-muted)] transition-transform ${
+              className={`w-4 h-4 text-[var(--color-text-muted)] ${
                 isDropdownOpen ? "rotate-180" : ""
               }`}
             />
@@ -135,7 +135,7 @@ export function ContentSidebar({
                     <Icon
                       className={`w-4 h-4 ${
                         contentType === option.value
-                          ? "text-[var(--color-primary-400)]"
+                          ? "text-[var(--color-accent-400)]"
                           : "text-[var(--color-text-muted)]"
                       }`}
                     />
@@ -194,7 +194,7 @@ function DraftsContent({ drafts }: { drafts: Draft[] }) {
           No drafts to review
         </p>
         <p className="text-xs text-[var(--color-text-muted)] mt-1">
-          Generate drafts from inspiration or topics
+          Write a post, or generate a starting point
         </p>
       </div>
     );
@@ -219,14 +219,14 @@ function DraftsContent({ drafts }: { drafts: Draft[] }) {
           <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">
             {getPreview(draft)}
           </p>
-          <div className="flex items-center gap-1 mt-2 text-xs text-[var(--color-primary-400)] opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 mt-2 text-xs text-[var(--color-accent-400)] opacity-0 group-hover:opacity-100 transition-opacity">
             Review <ArrowRight className="w-3 h-3" />
           </div>
         </Link>
       ))}
       <Link
         href="/create?tab=drafts"
-        className="block text-center text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] py-2 transition-colors"
+        className="block text-center text-xs text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] py-2 transition-colors"
       >
         View All Drafts
       </Link>
@@ -270,7 +270,7 @@ function TopPostsContent({
           className="p-3 bg-[var(--color-bg-elevated)] rounded-lg"
         >
           <div className="flex items-start gap-2">
-            <span className="w-5 h-5 rounded-full bg-[var(--color-primary-500)]/20 text-[var(--color-primary-400)] text-xs font-medium flex items-center justify-center shrink-0">
+            <span className="w-5 h-5 rounded-full bg-[var(--color-accent-500)]/20 text-[var(--color-accent-400)] text-xs font-medium flex items-center justify-center shrink-0">
               {index + 1}
             </span>
             <div className="flex-1 min-w-0">
@@ -295,7 +295,7 @@ function TopPostsContent({
                     href={post.post_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-auto text-[var(--color-text-muted)] hover:text-[var(--color-primary-400)] transition-colors"
+                    className="ml-auto text-[var(--color-text-muted)] hover:text-[var(--color-accent-400)] transition-colors"
                   >
                     <ExternalLink className="w-3 h-3" />
                   </a>
@@ -308,7 +308,7 @@ function TopPostsContent({
 
       <Link
         href="/insights?tab=overview#performance"
-        className="block text-center text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] py-2 transition-colors"
+        className="block text-center text-xs text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] py-2 transition-colors"
       >
         View all posts
       </Link>
@@ -341,7 +341,7 @@ function InspirationContent({ posts }: { posts: InspirationPost[] }) {
           className="p-3 bg-[var(--color-bg-elevated)] rounded-lg group"
         >
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-medium text-[var(--color-primary-400)]">
+            <span className="text-xs font-medium text-[var(--color-accent-400)]">
               {post.author_handle
                 ? (post.author_handle.startsWith("@") ? post.author_handle : `@${post.author_handle}`)
                 : "unknown"}
@@ -355,15 +355,15 @@ function InspirationContent({ posts }: { posts: InspirationPost[] }) {
           </p>
           <Link
             href={`/create?inspiration=${post.id}`}
-            className="flex items-center gap-1 mt-2 text-xs text-[var(--color-primary-400)] opacity-0 group-hover:opacity-100 transition-opacity"
+            className="flex items-center gap-1 mt-2 text-xs text-[var(--color-accent-400)] opacity-0 group-hover:opacity-100 transition-opacity"
           >
             Use as Inspiration <ArrowRight className="w-3 h-3" />
           </Link>
         </div>
       ))}
       <Link
-        href="/library?filter=inspiration"
-        className="block text-center text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] py-2 transition-colors"
+        href="/library"
+        className="block text-center text-xs text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] py-2 transition-colors"
       >
         View All Inspiration
       </Link>

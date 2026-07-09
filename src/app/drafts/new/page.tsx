@@ -45,7 +45,7 @@ export default function NewDraftPage() {
         <p className="text-[var(--color-text-secondary)]">Nothing to edit here.</p>
         <button
           onClick={() => router.push("/create")}
-          className="text-sm text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)]"
+          className="text-sm text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)]"
         >
           Go to Create
         </button>

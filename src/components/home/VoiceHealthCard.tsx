@@ -71,9 +71,9 @@ type RowStatus = "ok" | "stale" | "missing";
 function StatusDot({ status }: { status: RowStatus }) {
   const color =
     status === "ok"
-      ? "bg-emerald-400"
+      ? "bg-[var(--color-success-400)]"
       : status === "stale"
-        ? "bg-amber-400"
+        ? "bg-[var(--color-warning-400)]"
         : "bg-[var(--color-text-muted)]/40";
   return <span className={`w-2 h-2 rounded-full shrink-0 ${color}`} />;
 }
@@ -159,9 +159,9 @@ export function VoiceHealthCard({ className }: { className?: string }) {
             const conf = voiceConfidence(data.posts_analyzed);
             const tone =
               conf.level === "good"
-                ? "bg-emerald-400/10 text-emerald-400"
+                ? "bg-[var(--color-success-400)]/10 text-[var(--color-success-400)]"
                 : conf.level === "building"
-                  ? "bg-amber-400/10 text-amber-400"
+                  ? "bg-[var(--color-warning-400)]/10 text-[var(--color-warning-400)]"
                   : "bg-[var(--color-text-muted)]/10 text-[var(--color-text-muted)]";
             return (
               <span
@@ -215,7 +215,7 @@ export function VoiceHealthCard({ className }: { className?: string }) {
         <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
           <Link
             href="/insights"
-            className="text-xs font-medium text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors flex items-center gap-1"
+            className="text-xs font-medium text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] transition-colors flex items-center gap-1"
           >
             Run Voice Tune-Up
             <ArrowRight size={12} />
@@ -244,12 +244,12 @@ export function RetuneBanner() {
   const staleList = data.freshness.stale_components.join(", ");
 
   return (
-    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 mb-5 flex items-center justify-between gap-4">
+    <div className="rounded-xl border border-[var(--color-warning-500)]/20 bg-[var(--color-warning-500)]/5 px-4 py-3 mb-5 flex items-center justify-between gap-4">
       <p className="text-xs text-[var(--color-text-secondary)] min-w-0">
         Your analytics are newer than your tuned voice — run a{" "}
         <Link
           href="/insights"
-          className="font-medium text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors"
+          className="font-medium text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] transition-colors"
         >
           Voice Tune-Up
         </Link>{" "}

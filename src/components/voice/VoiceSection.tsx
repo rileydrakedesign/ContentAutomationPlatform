@@ -18,30 +18,10 @@ import {
   Shield,
   Quote,
   StickyNote,
-  Cpu,
   Brain,
 } from "lucide-react";
 import { VoiceEditorView } from "./editor/VoiceEditorView";
 import { NicheProfileTab } from "./NicheProfileTab";
-
-// AI Model Icons
-const OpenAIIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
-    <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364l2.0201-1.1638a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z" />
-  </svg>
-);
-
-const ClaudeIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
-    <path d="M4.709 15.955l4.72-2.647.08-.08 2.726-1.529-4.398-2.398-3.048 6.574-.08.08zm8.478-5.678l3.048 1.77 3.77-2.085-3.77-2.165-3.048 1.77v.71zm-1.368.79L7.341 8.59l3.77-2.085 4.557 2.557-3.85 2.006zm-.158 1.132v4.954l3.77-2.165V9.953l-3.77 2.247zm-1.052.553l-3.77 2.085v4.876l3.77-2.085v-4.876zm8.637-5.36L12.078 3 4.789 7.312v9.546L12 21l7.246-4.142V7.392z" />
-  </svg>
-);
-
-const GrokIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-);
 
 type ViewMode = "settings" | "editor" | "niche";
 
@@ -313,10 +293,10 @@ export function VoiceSection() {
           <button
             onClick={() => setVoiceType("post")}
             className={`
-              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
+              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-100 cursor-pointer
               ${voiceType === "post"
-                ? "bg-[var(--color-primary-500)] text-white shadow-[var(--shadow-glow-primary)]"
-                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]"
+                ? "bg-[var(--color-accent-500)] text-[var(--color-text-inverse)]"
+                : "text-[var(--color-text-inverse)] hover:text-[var(--color-text-inverse)] hover:bg-[var(--color-bg-elevated)]"
               }
             `}
           >
@@ -326,10 +306,10 @@ export function VoiceSection() {
           <button
             onClick={() => setVoiceType("reply")}
             className={`
-              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
+              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-100 cursor-pointer
               ${voiceType === "reply"
-                ? "bg-[var(--color-primary-500)] text-white shadow-[var(--shadow-glow-primary)]"
-                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]"
+                ? "bg-[var(--color-accent-500)] text-[var(--color-text-inverse)]"
+                : "text-[var(--color-text-inverse)] hover:text-[var(--color-text-inverse)] hover:bg-[var(--color-bg-elevated)]"
               }
             `}
           >
@@ -343,7 +323,7 @@ export function VoiceSection() {
           <button
             onClick={() => setViewMode("settings")}
             className={`
-              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
+              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-100 cursor-pointer
               ${viewMode === "settings"
                 ? "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)]"
                 : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
@@ -356,7 +336,7 @@ export function VoiceSection() {
           <button
             onClick={() => setViewMode("editor")}
             className={`
-              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
+              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-100 cursor-pointer
               ${viewMode === "editor"
                 ? "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)]"
                 : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
@@ -369,7 +349,7 @@ export function VoiceSection() {
           <button
             onClick={() => setViewMode("niche")}
             className={`
-              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
+              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-100 cursor-pointer
               ${viewMode === "niche"
                 ? "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)]"
                 : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
@@ -395,60 +375,6 @@ export function VoiceSection() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Left Column - 3/5 width */}
           <div className="lg:col-span-3 space-y-6">
-            {/* AI Model Selection */}
-            <Card>
-              <CardContent>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-                    <Cpu className="w-4 h-4 text-[var(--color-primary-400)]" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                      AI Model
-                    </h3>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      Choose which AI generates your content
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { id: "openai", name: "OpenAI", icon: OpenAIIcon, color: "emerald", desc: "GPT-4 Turbo" },
-                    { id: "claude", name: "Claude", icon: ClaudeIcon, color: "orange", desc: "Sonnet 4" },
-                    { id: "grok", name: "Grok", icon: GrokIcon, color: "sky", desc: "Grok 3" },
-                  ].map((model) => {
-                    const isSelected = (s.ai_model || "openai") === model.id;
-                    const Icon = model.icon;
-                    return (
-                      <button
-                        key={model.id}
-                        onClick={() => updateSettings({ ai_model: model.id as "openai" | "claude" | "grok" })}
-                        className={`
-                          relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer
-                          ${isSelected
-                            ? `border-${model.color}-500 bg-${model.color}-500/10`
-                            : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
-                          }
-                        `}
-                      >
-                        {isSelected && (
-                          <div className={`absolute top-2 right-2 w-2 h-2 rounded-full bg-${model.color}-500`} />
-                        )}
-                        <div className={`mb-2 ${isSelected ? `text-${model.color}-400` : "text-[var(--color-text-secondary)]"}`}>
-                          <Icon />
-                        </div>
-                        <p className={`text-sm font-medium ${isSelected ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
-                          {model.name}
-                        </p>
-                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{model.desc}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Special Instructions */}
             <Card>
               <CardContent>

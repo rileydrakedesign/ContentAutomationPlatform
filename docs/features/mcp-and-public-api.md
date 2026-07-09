@@ -136,11 +136,11 @@ Per-action pricing for end users lives in [`docs/api/credits.md`](../api/credits
 
 ---
 
-## 6. Pivot alignment & open item
+## 6. Pivot alignment
 
-`server.ts` already centers the **assistant loop** — `get_writing_context` (free, agent writes) → `check_draft` (tune) — over server-side generation, which now reads as a labeled "fallback" in both the instructions and the generation tools' descriptions (`mcp/src/server.ts:11-25`, `tools.ts:201`, `:246`). This matches the product pivot toward a writing assistant.
+`server.ts` centers the **assistant loop** — `get_writing_context` (free, agent writes) → `check_draft` (tune) — over server-side generation, which reads as a labeled "fallback" in both the instructions and the generation tools' descriptions (`mcp/src/server.ts:9-29`, `tools.ts:~199`, `:~244`). This matches the product pivot toward a writing assistant.
 
-**Open item (reframing deferred):** the tool *catalog* (the 36 names + grouping in `tools.ts`) still skews generation/publish-heavy — `generate_post` / `generate_reply` / the `publish_*` family remain first-class, equal-weight entries rather than being visibly subordinated to the write-it-yourself path. The instruction layer steers correctly, but a catalog reframe (e.g. renaming/regrouping to foreground context+check, demoting generation) has not been done. Track this when the assistant framing hardens.
+**Catalog reframed (2026-07):** the tool grouping and framing now foreground the write→check loop — the generation section comment is retitled *"Writing & voice-check (the write → check loop)"*, and the vestigial `ai_model` input (OpenAI/Claude/Grok) was removed from `update_voice_settings` after the model picker was retired app-wide (Claude is baked). Tool *names* (`generate_post`, `generate_reply`, the `publish_*` family) are unchanged on purpose — they are stable public API / OAuth-scope identifiers, so generation is subordinated via grouping, ordering, and description weighting rather than renames.
 
 ---
 
@@ -176,7 +176,7 @@ Per-action pricing for end users lives in [`docs/api/credits.md`](../api/credits
 - **Manual sync points (no test enforces these):**
   - `CREDIT_COSTS` (`credits.ts`) vs. the per-tool prices written into tool descriptions (`tools.ts`) and the OpenAPI `x-credits` extensions — three hand-maintained copies of the same numbers.
   - `docs/mcp/tools.generated.md` must be regenerated (`npm run gen-docs`) after any `tools.ts` change, or the published reference drifts. A locally-installed `@agentsforx/mcp` can also lag the hosted gateway until upgraded.
-- **Catalog reframe deferred** (§6): tool names/grouping still generation/publish-forward despite the assistant-loop instructions.
+- **Catalog framing reframed** (§6): grouping/descriptions now foreground the write→check loop and the dead `ai_model` input was removed; tool *names* intentionally unchanged (stable public API / OAuth identifiers).
 - **Scope nuance to watch:** `/voice/check` requires `voice:read` (not `voice:write`) — intentional (checking doesn't mutate) but easy to misjudge when granting keys.
 
 ---

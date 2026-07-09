@@ -20,7 +20,7 @@ export function VoicePage() {
                 Voice & Patterns
               </h1>
               <p className="text-[var(--color-text-secondary)] text-sm mt-1">
-                Configure how AI generates content in your unique voice
+                Tune the voice and patterns the assistant checks your writing against
               </p>
             </div>
             <TabsList>

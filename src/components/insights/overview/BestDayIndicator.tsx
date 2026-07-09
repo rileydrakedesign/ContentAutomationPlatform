@@ -63,7 +63,7 @@ export function BestDayIndicator({ posts }: Props) {
     return (
       <Card className="h-full">
         <CardContent className="flex items-center justify-center h-full min-h-[160px]">
-          <p className="text-sm text-[var(--color-text-tertiary)]">
+          <p className="text-sm text-[var(--color-text-muted)]">
             Need 5+ posts for best day analysis
           </p>
         </CardContent>
@@ -87,13 +87,13 @@ export function BestDayIndicator({ posts }: Props) {
         </div>
 
         {result.pctAbove > 0 && (
-          <div className="flex items-center gap-1.5 text-teal-400">
+          <div className="flex items-center gap-1.5 text-[var(--color-success-400)]">
             <TrendingUp size={14} />
             <span className="text-sm font-medium">+{result.pctAbove}% vs other days</span>
           </div>
         )}
 
-        <p className="text-xs text-[var(--color-text-tertiary)]">
+        <p className="text-xs text-[var(--color-text-muted)]">
           Based on {result.postCount} post{result.postCount !== 1 ? "s" : ""}
         </p>
       </CardContent>
