@@ -1,97 +1,120 @@
 # Product Focus — the packaged PMF product (2026-07)
 
-> **Status:** Proposed — decision doc for Riley's sign-off
+> **Status:** Proposed — v2 after Riley's review (provenance cut; reply handoff redesigned; custom watches first-class; simplification pass)
 > **Date:** 2026-07-08 · **Owner:** Riley
-> **Evidence base:** `research/market-scan/2026-07-pmf-validation.md` (1,231-post Reddit pull), `2026-07-true-signal-addendum.md` (live X/HN/dev-forum, July 2026), `2026-07-reddit-signal.md` (July 7 pull), `REPLY_RADAR_SCOPE.md`, `PRODUCT_FEATURES.md` (implementation inventory).
-> **What this is:** every feature we ship or have specced, resolved into **add / change / keep / drop** so the product is one coherent package with true PMF — not a toolbox. Each call cites its evidence.
+> **Evidence base:** `research/market-scan/2026-07-pmf-validation.md`, `2026-07-true-signal-addendum.md`, `2026-07-reddit-signal.md`, `REPLY_RADAR_SCOPE.md`, `PRODUCT_FEATURES.md`.
+> **What this is:** every shipped/specced feature resolved into **add / change / keep / drop** so the product is one tight package with true PMF.
 
 ---
 
 ## 1. The product, in one line
 
-**The reply-first growth coach for X: we find the moment, you write it in your voice — and you can prove it.**
+**The reply-first growth coach for X: we find the moment, you write it in your voice, we get it onto X the compliant way — and show you what it earned.**
 
-The cohesive loop every feature must serve (anything that doesn't feed this loop gets cut or demoted):
+The core is exactly two things, connected by one loop:
 
 ```
- ① RADAR finds the moment      → bounded daily queue + perishable-window alerts
- ② COACH helps you write it    → live assistant in the composer: your voice, algorithm-aligned,
-                                  sounds-like-AI lint — you keep the pen
- ③ PROOF it's you              → voice fingerprint + provenance receipt
- ④ OUTCOMES tune the loop      → engage-backs, follows, profile clicks feed back into
-                                  Radar ranking and your voice rubric
+ ① RADAR — watches (topic / custom / account) → one ranked queue + alerts
+ ② COMPOSER — one assistant, one check bar (Algo • Voice • AI), you keep the pen
+      ↓ smart handoff to X (intent prefill → extension assist → copy)
+ ③ RESULTS — what each reply earned (engage-back, profile clicks, impressions)
+      → feeds back into Radar ranking and your voice rubric
 ```
 
-Why this specific package is TRUE PMF (the one-paragraph case): reply-driven growth is the *current mainstream playbook* on X (live July-2026 signal: "0 followers 7 months ago… reply guy… 20.2K"), the only feature users have ever specced unprompted is reply-target curation, and X itself destroyed the automated alternative (Feb-2026 API restriction + March–May ban waves) — so the curation+coaching lane is defensible **by platform policy**. Meanwhile audiences punish AI-sounding text harder every month (834-pt HN slop thread; "Everyone sounds the same!!!"), users are already hand-rolling pre-publish voice checks with Claude/ChatGPT, and the category leader (Grammarly Authorship) is converging on provenance. We own the only compliant reply lane *and* the only voice loop grounded in the user's own analytics. That intersection is the product.
+Why this is TRUE PMF, in one paragraph: reply-driven growth is the current mainstream playbook on X (live July-2026 signal), reply-target curation is the only feature users have ever specced unprompted, and X killed the automated alternative at the API and enforcement level — so the find-it-for-me / write-it-myself lane is defensible *by platform policy*. Meanwhile audiences punish AI-sounding text harder every month and users already hand-roll pre-publish "sounds like AI" checks with general-purpose LLMs. We own the only compliant reply lane **and** the only check bar grounded in the user's own voice and analytics. That intersection is the product; everything else in the codebase is either plumbing for it or gone.
 
 ---
 
-## 2. ADD — new, evidence-forced
+## 2. The Radar (①) — one primitive: the Watch
 
-| # | Feature | What ships | Evidence | Effort |
-|---|---|---|---|---|
-| A1 | **Reply Radar core** | Pooled sweeps (topic clusters + watchlist), bounded daily queue (10–15, with per-target "why"), perishable-window alerts. Per `REPLY_RADAR_SCOPE.md` Phase 1, with the §4/C1 delivery correction. | The strongest validated demand in three research passes; unprompted user spec; monitoring vacuum (TweetDeck refugees); Pluggo's 1,000-users-from-3-replies story | L |
-| A2 | **Sounds-like-AI lint** in the live assistant | A scored dimension (1–10) with named, per-flag reasons: banned-phrase list, "it's not X it's Y" reversals, rule-of-three, uniform sentence rhythm, em-dash density — **seeded from the user's own voice profile**, not a generic list. Tier-0 deterministic first, Tier-1 LLM judgment second (fits the existing 3-tier check engine in `GRAMMARLY_PIVOT_PLAN.md` §6). | Users DIY this *today*: "Every post I write gets scored 1-10 on how much it sounds like AI before it ships. Claude does the scoring. I wrote the rubric." (x.com/RezaaliMo, 2026-07-07) + a second independent "final human filter" workflow. First demand-side validation in the whole program | **S** |
-| A3 | **Provenance receipt** | "Written by you, coached" — editor/extension records that the words were typed by the user (accepted-suggestion count vs typed chars), surfaces a shareable receipt in the Voice Report. Not surveillance; a badge the user chooses to use. | Grammarly Authorship ("writing replay"); HN moderators demanding authors "prove they are the author of their work"; HN now bans AI-*edited* comments — proof beats claims | M |
-| A4 | **Outcome loop** (Radar Phase 3) | Attribute engage-backs / follows / profile clicks per reply; re-rank the queue per user; monthly "your best targets" insight. | The ~150× author-engage-back signal is public knowledge now (open-source algorithm); no competitor has per-user outcome attribution; mimicry tools structurally can't | M–L |
+Everything Radar does is a **watch**; all watches feed the same pipeline (sweep → score → dedup → queue/alert) and produce identical queue cards. No separate "trackers" concept in the UI.
 
-## 3. CHANGE — existing features, re-pointed at the loop
-
-| # | Feature (today) | Change | Why (evidence) | Effort |
-|---|---|---|---|---|
-| C1 | **All API publish paths** (`publish_reply`, `publish_post`, `publish_thread`, MCP) | **Native-composer-first.** Replies: extension injection / X web intent; API reply-publish only where compliant. Audit *every* path for unsolicited @mentions/quotes — the official Feb-2026 rule restricts those in normal posts too (self-serve tiers; Enterprise-only exemption). Graceful 403 fallback (old G8) becomes the core design. | Official rule text, devcommunity.x.com/t/257909 — this is a compliance cliff, not a UX preference | S–M |
-| C2 | **Extension reply agent** (today: 3 generated options → inject) | **Invert to coach-first:** click a target → composer opens with live reply-voice assistant (wire `voice_type:"reply"` + parent context — old G6); generated options demoted to a "starting points" affordance behind a click. You write; it coaches. | X's ranker LLM-judges replies with an extra spam screen — generated replies are what it's built to bury; slop accusations are audience-enforced; assistant-primary is the pivot's whole thesis, and the extension is the last gen-primary surface left | M |
-| C3 | **Opportunity score** (duplicated, drifted weights) | Unify to the server-canonical formula, parity test, legible "why this score" reasons (old G5). Becomes Radar's ranking core (Opportunity 2.0 factors: topic fit, author band, freshness/velocity, competition, traction, repliability). | "Your score, explained" is the anti-black-box stance; two drifted formulas undermine the trust the product sells | S |
-| C4 | **Niche account watch** (stored, unused for discovery — old G2) | Watched accounts + analyzed niche clusters **seed the Radar watchlist and sweep queries**. The existing capture behavior becomes the cold-start for ① instead of a dead-end dataset. | The r/SaaS spec asked for exactly this ("my designated follow list"); cost model requires pooled watchlists | S |
-| C5 | **Analytics + best-times** | Reframe as the outcome loop's face: engagement-weighted, reply-outcome-aware, and marketed on **reliability** ("your numbers, not inflated ones"). Best-times becomes a Radar timing input, not a standalone tab. | Pro users pay $400–600/mo and churn over "skewed/outdated, even inflated" analytics; X can't even find your own replies — we can | S |
-| C6 | **Voice system** | Keep as the engine; add the A2 personal rubric and A3 receipt as Voice Report sections; reply-voice becomes first-class across dashboard *and* extension. | Voice is the moat but it's latent — the Report is how it's demonstrated; "sounds like you" claims are saturated marketing noise, receipts aren't | S |
-
-## 4. KEEP — supporting cast, as-is
-
-- **One-click capture + inspiration library** — the in-X data-collection loop that feeds voice, patterns, and niche. Untouched.
-- **Pattern extraction + controls** — powers the coach's "what angle fits you" context card in Reply Desk.
-- **MCP/API surface** — distribution and agent-era positioning; subject to the C1 audit.
-- **Scheduling/queue** — keep as a utility. **Never market it.** Free OSS (Postiz) owns "schedule posts"; it's a $0-reference-price commodity.
-- **Custom trackers** (scope §3.2) — ship inside Radar's sweep pipeline in Phase 2 as scoped (budgeted, test-sweep preview). Validated demand at indie price points under a $7–9k/mo enterprise umbrella; Pluggo proves it monetizes. Differentiate via reply-composer integration, not listening breadth.
-
-## 5. DROP / DEMOTE — with disposition
-
-| # | Feature | Call | Rationale | Disposition |
-|---|---|---|---|---|
-| D1 | **Voice-memo / transcript → drafts** (inventory #12) | **Drop** | Legacy, off-spine, already "ditched" per inventory; keeping it visible confuses the package | Remove UI entry points now; delete `src/app/api/sources/*` path in a cleanup PR |
-| D2 | **Create page as a front door** (topic → drafts, inventory #11) | **Demote (finish the pivot)** | Gen-primary front doors are the anti-wedge; the pivot already demoted generation to "starting points" — the standalone Create page is the leftover | Fold into the editor as a "starting points" panel; retire the route |
-| D3 | **Any auto-posting/auto-reply/auto-plug direction** | **Never (re-affirmed)** | Policy-dead (API), enforcement-dead (ban waves), discourse-dead (3 mentions/7 days); it's also our sharpest marketing contrast | Keep the scope §10 exclusion; say it louder in copy |
-| D4 | **Multi-platform expansion** (IG/TikTok/LinkedIn asks, e.g. from Typefully fans) | **Refuse, explicitly** | X-only depth *is* the moat (algorithm receipts, reply lane, pooled sweeps); multi-platform is where incumbents are strong and voice is weakest | Positioning rule stays; revisit only post reply-lane dominance |
-| D5 | **Agency tier** | **Out of roadmap** (gate = 5 interviews) | Three research passes: pain exists, tool demand unproven, not X-specific | No build; interviews per `2026-07-pmf-validation.md` §4 |
-| D6 | **Waitlist landing (agent-for-x)** | Refresh copy only | Copy predates the reply-first packaging | Rewrite around §1's one-liner when launch content ships |
-
-## 6. Packaging (the buyable shape)
-
-| Tier | Gets | Job |
+| Watch type | How it's created | Example |
 |---|---|---|
-| **Free** | Editor + Tier-0 checks + sounds-like-AI lint (deterministic) + first-session **Voice Report** + 2–3 Radar tastes/day | Carry the demonstration — ChatGPT-$20 is the substitute; the report + a felt "found you a great target" is what converts |
-| **Pro $29** | Full Radar queue + watchlist + real-time alerts, unlimited live coach (all tiers), 2–3 trackers, outcome loop, provenance receipts | The daily-felt feature (anti-vigil) is the subscription driver; Fireply's $69–129 shows reply-tooling WTP headroom above us |
-| **Credits** | Extra trackers/budgets, generation "starting points", deep checks | Metered COGS stays margin-safe per `COGS.md` |
+| **Topic watch** | Auto-seeded from the user's analyzed niche (pillars → compiled queries); user can trim | "indie SaaS marketing" |
+| **Custom watch** | **User types a plain-English phrase**; we compile it to X search queries + an embedding centroid, run a test sweep, show "~N matches/24h" | **"student chat products", "AI writing pain points"** |
+| **Account watch** | Seeded from accounts the user engages with + niche 10k–100k band; user adds/removes | @levelsio, @heyeaslo |
 
-**Activation north star (unchanged, now with a path):** new user publishes ≥1 accepted, voice-checked, Radar-sourced reply in session 1.
+- **Custom watches are first-class, not an add-on.** The match is **semantic**: keyword queries recall candidates cheaply (pooled, `since_id`-cursored per `REPLY_RADAR_SCOPE.md` §4), then the embedding filter keeps only posts that actually match the *meaning* of the phrase — "AI writing pain points" must surface complaints, not tool ads. Only candidates passing the reply-worthiness gate (repliable, fresh window, author band, competition) reach the queue; the rest are dropped silently.
+- **Alerts:** every watch has an alert toggle. High-urgency matches (fresh + accelerating + low reply competition) push in real time (extension badge + notification); everything else lands in the bounded daily queue (10–15). The bound is the promise — anti-vigil, and it caps COGS.
+- Budgets/caps per the scope doc (per-watch daily read budget; pooled sweeps; 2M/mo cap accounting). Unchanged.
 
-## 7. Sequencing (13 weeks)
+## 3. The Composer (②) — one assistant, one check bar, one handoff
 
-1. **Weeks 1–2 — Hygiene + compliance (unblocks everything):** C1 audit (the mention/quote rule), C3 score unification, C6/G6 reply-voice in extension, A2 lint Tier-0. *Mostly small, independent; ship behind flags.*
-2. **Weeks 3–6 — Radar MVP:** A1 (sweep units, pooled candidates, queue UI, budgets/cap accounting), C4 niche seeding, C2 coach-first reply UX.
-3. **Weeks 7–10 — Desk + trackers + proof:** context cards, alerts, custom trackers v1, A3 provenance receipt, A2 Tier-1 lint.
-4. **Weeks 11–13 — Outcome loop + launch content:** A4 attribution + re-ranking; ship the algorithm-receipts marketing ("X ranks replies with an LLM judge built to catch generic AI replies — we find the moment; you keep the pen") before the Teract/OpenTweet SEO cluster owns the phrase.
+**One composer everywhere.** The dashboard editor and the extension's on-X assist are the same brain with the same three checks. The standalone Create page dies; "generate a starting point" is a button inside the composer, nothing more.
 
-## 8. Ship gates (per `SHIP_GATE.md` convention)
+**One check bar — three lights, one interaction.** Algo check (open-source-ranker alignment), Voice check (your fingerprint), AI check (sounds-like-AI lint: banned phrases, "it's not X it's Y" reversals, rule-of-three, uniform rhythm — seeded from *your* voice profile). Presented as a single bar with three segments; every flag is one click to see the reason, one click to fix or dismiss. No three panels, no separate scores to learn. (Fits the existing 3-tier check engine: deterministic lint free at Tier 0, LLM judgment at Tier 1/2.)
 
-- **Radar:** ≥10 repliable on-niche targets/day for a niche-analyzed Pro user, zero hand-written queries; sweep reads within budget ($25/day platform alert).
-- **Coach:** lint acceptance rate >30% of flags acted on; extension pill and server ranking agree (parity test).
-- **Compliance:** zero API-publish attempts that violate the reply/mention rule in telemetry (native-composer fallback covers 100%).
-- **Loop:** Radar-sourced replies' author-engage-back rate visibly ≥ user's baseline within 30 days of Phase 3.
-- **Package coherence check (qualitative):** a new user can say what the product is in one sentence after session 1. If they say "scheduler" or "AI writer," the packaging failed.
+**One handoff — because the API can't post replies.** Radar card → "Write reply" → in-house composer with parent-post context → **Post on X**, which degrades gracefully through three tiers:
 
-## 9. What we deliberately bet against (so the doc is falsifiable)
+1. **Intent prefill (default, works for everyone):** open `x.com/intent/post?in_reply_to=<id>&text=<composed reply>` in a new tab — X's own composer opens on the post, reply pre-filled, user hits Post from their own session. No API involved, verified supported by the official Web Intents docs.
+2. **Extension assist (best experience):** extension detects the handoff, opens the post, and mounts the same check bar in X's native reply composer — user can tweak with live coaching before posting.
+3. **Copy fallback:** copy button + open post in new tab, for any environment where 1–2 fail (X app deep-link quirks on mobile are a known intent bug).
 
-1. **That generic assist wins:** Grok is free in the composer; if users are satisfied with generic rewrite-assist, our voice-grounded coach loses its premium. Bet: homogenization backlash keeps growing (evidence trend says yes).
-2. **That X re-opens automated replies:** would revive the automation competitors overnight. Bet: anti-spam direction is durable (LLM-judge ranker + three enforcement waves say yes).
-3. **That reply-guy culture sours:** if "reply guy" becomes net-cringe beyond the founder bubble, demand thins. Mitigation already in copy: *targeting quality over volume* — "better 5 great replies than 50."
+Posting always happens as the *user*, in *their* session, with *their* final keystroke — compliant by construction and immune to the Feb-2026 API rules. We record the handoff (target id + composed text) so Results can attribute outcomes without needing to have posted anything ourselves.
+
+## 4. Results (③) — the outcome loop, scoped to what the API actually gives us
+
+Honest feasibility per metric (all via the user's own OAuth token on their own posts):
+
+| Metric | Feasibility | How |
+|---|---|---|
+| **Impressions per reply** | ✅ solid | own-post metrics (`non_public_metrics.impression_count`) |
+| **Profile clicks per reply** | ✅ solid | `non_public_metrics.user_profile_clicks` — per-post, first-class API field |
+| **Author engage-back** | ✅ solid | did the target author reply to / like your reply — conversation lookup + liking_users on your post; small-N, cached |
+| **Follows gained** | ⚠️ heuristic only | X has **no per-post follow attribution**. Two labeled proxies: (a) follower-count delta in the hours after a reply session ("~+6 followers in the 4h after these 3 replies" — directional, never claimed as causal), (b) **author-followed-you-back** checked directly for watched targets (small-N relationship lookup — concrete and cheap) |
+
+So the loop's core currency is **engage-back rate and profile clicks per reply** (both real, per-reply, actionable), with follower movement as a clearly-labeled estimate. That's enough to do the job: re-rank watches per user ("your replies to 10–50k accounts converted 3× better"), and show a Results view that answers "did this week's 20-minute sessions earn anything." Ranking feedback per scope Phase 3, unchanged otherwise.
+
+Attribution mechanics: we know the reply exists because the handoff recorded the target + text; a light sync matches the user's newest posts against recorded handoffs (fuzzy text + `in_reply_to` id), then pulls that post's metrics on the normal analytics cadence. No publish API needed anywhere in the loop.
+
+## 5. Making it simple and tight — the shape rules
+
+1. **Three surfaces, period: Radar / Composer / Results.** That's the nav. Voice settings, patterns, library, tuneups, best-times all demote to a single Settings/backstage area or run silently (tuneup on cadence; best-times becomes a Radar timing factor; patterns feed the "what angle fits you" hint on queue cards).
+2. **One primitive per surface.** Radar has watches → cards. Composer has drafts → one check bar → one handoff button. Results has replies → three numbers each. If a feature can't be expressed as one of these, it doesn't get UI.
+3. **One card, one action.** Every queue card has exactly one primary action ("Write reply"); snooze/skip are quiet secondary. No modes, no tabs on cards.
+4. **The extension is the same product, not a second one.** Same check bar, same queue (badge → mini-queue), same voice. Extension-only capabilities (native-composer assist, save/capture) are enhancements of the same loop, not separate features.
+5. **No blank states.** Onboarding: connect X → niche auto-analysis → Radar pre-seeded with topic + account watches → first queue card visible in session 1 → first coached reply through the handoff. The user never writes a search query or configures a voice before feeling the loop once.
+6. **Generation never leads.** "Starting point" is a button inside the composer. Nothing in nav, marketing, or onboarding says "generate."
+
+## 6. ADD / CHANGE / KEEP / DROP (v2, net of the above)
+
+**ADD:** A1 Radar core with the three watch types incl. plain-English custom watches (L) · A2 sounds-like-AI lint as the AI segment of the unified check bar (S) · A3 outcome loop scoped per §4 (M).
+
+**CHANGE:** C1 all reply delivery → the §3 three-tier handoff; audit remaining API post/thread paths for the unsolicited-mention rule (S–M) · C2 extension reply agent inverted to coach-first, generated options demoted (M) · C3 opportunity score unified server-canonical with legible reasons (S) · C4 niche watch seeds Radar watches (S) · C5 analytics reframed as Results (S) · C6 voice system feeds the check bar invisibly; reply-voice first-class (S).
+
+**KEEP (backstage):** capture/inspiration, pattern extraction, MCP surface (audited), scheduling as unmarketed utility.
+
+**DROP:** ~~provenance receipt~~ (cut — not our product) · voice-memo/transcript pipeline (delete) · Create page as a surface (fold in) · any auto-posting direction (never) · multi-platform (refuse) · agency tier (interviews only) · separate "trackers" concept (merged into watches).
+
+## 7. Packaging
+
+| Tier | Gets |
+|---|---|
+| **Free** | Composer + check bar (Tier-0/deterministic) + first-session Voice Report + 2–3 Radar cards/day from topic watches |
+| **Pro $29** | Full daily queue, account watches (≤30), **2–3 custom watches** with real-time alerts, full check bar (all tiers), Results loop |
+| **Credits** | Extra custom watches / raised sweep budgets, generation starting points, deep checks |
+
+Activation north star: **first coached reply through the handoff in session 1.** Radar (daily-felt anti-vigil) drives Pro; custom watches ("alert me on 'AI writing pain points'") are the demo-able wow and the lead-gen wedge; Fireply's $69–129 pricing shows headroom above $29.
+
+## 8. Sequencing (13 weeks)
+
+1. **Wk 1–2 — plumbing:** handoff v1 (intent prefill + copy fallback), score unification (C3), reply-voice in extension (C6), lint Tier-0 (A2). *All small; all shippable behind flags.*
+2. **Wk 3–6 — Radar MVP:** sweep pipeline + topic/account watches + queue UI + budgets (A1), niche seeding (C4), coach-first extension reply UX (C2), extension handoff tier 2.
+3. **Wk 7–10 — custom watches + alerts:** plain-English watch creation with test-sweep preview, semantic filter, real-time alerts; check bar Tier-1/2.
+4. **Wk 11–13 — Results:** handoff-based attribution, engage-back + profile-click surfacing, watch re-ranking; launch content ("X ranks replies with an LLM judge built to catch generic AI replies — we find the moment; you keep the pen").
+
+## 9. Ship gates
+
+- **Radar:** ≥10 repliable on-niche cards/day for a niche-analyzed Pro user with zero hand-written queries; a custom watch created from a plain phrase surfaces ≥1 genuinely on-meaning candidate in its first 24h test sweep.
+- **Handoff:** intent-prefill success rate ≥95% on desktop web; time from queue card → posted reply < 3 min in dogfooding; zero API reply-publish attempts in telemetry.
+- **Check bar:** one component shared dashboard/extension (parity test); ≥30% of flags acted on.
+- **Results:** engage-back + profile clicks visible per reply within 24h of posting; Radar-sourced replies' engage-back rate ≥ user baseline within 30 days.
+- **Coherence:** a session-1 user describes the product as "it finds me posts to reply to and helps me write them." Anything else = packaging failure.
+
+## 10. Bets this rests on (falsifiable)
+
+1. Homogenization backlash keeps growing (evidence trend: yes).
+2. X keeps automated replies dead (LLM-judge ranker + three enforcement waves: yes).
+3. Reply-guy culture stays net-positive in our segment; copy hedges with *targeting quality over volume*.
+4. Web intents stay supported (they're X's own embed surface; if they ever break, tier-2 extension assist and tier-3 copy already cover it).
