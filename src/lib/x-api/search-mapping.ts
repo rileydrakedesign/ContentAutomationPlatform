@@ -11,7 +11,11 @@ export interface EnrichedSearchTweet {
   text: string;
   created_at: string | null;
   metrics: XTweetV2["public_metrics"] | null;
-  author: { username: string | null; name: string | null } | null;
+  author: {
+    username: string | null;
+    name: string | null;
+    followers_count?: number | null;
+  } | null;
   reply_settings: string | null;
   is_auth_mentioned: boolean;
   reply_allowed: boolean;
@@ -108,6 +112,8 @@ export function mapSearchResults(
         ? {
             username: users.get(tweet.author_id)?.username ?? null,
             name: users.get(tweet.author_id)?.name ?? null,
+            followers_count:
+              users.get(tweet.author_id)?.public_metrics?.followers_count ?? null,
           }
         : null,
       reply_settings: replySettings,

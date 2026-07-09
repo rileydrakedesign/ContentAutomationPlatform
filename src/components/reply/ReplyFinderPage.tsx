@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -23,6 +23,7 @@ import { VoiceCheckResult } from "@/components/create/VoiceCheckResult";
 import { isVoiceCheckSurfaced } from "@/lib/voice/publish-gate";
 import { parseGateError } from "@/lib/utils/gate-error";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { compileWatchQueries, type CompiledWatchQuery } from "@/lib/x-api/watch-queries";
 
 interface ReplyTarget {
   id: string;
@@ -34,9 +35,17 @@ interface ReplyTarget {
     reply_count?: number;
     impression_count?: number;
   } | null;
-  author: { username: string | null; name: string | null } | null;
+  author: {
+    username: string | null;
+    name: string | null;
+    followers_count?: number | null;
+  } | null;
   reply_eligibility: "open" | "open_mentioned" | "restricted" | "unknown";
+  opportunity?: { score: number; reasons: string[] };
 }
+
+// The bound IS the product promise (PRD §3.4): a curated session, not a feed.
+const RESULT_BOUND = 15;
 
 function metric(n?: number): string {
   if (!n) return "0";
@@ -69,20 +78,49 @@ export function ReplyFinderPage() {
 
   const { checking, result, checkedText, error: voiceError, check } = useVoiceCheck("reply");
 
+  // Topic watches (G2, v0.5): the user's analyzed niche compiled into
+  // one-click queries — discovery never starts from a blank query box. On-
+  // demand searches on the user's token; Phase 1 turns these same compiled
+  // queries into pooled sweeps.
+  const [watches, setWatches] = useState<CompiledWatchQuery[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/niche/profile");
+        if (!res.ok) return;
+        const data = await res.json().catch(() => ({}));
+        const clusters = Array.isArray(data.profile?.topic_clusters)
+          ? [...data.profile.topic_clusters].sort(
+              (a, b) => (b.avg_engagement || 0) - (a.avg_engagement || 0)
+            )
+          : [];
+        if (!cancelled) setWatches(compileWatchQueries(clusters));
+      } catch {
+        // no niche yet — the manual search box still works
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const voiceChecked = isVoiceCheckSurfaced({
     hasResult: result !== null,
     checkedText,
     currentText: replyText,
   });
 
-  async function runSearch() {
-    if (!query.trim()) return;
+  async function runSearch(explicitQuery?: string) {
+    const q = (explicitQuery ?? query).trim();
+    if (!q) return;
+    if (explicitQuery) setQuery(explicitQuery);
     setSearching(true);
     setError(null);
     setActiveId(null);
     try {
       const res = await fetch(
-        `/api/search/reply-targets?query=${encodeURIComponent(query.trim())}&sort=${sort}&max_results=25`
+        `/api/search/reply-targets?query=${encodeURIComponent(q)}&sort=${sort}&max_results=${RESULT_BOUND}`
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -301,16 +339,39 @@ export function ReplyFinderPage() {
                     ? "border-[var(--color-primary-500)]/40 bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)]"
                     : "border-[var(--color-border-default)] text-[var(--color-text-secondary)]"
                 }`}
-                title="Rank repliable posts by momentum (engagement decayed by age)"
+                title="Rank by opportunity: momentum × author band × reply competition — every factor shown on the card"
               >
                 <TrendingUp className="w-3.5 h-3.5" />
-                {sort === "traction" ? "By traction" : "By relevance"}
+                {sort === "traction" ? "By opportunity" : "By relevance"}
               </button>
-              <Button onClick={runSearch} loading={searching} disabled={!query.trim()} icon={<Search className="w-4 h-4" />}>
+              <Button onClick={() => runSearch()} loading={searching} disabled={!query.trim()} icon={<Search className="w-4 h-4" />}>
                 Find posts
               </Button>
             </div>
           </div>
+
+          {/* Your watches — niche-compiled queries, one click to sweep. */}
+          {watches.length > 0 && (
+            <div className="mt-3">
+              <p className="text-xs text-[var(--color-text-muted)] mb-1.5">
+                Your watches — compiled from your niche, no query writing needed:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {watches.map((w) => (
+                  <button
+                    key={w.label}
+                    onClick={() => runSearch(w.query)}
+                    disabled={searching}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border border-[var(--color-primary-500)]/30 bg-[var(--color-primary-500)]/5 text-[var(--color-primary-400)] hover:bg-[var(--color-primary-500)]/15 transition-colors disabled:opacity-50"
+                    title={w.query}
+                  >
+                    <TrendingUp className="w-3 h-3" />
+                    {w.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="mt-3 rounded-xl border border-[var(--color-danger-500)]/30 bg-[var(--color-danger-500)]/5 px-4 py-3">
@@ -321,7 +382,7 @@ export function ReplyFinderPage() {
           {counts && !error && (
             <p className="mt-3 text-xs text-[var(--color-text-muted)]">
               {counts.repliable} of {counts.returned} posts are repliable — the rest restrict
-              replies and are hidden.
+              replies and are hidden. Ranked, capped at {RESULT_BOUND}: a session, not a feed.
             </p>
           )}
         </CardContent>
@@ -360,6 +421,20 @@ export function ReplyFinderPage() {
                 </div>
 
                 <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{t.text}</p>
+
+                {/* Why this, why now — every score factor legible (PRD §3.3) */}
+                {(t.opportunity?.reasons?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {t.opportunity!.reasons.map((reason) => (
+                      <span
+                        key={reason}
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border border-[var(--color-success-500)]/25 bg-[var(--color-success-500)]/5 text-[var(--color-success-400)]"
+                      >
+                        {reason}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                   <span className="inline-flex items-center gap-1"><Heart className="w-3 h-3" />{metric(t.metrics?.like_count)}</span>

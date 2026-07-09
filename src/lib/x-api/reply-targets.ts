@@ -15,7 +15,8 @@
  */
 import { searchRecentTweets, getValidAccessToken } from "@/lib/x-api";
 import { createAdminClient } from "@/lib/supabase";
-import { mapSearchResults, tractionScore, type EnrichedSearchTweet } from "./search-mapping";
+import { mapSearchResults, type EnrichedSearchTweet } from "./search-mapping";
+import { assessOpportunity, type OpportunityAssessment } from "./opportunity";
 
 export interface FindReplyTargetsOptions {
   query: string;
@@ -25,9 +26,14 @@ export interface FindReplyTargetsOptions {
   nowMs?: number;
 }
 
+export type ScoredReplyTarget = EnrichedSearchTweet & {
+  /** Opportunity 2.0 (v0.5 factors): score + plain-words reasons for the card. */
+  opportunity: OpportunityAssessment;
+};
+
 export interface FindReplyTargetsResult {
   /** Only posts the authenticated account can actually reply to. */
-  tweets: EnrichedSearchTweet[];
+  tweets: ScoredReplyTarget[];
   /** How many X returned (what we paid X for). */
   returned_count: number;
   /** How many of those were repliable. */
@@ -77,11 +83,15 @@ export async function findReplyTargets(
     userId,
     repliableAll.map((t) => t.id)
   );
-  const repliable = repliableAll.filter((t) => !alreadyReplied.has(t.id));
+  const now = opts.nowMs ?? Date.now();
+  // Every result carries its Opportunity assessment (score + legible reasons)
+  // regardless of sort — "your score, explained" is part of the card contract.
+  const repliable: ScoredReplyTarget[] = repliableAll
+    .filter((t) => !alreadyReplied.has(t.id))
+    .map((t) => ({ ...t, opportunity: assessOpportunity(t, now) }));
 
   if (opts.sort === "traction") {
-    const now = opts.nowMs ?? Date.now();
-    repliable.sort((a, b) => tractionScore(b, now) - tractionScore(a, now));
+    repliable.sort((a, b) => b.opportunity.score - a.opportunity.score);
   }
 
   return {

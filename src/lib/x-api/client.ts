@@ -13,6 +13,11 @@ export interface XUserV2 {
   name: string;
   username: string;
   profile_image_url?: string;
+  public_metrics?: {
+    followers_count?: number;
+    following_count?: number;
+    tweet_count?: number;
+  };
 }
 
 export interface XTweetV2 {
@@ -405,10 +410,12 @@ export async function searchRecentTweets(
       query,
       // reply_settings + entities (with author_id expansion) let the consumer
       // determine reply eligibility per post without extra API calls. These
-      // fields are free on all paid v2 tiers.
+      // fields are free on all paid v2 tiers. Author public_metrics powers the
+      // Opportunity author-band factor (the proven 10k–100k engage-back band)
+      // — fields don't bill separately; only posts returned do.
       "tweet.fields": "created_at,public_metrics,reply_settings,entities",
       "expansions": "author_id",
-      "user.fields": "username,name",
+      "user.fields": "username,name,public_metrics",
       max_results: Math.max(10, Math.min(maxResults, 100)).toString(),
     }
   );
