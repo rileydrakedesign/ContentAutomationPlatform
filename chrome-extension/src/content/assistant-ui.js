@@ -47,6 +47,46 @@
   }
   loadAuthenticity();
 
+  // ── Reply-composer detection (G6) ─────────────────────────────────────────
+  // X's reply composer always shows the post being replied to as a full
+  // article ABOVE the compose box: in the reply modal it's the article inside
+  // the dialog; inline on a status page it's the focal tweet preceding the
+  // composer. The home-timeline composer has neither → null (post mode).
+  // Best-effort like everything here: misses degrade to post voice, never break.
+  function replyContextFor(editor) {
+    try {
+      var article = null;
+      var dialog = editor.closest('[role="dialog"]');
+      if (dialog) {
+        article = dialog.querySelector('article[data-testid="tweet"]');
+      } else if (/\/status\/\d+/.test(location.pathname)) {
+        var articles = document.querySelectorAll('article[data-testid="tweet"]');
+        for (var i = 0; i < articles.length; i++) {
+          // Last article that precedes the composer in document order.
+          if (articles[i].compareDocumentPosition(editor) & Node.DOCUMENT_POSITION_FOLLOWING) {
+            article = articles[i];
+          }
+        }
+      }
+      if (!article) return null;
+      var textEl = article.querySelector('[data-testid="tweetText"]');
+      var text = textEl ? textEl.textContent || "" : "";
+      var author = "";
+      var userEl = article.querySelector('[data-testid="User-Name"]');
+      if (userEl) {
+        var spans = userEl.querySelectorAll("span");
+        for (var j = 0; j < spans.length; j++) {
+          var s = (spans[j].textContent || "").trim();
+          if (s.indexOf("@") === 0) { author = s; break; }
+        }
+      }
+      if (!text && !author) return null;
+      return { text: text, author: author };
+    } catch (e) {
+      return null;
+    }
+  }
+
   // ── Editor text + offset mapping ──────────────────────────────────────────
   // Walk the contenteditable's blocks, joining with "\n", and record each text
   // node's flat start so we can map a Tier-0 offset back to a DOM Range.
@@ -114,9 +154,56 @@
     var lastText = null;
     var timer = null;
 
+    // L3 live read (voice findings from the server judge). On-demand only —
+    // fetched on panel-open and via the explicit re-check button, never
+    // per-pause (the locked live-read trigger policy). In a reply composer it
+    // runs in reply voice with the parent post as context (G6).
+    var live = { forText: null, loading: false, result: null, error: null };
+
+    function requestLiveRead() {
+      try {
+        var text = (lastText || "").trim();
+        if (text.length < 5 || live.loading || live.forText === text) return;
+        if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.sendMessage) return;
+        var ctx = replyContextFor(editor);
+        live.loading = true;
+        live.error = null;
+        live.forText = text;
+        renderPanel();
+        chrome.runtime.sendMessage(
+          {
+            type: "LIVE_READ",
+            payload: {
+              text: text,
+              voice_type: ctx ? "reply" : "post",
+              parent_text: ctx ? ctx.text : undefined,
+            },
+          },
+          function (res) {
+            try {
+              live.loading = false;
+              if (chrome.runtime.lastError || !res || !res.success) {
+                live.result = null;
+                live.error = (res && res.error) || "Voice read unavailable";
+              } else {
+                live.result = res.result;
+                live.result._replyMode = !!ctx;
+              }
+              renderPanel();
+            } catch (e) {}
+          }
+        );
+      } catch (e) {
+        live.loading = false;
+      }
+    }
+
     orb.addEventListener("click", function () {
       panel.classList.toggle("afx-hidden");
-      if (!panel.classList.contains("afx-hidden")) renderPanel();
+      if (!panel.classList.contains("afx-hidden")) {
+        renderPanel();
+        requestLiveRead();
+      }
     });
 
     function cleanup() {
@@ -267,7 +354,36 @@
       } else {
         html += '<p class="afx-asst-empty">Nothing flagged. Looking sharp.</p>';
       }
+
+      // ── L3 voice read section (server judge; reply voice in a reply composer)
+      var voiceStyle = A.CLASS_STYLE.voice || { color: "#818CF8" };
+      if (live.loading) {
+        html += '<div class="afx-asst-panel-h">' + (replyContextFor(editor) ? "Reply voice" : "Voice") + '</div><p class="afx-asst-empty">Reading your voice…</p>';
+      } else if (live.result) {
+        var lr = live.result;
+        html += '<div class="afx-asst-panel-h">' + (lr._replyMode ? "Reply voice" : "Voice") +
+          (typeof lr.voice_score === "number" ? ' <b style="color:' + A.BAND_COLOR[A.scoreBand(lr.voice_score)] + '">' + lr.voice_score + "</b>" : "") + "</div>";
+        if (lr.summary) html += '<p class="afx-asst-empty">' + esc(lr.summary) + "</p>";
+        var vf = (lr.voice_findings || []).slice(0, 4);
+        if (vf.length) {
+          html += '<div class="afx-asst-cards">';
+          vf.forEach(function (f) {
+            html += '<div class="afx-asst-card"><div class="afx-asst-card-h"><span style="background:' + voiceStyle.color + '"></span>' +
+              esc(f.title || "Drifts from your voice") + "</div><p>" + esc(f.why || "") +
+              (f.replacement ? " Try: “" + esc(f.replacement) + "”" : "") + "</p></div>";
+          });
+          html += "</div>";
+        }
+        if (live.forText !== lastText) {
+          html += '<button type="button" class="afx-asst-recheck">Re-check voice</button>';
+        }
+      } else if (live.error) {
+        html += '<p class="afx-asst-empty">' + esc(live.error) + "</p>";
+      }
+
       panel.innerHTML = html;
+      var recheck = panel.querySelector(".afx-asst-recheck");
+      if (recheck) recheck.addEventListener("click", requestLiveRead);
       position();
     }
 

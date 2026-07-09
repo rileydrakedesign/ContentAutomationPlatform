@@ -112,18 +112,14 @@ function calculatePostAgeMinutes(timestamp) {
  * Calculate opportunity score for a post
  * Returns { score, rawScore, reasons } or null if scoring not possible
  */
-// Canonical weighted engagement — MUST mirror the server's
-// src/lib/utils/engagement.ts (replies 5× · retweets 4× · likes/bookmarks 3× ·
-// impressions 0.001×) so the extension's opportunity number is the same signal
-// the server ranks reply targets by (findReplyTargets / tractionScore). One
-// formula, consistent and improvable in one place.
+// Canonical scoring comes from the bundled engine (assistant-engine.js, built
+// from src/lib/utils/engagement.ts via engine-entry.ts) — the extension runs
+// the SAME weightedEngagement/opportunityTraction the server ranks reply
+// targets with (findReplyTargets / tractionScore), so pill ordering and server
+// ordering cannot drift. No local weights: the old hand-copy here had drifted
+// (G5). Guarded by the parity test in engagement.test.ts.
 function weightedEngagement(metrics) {
-  const likes = metrics.likes || 0;
-  const retweets = metrics.retweets || 0;
-  const replies = metrics.replies || 0;
-  const bookmarks = metrics.bookmarks || 0;
-  const views = metrics.views || 0;
-  return likes * 3 + retweets * 4 + replies * 5 + bookmarks * 3 + views * 0.001;
+  return window.AFXAssistant.weightedEngagement(metrics);
 }
 
 function calculateOpportunityScore(metrics, ageMinutes) {
@@ -144,9 +140,11 @@ function calculateOpportunityScore(metrics, ageMinutes) {
     return null;
   }
 
-  // The server's traction score: canonical weighted engagement decayed by post
-  // age, so fresh + rising posts outrank old + saturated ones.
-  const traction = weightedEngagement(metrics) / ageHours;
+  // The server's traction score, verbatim: canonical weighted engagement
+  // decayed by post age (with the shared sub-hour floor), so fresh + rising
+  // posts outrank old + saturated ones — and the pill ranks exactly like
+  // findReplyTargets does.
+  const traction = window.AFXAssistant.opportunityTraction(metrics, ageHours);
 
   const competition = (metrics.replies || 0) + 1;
   const reasons = [];
@@ -173,8 +171,17 @@ function calculateOpportunityScore(metrics, ageMinutes) {
 }
 
 /**
- * Normalize score to 0-100 using rolling min/max
+ * Normalize score to 0-100 against a rolling window of recent raw scores.
+ *
+ * Returns null while the window is still warming up (BACKLOG EXT-8: min/max
+ * over a handful of samples made the first post a meaningless 50 and early
+ * pills jumpy) — callers skip display and don't cache, so the post is scored
+ * again once the window is representative. Bounds are the p10/p90 of the
+ * window rather than raw min/max, so one viral outlier can't squash every
+ * other pill toward 0.
  */
+const NORMALIZE_MIN_SAMPLES = 8;
+
 function normalizeScore(rawScore) {
   // Update rolling stats
   scoreStats.samples.push(rawScore);
@@ -182,18 +189,21 @@ function normalizeScore(rawScore) {
     scoreStats.samples.shift();
   }
 
-  // Calculate min/max from samples
-  if (scoreStats.samples.length > 0) {
-    scoreStats.min = Math.min(...scoreStats.samples);
-    scoreStats.max = Math.max(...scoreStats.samples);
+  if (scoreStats.samples.length < NORMALIZE_MIN_SAMPLES) {
+    return null; // warming up — not enough context to rank against
   }
+
+  // Percentile bounds (p10/p90) from the rolling window
+  const sorted = [...scoreStats.samples].sort((a, b) => a - b);
+  scoreStats.min = sorted[Math.floor(sorted.length * 0.1)];
+  scoreStats.max = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.9))];
 
   // Avoid division by zero
   if (scoreStats.max === scoreStats.min) {
     return 50; // Default to middle if no range
   }
 
-  // Normalize to 0-100
+  // Normalize to 0-100, clamped (scores outside p10–p90 pin to the ends)
   const normalized = ((rawScore - scoreStats.min) / (scoreStats.max - scoreStats.min)) * 100;
   return Math.round(Math.max(0, Math.min(100, normalized)));
 }
@@ -450,8 +460,10 @@ function scoreAndDisplayOpportunity(articleElement) {
   const result = calculateOpportunityScore(postData.metrics, ageMinutes);
   if (!result || result.filtered) return;
 
-  // Normalize score to 0-100
+  // Normalize score to 0-100; null while the rolling window warms up —
+  // don't cache or display, so this post gets re-scored on a later pass.
   const normalizedScore = normalizeScore(result.score);
+  if (normalizedScore === null) return;
 
   // Cache the result
   scoreCache.set(tweetId, {
@@ -2034,9 +2046,26 @@ function processVisiblePosts() {
 // INTERSECTION OBSERVER FOR OPPORTUNITY SCORING
 // ===========================================
 
-// Throttle opportunity scoring updates
+// Throttle opportunity scoring updates. BACKLOG EXT-9: the old throttle
+// early-returned on the whole entries batch, so when several posts intersected
+// at once only the first batch got scored and the rest were silently dropped.
+// Now throttled entries queue up and a trailing flush scores them — nothing
+// visible goes unscored.
 let lastScoreUpdate = 0;
 const SCORE_THROTTLE_MS = 500;
+const pendingScoreArticles = new Set();
+let pendingScoreFlushTimer = null;
+
+function scorePendingArticles() {
+  lastScoreUpdate = Date.now();
+  for (const article of pendingScoreArticles) {
+    // Still attached and not already scored
+    if (article.isConnected && !article.querySelector(`.${OPP_PILL_CLASS}`)) {
+      scoreAndDisplayOpportunity(article);
+    }
+  }
+  pendingScoreArticles.clear();
+}
 
 // IntersectionObserver for viewport-based scoring
 let opportunityObserver = null;
@@ -2046,19 +2075,26 @@ function initOpportunityObserver() {
 
   opportunityObserver = new IntersectionObserver(
     (entries) => {
-      const now = Date.now();
-      if (now - lastScoreUpdate < SCORE_THROTTLE_MS) return;
-      lastScoreUpdate = now;
-
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          const article = entry.target;
-          // Only score if not already scored
-          if (!article.querySelector(`.${OPP_PILL_CLASS}`)) {
-            scoreAndDisplayOpportunity(article);
-          }
+          pendingScoreArticles.add(entry.target);
         }
       });
+      if (pendingScoreArticles.size === 0) return;
+
+      const wait = SCORE_THROTTLE_MS - (Date.now() - lastScoreUpdate);
+      if (wait <= 0) {
+        if (pendingScoreFlushTimer) {
+          clearTimeout(pendingScoreFlushTimer);
+          pendingScoreFlushTimer = null;
+        }
+        scorePendingArticles();
+      } else if (!pendingScoreFlushTimer) {
+        pendingScoreFlushTimer = setTimeout(() => {
+          pendingScoreFlushTimer = null;
+          scorePendingArticles();
+        }, wait);
+      }
     },
     {
       root: null, // viewport

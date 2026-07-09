@@ -7,6 +7,26 @@ vi.mock("@/lib/x-api", () => ({
   getValidAccessToken: (...a: unknown[]) => getValidAccessToken(...a),
 }));
 
+// Already-replied lookup (extension_replies). Tests set `repliedRows` to the
+// rows the mock returns, or `repliedError` to simulate a failed lookup.
+let repliedRows: Array<{ replied_to_post_id: string }> = [];
+let repliedError: { message: string } | null = null;
+vi.mock("@/lib/supabase", () => ({
+  createAdminClient: () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          in: (_col: string, ids: string[]) =>
+            Promise.resolve({
+              data: repliedError ? null : repliedRows.filter((r) => ids.includes(r.replied_to_post_id)),
+              error: repliedError,
+            }),
+        }),
+      }),
+    }),
+  }),
+}));
+
 import { findReplyTargets } from "./reply-targets";
 
 function tweet(
@@ -41,6 +61,8 @@ describe("findReplyTargets — server reply eligibility + traction", () => {
       accessToken: "tok",
       connection: { x_username: "me", x_user_id: "1" },
     });
+    repliedRows = [];
+    repliedError = null;
   });
 
   it("returns only repliable posts — never one the account can't reply to", async () => {
@@ -131,5 +153,44 @@ describe("findReplyTargets — server reply eligibility + traction", () => {
     });
 
     expect(res.tweets[0].id).toBe("fresh_rising"); // momentum beats raw, saturated totals
+  });
+
+  // G7 (discovery half): a spent opportunity is not an opportunity.
+  it("never resurfaces a post the user already replied to", async () => {
+    searchRecentTweets.mockResolvedValue({
+      data: [
+        tweet("already_done", "everyone", { like_count: 500 }, "2026-06-19T00:00:00Z"),
+        tweet("fresh_target", "everyone", { like_count: 10 }, "2026-06-19T00:00:00Z"),
+      ],
+      includes: { users: [{ id: "u1", username: "someone", name: "Someone" }] },
+    });
+    repliedRows = [{ replied_to_post_id: "already_done" }];
+
+    const res = await findReplyTargets("user-1", {
+      query: "ai",
+      maxResults: 10,
+      sort: "relevance",
+    });
+
+    expect(res.tweets.map((t) => t.id)).toEqual(["fresh_target"]);
+    expect(res.repliable_count).toBe(1);
+    expect(res.already_replied_count).toBe(1);
+  });
+
+  it("fails open when the already-replied lookup errors (discovery still works)", async () => {
+    searchRecentTweets.mockResolvedValue({
+      data: [tweet("open", "everyone", { like_count: 10 }, "2026-06-19T00:00:00Z")],
+      includes: { users: [{ id: "u1", username: "someone", name: "Someone" }] },
+    });
+    repliedError = { message: "db down" };
+
+    const res = await findReplyTargets("user-1", {
+      query: "ai",
+      maxResults: 10,
+      sort: "relevance",
+    });
+
+    expect(res.tweets.map((t) => t.id)).toEqual(["open"]);
+    expect(res.already_replied_count).toBe(0);
   });
 });

@@ -32,7 +32,13 @@ export async function POST(request: NextRequest) {
     const gateError = await requireFeature(user.id, "writingAssistant");
     if (gateError) return gateError;
 
-    let body: { text?: string; voice_type?: string; draft_type?: string; has_media?: boolean };
+    let body: {
+      text?: string;
+      voice_type?: string;
+      draft_type?: string;
+      has_media?: boolean;
+      parent_text?: string;
+    };
     try {
       body = await request.json();
     } catch {
@@ -48,8 +54,16 @@ export async function POST(request: NextRequest) {
     }
     const voiceType = body.voice_type === "reply" ? "reply" : "post";
     const draftType = body.draft_type === "X_THREAD" ? "X_THREAD" : "X_POST";
+    // Reply mode may carry the post being replied to (G6: the extension's
+    // in-X reply composer sends it), so the judge reads the reply in context.
+    // Capped — it's prompt context, not content we store.
+    const parentText =
+      voiceType === "reply" ? String(body.parent_text || "").trim().slice(0, 1000) : "";
 
-    const result = await runLiveRead(supabase, user.id, text, voiceType, { draftType });
+    const result = await runLiveRead(supabase, user.id, text, voiceType, {
+      draftType,
+      parentText: parentText || undefined,
+    });
 
     return NextResponse.json(result, { status: 200, headers: corsHeaders });
   } catch (error) {

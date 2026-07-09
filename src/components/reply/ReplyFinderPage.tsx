@@ -16,6 +16,7 @@ import {
   Send,
   AudioLines,
   ShieldCheck,
+  Copy,
 } from "lucide-react";
 import { useVoiceCheck } from "@/components/create/useVoiceCheck";
 import { VoiceCheckResult } from "@/components/create/VoiceCheckResult";
@@ -143,53 +144,72 @@ export function ReplyFinderPage() {
     await check(replyText);
   }
 
-  async function postReply(t: ReplyTarget) {
+  // The handoff (C1, PRD_CORE §4.4): replies NEVER publish via the X API — the
+  // composed reply is handed to X's own composer and the user posts it from
+  // their own session (the human keeps the pen; publish-time 403s can't happen
+  // because X's composer enforces its own rules). A handoff record is persisted
+  // first — the attribution key for the Results pillar — and also powers
+  // already-replied dedup, so a handed-off target stops resurfacing.
+  function targetUrl(t: ReplyTarget): string {
+    return t.author?.username
+      ? `https://x.com/${t.author.username}/status/${t.id}`
+      : `https://x.com/i/status/${t.id}`;
+  }
+
+  async function recordHandoff(t: ReplyTarget) {
+    // Best-effort: a failed record must not block the user's reply.
+    try {
+      await fetch("/api/reply/handoff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_post_id: t.id,
+          composed_text: replyText,
+          target_url: targetUrl(t),
+        }),
+      });
+    } catch {
+      // swallow — the handoff itself still proceeds
+    }
+  }
+
+  function finishHandoff(t: ReplyTarget) {
+    // Drop the handed-off post from the list and close the composer.
+    setTargets((prev) => prev.filter((x) => x.id !== t.id));
+    setActiveId(null);
+  }
+
+  // Default tier: X Web Intent — opens X's composer on the post, prefilled.
+  async function replyOnX(t: ReplyTarget) {
     if (!replyText.trim()) return;
     setPosting(true);
     setComposerError(null);
     try {
-      const url = t.author?.username
-        ? `https://x.com/${t.author.username}/status/${t.id}`
-        : undefined;
-      const res = await fetch("/api/publish/now", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contentType: "X_REPLY",
-          payload: { text: replyText, inReplyToId: t.id, inReplyToUrl: url },
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        // Some reply restrictions are undetectable pre-flight (the author
-        // limited who can reply to this specific conversation). X returns a
-        // 403 with a "not allowed to reply" message. Treat it as a clean,
-        // expected outcome: clear message + remove the post, not a raw error.
-        const raw = String(data.error || "");
-        const isReplyForbidden =
-          res.status === 403 &&
-          /reply to this conversation is not allowed|not allowed to reply|limited who can reply|you have not been mentioned/i.test(
-            raw
-          );
-        if (isReplyForbidden) {
-          setComposerError(
-            "X won't allow a reply here — the author limited who can reply to this post. Removing it from your list."
-          );
-          setTargets((prev) => prev.filter((x) => x.id !== t.id));
-          setActiveId(null);
-          return;
-        }
-        setComposerError(raw || "Failed to post reply");
-        return;
-      }
-      // Drop the replied-to post from the list and close the composer.
-      setTargets((prev) => prev.filter((x) => x.id !== t.id));
-      setActiveId(null);
-    } catch (err) {
-      setComposerError(err instanceof Error ? err.message : "Failed to post reply");
+      await recordHandoff(t);
+      const intentUrl = `https://x.com/intent/post?in_reply_to=${encodeURIComponent(
+        t.id
+      )}&text=${encodeURIComponent(replyText)}`;
+      window.open(intentUrl, "_blank", "noopener,noreferrer");
+      finishHandoff(t);
     } finally {
       setPosting(false);
     }
+  }
+
+  // Fallback tier: copy the composed reply + open the post (covers the known
+  // mobile-app intent bug where the prefill drops).
+  async function copyAndOpen(t: ReplyTarget) {
+    if (!replyText.trim()) return;
+    setComposerError(null);
+    try {
+      await navigator.clipboard.writeText(replyText);
+    } catch {
+      setComposerError("Couldn't copy to clipboard — copy the text manually, then reply on X.");
+      return;
+    }
+    await recordHandoff(t);
+    window.open(targetUrl(t), "_blank", "noopener,noreferrer");
+    finishHandoff(t);
   }
 
   return (
@@ -381,8 +401,9 @@ export function ReplyFinderPage() {
                       <div className="flex items-start gap-2 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-3 py-2">
                         <AudioLines className="w-4 h-4 text-[var(--color-primary-400)] shrink-0 mt-0.5" />
                         <p className="text-xs text-[var(--color-text-secondary)]">
-                          Post directly, or run an optional voice check (3 credits) first to
-                          see how well this reply sounds like you before it ships.
+                          &ldquo;Reply on X&rdquo; opens X&apos;s composer prefilled — you hit Post
+                          there. Run an optional voice check (3 credits) first to see how well
+                          this reply sounds like you.
                         </p>
                       </div>
                     )}
@@ -392,16 +413,25 @@ export function ReplyFinderPage() {
                     )}
 
                     <div className="flex flex-wrap items-center gap-2">
-                      {/* Primary: post immediately, no check required */}
+                      {/* Primary: hand off to X's composer, prefilled — you post it there */}
                       <Button
-                        onClick={() => postReply(t)}
+                        onClick={() => replyOnX(t)}
                         loading={posting}
                         disabled={posting || checking || !replyText.trim()}
                         icon={<Send className="w-4 h-4" />}
                       >
-                        {posting ? "Posting…" : "Post reply"}
+                        {posting ? "Opening X…" : "Reply on X"}
                       </Button>
-                      {/* Secondary: optional voice-check first */}
+                      {/* Fallback: copy the reply + open the post (mobile intent bug) */}
+                      <Button
+                        variant="secondary"
+                        onClick={() => copyAndOpen(t)}
+                        disabled={posting || checking || !replyText.trim()}
+                        icon={<Copy className="w-4 h-4" />}
+                      >
+                        Copy & open post
+                      </Button>
+                      {/* Optional voice-check first */}
                       <Button
                         variant="secondary"
                         onClick={handleVoiceCheckReply}
@@ -409,7 +439,7 @@ export function ReplyFinderPage() {
                         disabled={posting || checking || !replyText.trim() || voiceChecked}
                         icon={<AudioLines className="w-4 h-4" />}
                       >
-                        {checking ? "Checking voice…" : voiceChecked ? "Voice-checked ✓" : "Voice-check & reply"}
+                        {checking ? "Checking voice…" : voiceChecked ? "Voice-checked ✓" : "Voice check"}
                       </Button>
                     </div>
                   </div>

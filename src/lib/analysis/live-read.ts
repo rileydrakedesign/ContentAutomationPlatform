@@ -64,9 +64,15 @@ export async function runLiveRead(
   userId: string,
   draftText: string,
   voiceType: "post" | "reply" = "post",
-  options: { draftType?: "X_POST" | "X_THREAD" } = {}
+  options: { draftType?: "X_POST" | "X_THREAD"; parentText?: string } = {}
 ): Promise<AssistantFindings> {
-  const draft_hash = createHash("sha256").update(draftText).digest("hex");
+  // The parent post is part of the read's identity: the same reply text judged
+  // against a different parent is a different read, so it keys the cache too
+  // (␞ = record separator, can't collide with draft text).
+  const parentText = (options.parentText || "").trim();
+  const draft_hash = createHash("sha256")
+    .update(parentText ? `${draftText}␞${parentText}` : draftText)
+    .digest("hex");
 
   // ── Read-first cache: identical draft → skip the model entirely. ───────────
   const cached = await supabase
@@ -113,7 +119,12 @@ ${medianPosts.length ? medianPosts.map((p, i) => `[median ${i + 1}] ${p.text}`).
 
 === THE USER'S PROVEN PATTERNS (content-shaping; each has an id) ===
 ${patternList || "(no extracted patterns yet)"}
-
+${parentText ? `
+=== THE POST BEING REPLIED TO (the draft is a reply — judge it in this context: does it actually engage with this post, in the user's reply voice?) ===
+"""
+${parentText}
+"""
+` : ""}
 === THE DRAFT ===
 """
 ${draftText}

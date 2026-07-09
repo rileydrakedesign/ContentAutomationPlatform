@@ -463,6 +463,10 @@ export function registerTools(server: McpServer, api: ApiClient): void {
       )
   );
 
+  // ⚠️ COMPLIANCE FLAG (C1 audit, 2026-07): publish_reply publishes a reply via
+  // the X API (v1 publish route). Per the Feb-2026 X rules + PRD_CORE §4.4,
+  // replies should go through the handoff flow, never the API — deprecating
+  // this tool is a flagged product decision for the next phase.
   server.registerTool(
     "publish_reply",
     {

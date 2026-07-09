@@ -38,3 +38,18 @@ export function weightedEngagement(m: EngagementFields): number {
     impressions * 0.001
   );
 }
+
+/**
+ * Canonical opportunity traction: weighted engagement decayed by post age, so
+ * fresh posts with momentum outrank old saturated ones. This is the ONE
+ * ranking formula for reply targets — the server (search-mapping.ts
+ * tractionScore) and the extension pill (via the bundled engine,
+ * chrome-extension/src/engine-entry.ts) both call it, so their orderings can
+ * never drift. Ages below the floor rank as if at the floor: below one hour
+ * the metrics are too thin for the ratio to mean "momentum".
+ */
+export const TRACTION_MIN_AGE_HOURS = 1;
+
+export function opportunityTraction(m: EngagementFields, ageHours: number): number {
+  return weightedEngagement(m) / Math.max(TRACTION_MIN_AGE_HOURS, ageHours);
+}
