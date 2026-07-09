@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { VoiceEditorView } from "./editor/VoiceEditorView";
 import { NicheProfileTab } from "./NicheProfileTab";
+import { TraitCardsPanel } from "./TraitCardsPanel";
 
 // AI Model Icons
 const OpenAIIcon = () => (
@@ -364,7 +365,7 @@ export function VoiceSection() {
             `}
           >
             <MessageCircle className="w-4 h-4" />
-            AI Editor
+            Refine
           </button>
           <button
             onClick={() => setViewMode("niche")}
@@ -395,59 +396,14 @@ export function VoiceSection() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Left Column - 3/5 width */}
           <div className="lg:col-span-3 space-y-6">
-            {/* AI Model Selection */}
-            <Card>
-              <CardContent>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-                    <Cpu className="w-4 h-4 text-[var(--color-primary-400)]" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                      AI Model
-                    </h3>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      Choose which AI generates your content
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { id: "openai", name: "OpenAI", icon: OpenAIIcon, color: "emerald", desc: "GPT-4 Turbo" },
-                    { id: "claude", name: "Claude", icon: ClaudeIcon, color: "orange", desc: "Sonnet 4" },
-                    { id: "grok", name: "Grok", icon: GrokIcon, color: "sky", desc: "Grok 3" },
-                  ].map((model) => {
-                    const isSelected = (s.ai_model || "openai") === model.id;
-                    const Icon = model.icon;
-                    return (
-                      <button
-                        key={model.id}
-                        onClick={() => updateSettings({ ai_model: model.id as "openai" | "claude" | "grok" })}
-                        className={`
-                          relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer
-                          ${isSelected
-                            ? `border-${model.color}-500 bg-${model.color}-500/10`
-                            : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
-                          }
-                        `}
-                      >
-                        {isSelected && (
-                          <div className={`absolute top-2 right-2 w-2 h-2 rounded-full bg-${model.color}-500`} />
-                        )}
-                        <div className={`mb-2 ${isSelected ? `text-${model.color}-400` : "text-[var(--color-text-secondary)]"}`}>
-                          <Icon />
-                        </div>
-                        <p className={`text-sm font-medium ${isSelected ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
-                          {model.name}
-                        </p>
-                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{model.desc}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+            {/* Derived voice traits — the §4.3 front door: the voice is
+                learned from the user's top posts, not configured. */}
+            <TraitCardsPanel
+              settings={s}
+              exampleTexts={examples.map((e) => e.content_text)}
+              voiceType={voiceType}
+              onApplyPatch={updateSettings}
+            />
 
             {/* Special Instructions */}
             <Card>
@@ -458,10 +414,10 @@ export function VoiceSection() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                      Special Instructions
+                      Anything the coach should know
                     </h3>
                     <p className="text-xs text-[var(--color-text-muted)]">
-                      Guidance the AI should always follow
+                      Rules of your voice we can&apos;t see in the data
                     </p>
                   </div>
                 </div>
@@ -476,62 +432,127 @@ export function VoiceSection() {
                       updateSettings({ special_notes: specialNotes || null });
                     }
                   }}
-                  placeholder="What should the AI do (or avoid) every time?"
+                  placeholder="e.g. Never mention competitors by name. Always write in first person."
                   rows={4}
                   className="w-full px-3 py-2 text-sm resize-none"
                 />
               </CardContent>
             </Card>
 
-            {/* Voice Personality Sliders */}
-            <Card>
-              <CardContent>
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-[var(--color-accent-400)]" />
+            {/* Advanced — the raw dials the trait cards set for you, plus the
+                model used when you explicitly ask for generation ("starting
+                point", reply drafts). Backstage per PRD §4.3: available, never
+                the front door. */}
+            <details className="group rounded-2xl border border-[var(--color-border-subtle)]">
+              <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
+                <span className="flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  Advanced — manual dials &amp; model
+                </span>
+                <span className="text-xs text-[var(--color-text-muted)] group-open:hidden">
+                  The trait cards above set these for you
+                </span>
+              </summary>
+              <div className="px-5 pb-5 space-y-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-6">
+                    <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-[var(--color-accent-400)]" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                        Voice dials
+                      </h3>
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        Manual override — the derived traits keep these honest
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                      Voice Personality
-                    </h3>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      Fine-tune how your {voiceType === "reply" ? "replies" : "posts"} sound
-                    </p>
+
+                  <div className="space-y-6">
+                    <SliderDial
+                      label="Optimization"
+                      leftLabel="Authentic"
+                      rightLabel="Optimized"
+                      value={s.optimization_authenticity}
+                      onChange={(v) => updateSettings({ optimization_authenticity: v })}
+                    />
+                    <SliderDial
+                      label="Tone"
+                      leftLabel="Formal"
+                      rightLabel="Casual"
+                      value={s.tone_formal_casual}
+                      onChange={(v) => updateSettings({ tone_formal_casual: v })}
+                    />
+                    <SliderDial
+                      label="Energy"
+                      leftLabel="Calm"
+                      rightLabel="Punchy"
+                      value={s.energy_calm_punchy}
+                      onChange={(v) => updateSettings({ energy_calm_punchy: v })}
+                    />
+                    <SliderDial
+                      label="Stance"
+                      leftLabel="Neutral"
+                      rightLabel="Opinionated"
+                      value={s.stance_neutral_opinionated}
+                      onChange={(v) => updateSettings({ stance_neutral_opinionated: v })}
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <SliderDial
-                    label="Optimization"
-                    leftLabel="Authentic"
-                    rightLabel="Optimized"
-                    value={s.optimization_authenticity}
-                    onChange={(v) => updateSettings({ optimization_authenticity: v })}
-                  />
-                  <SliderDial
-                    label="Tone"
-                    leftLabel="Formal"
-                    rightLabel="Casual"
-                    value={s.tone_formal_casual}
-                    onChange={(v) => updateSettings({ tone_formal_casual: v })}
-                  />
-                  <SliderDial
-                    label="Energy"
-                    leftLabel="Calm"
-                    rightLabel="Punchy"
-                    value={s.energy_calm_punchy}
-                    onChange={(v) => updateSettings({ energy_calm_punchy: v })}
-                  />
-                  <SliderDial
-                    label="Stance"
-                    leftLabel="Neutral"
-                    rightLabel="Opinionated"
-                    value={s.stance_neutral_opinionated}
-                    onChange={(v) => updateSettings({ stance_neutral_opinionated: v })}
-                  />
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
+                      <Cpu className="w-4 h-4 text-[var(--color-primary-400)]" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                        Model for starting points
+                      </h3>
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        Used only when you ask for a draft — you keep the pen
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { id: "openai", name: "OpenAI", icon: OpenAIIcon, color: "emerald", desc: "GPT-4 Turbo" },
+                      { id: "claude", name: "Claude", icon: ClaudeIcon, color: "orange", desc: "Sonnet 4" },
+                      { id: "grok", name: "Grok", icon: GrokIcon, color: "sky", desc: "Grok 3" },
+                    ].map((model) => {
+                      const isSelected = (s.ai_model || "openai") === model.id;
+                      const Icon = model.icon;
+                      return (
+                        <button
+                          key={model.id}
+                          onClick={() => updateSettings({ ai_model: model.id as "openai" | "claude" | "grok" })}
+                          className={`
+                            relative p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer
+                            ${isSelected
+                              ? `border-${model.color}-500 bg-${model.color}-500/10`
+                              : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
+                            }
+                          `}
+                        >
+                          {isSelected && (
+                            <div className={`absolute top-2 right-2 w-2 h-2 rounded-full bg-${model.color}-500`} />
+                          )}
+                          <div className={`mb-2 ${isSelected ? `text-${model.color}-400` : "text-[var(--color-text-secondary)]"}`}>
+                            <Icon />
+                          </div>
+                          <p className={`text-sm font-medium ${isSelected ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
+                            {model.name}
+                          </p>
+                          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{model.desc}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </details>
           </div>
 
           {/* Right Column - 2/5 width */}
@@ -548,7 +569,7 @@ export function VoiceSection() {
                       Guardrails
                     </h3>
                     <p className="text-xs text-[var(--color-text-muted)]">
-                      Content the AI should avoid
+                      Lines your voice never crosses
                     </p>
                   </div>
                 </div>
@@ -680,7 +701,8 @@ export function VoiceSection() {
                       Voice Examples
                     </h3>
                     <p className="text-xs text-[var(--color-text-muted)]">
-                      {voiceType === "reply" ? "Replies" : "Posts"} that represent your style
+                      {voiceType === "reply" ? "Replies" : "Posts"} that represent your style —
+                      the corpus your traits are derived from
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
