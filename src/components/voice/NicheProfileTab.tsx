@@ -154,8 +154,8 @@ export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheP
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-            <Brain className="w-4 h-4 text-[var(--color-primary-400)]" />
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+            <Brain className="w-4 h-4 text-[var(--color-accent-400)]" />
           </div>
           <div>
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -171,7 +171,7 @@ export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheP
           size="sm"
           onClick={handleAnalyze}
           disabled={analyzing || aiLimitReached}
-          icon={<RefreshCw className={`w-4 h-4 ${analyzing ? "animate-spin" : ""}`} />}
+          icon={<RefreshCw className="w-4 h-4" />}
         >
           {aiLimitReached ? "Limit reached" : analyzing ? "Analysing…" : profile ? "Re-analyse" : "Analyse"}
         </Button>
@@ -188,14 +188,14 @@ export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheP
       {/* Empty state */}
       {!profile && !analyzeError && (
         <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] p-8 text-center">
-          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-            <Brain className="w-6 h-6 text-[var(--color-primary-400)]" />
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+            <Brain className="w-6 h-6 text-[var(--color-accent-400)]" />
           </div>
           <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">
             No niche profile yet
           </h4>
           <p className="text-xs text-[var(--color-text-muted)] max-w-xs mx-auto mb-4">
-            Run an analysis to discover your content niche, top topics, and how they inform your AI-generated content.
+            Run an analysis to discover your content niche, top topics, and how they sharpen your voice and the assistant&apos;s suggestions.
           </p>
           <Button
             variant="primary"
@@ -236,7 +236,7 @@ export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheP
 
           {/* Positioning */}
           {profile.positioning?.positioning_statement && (
-            <div className="rounded-xl border border-[var(--color-primary-500)]/20 bg-[var(--color-primary-500)]/5 p-4 space-y-2">
+            <div className="rounded-xl border border-[var(--color-accent-500)]/20 bg-[var(--color-accent-500)]/10 p-4 space-y-2">
               <span className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
                 Positioning
               </span>
@@ -270,7 +270,7 @@ export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheP
                 {profile.content_pillars.map((pillar) => (
                   <span
                     key={pillar}
-                    className="px-3 py-1 text-xs font-medium rounded-full bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] border border-[var(--color-primary-500)]/20"
+                    className="px-3 py-1 text-xs font-medium rounded-full bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border border-[var(--color-accent-500)]/20"
                   >
                     {pillar}
                   </span>
@@ -303,18 +303,18 @@ export function NicheProfileTab({ voiceType, useNicheContext, onToggle }: NicheP
                 Use niche context in prompts
               </p>
               <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                Injects your niche summary into AI generation for {voiceType === "reply" ? "replies" : "posts"}
+                Adds your niche summary to your {voiceType === "reply" ? "reply" : "post"} voice context
               </p>
             </div>
             <button
               onClick={() => onToggle(!useNicheContext)}
-              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-                useNicheContext ? "bg-[var(--color-primary-500)]" : "bg-[var(--color-bg-elevated)]"
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-100 ${
+                useNicheContext ? "bg-[var(--color-accent-500)]" : "bg-[var(--color-bg-elevated)]"
               }`}
               style={{ border: "1px solid var(--color-border-default)" }}
             >
               <span
-                className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                className={`inline-block h-4 w-4 rounded-full bg-[var(--color-text-primary)] shadow-sm ${
                   useNicheContext ? "translate-x-[22px]" : "translate-x-[3px]"
                 }`}
               />

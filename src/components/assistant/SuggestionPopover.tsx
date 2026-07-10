@@ -44,7 +44,7 @@ export function SuggestionPopover({
         {canAccept && (
           <button
             onClick={onAccept}
-            className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-primary-500)] px-2.5 py-1 text-xs font-medium text-white transition hover:bg-[var(--color-primary-600)]"
+            className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-primary-500)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-inverse)] transition-colors duration-100 hover:bg-[var(--color-primary-600)]"
           >
             <Check className="h-3.5 w-3.5" />
             {finding.replacement === "" ? "Remove" : "Accept"}
@@ -53,7 +53,7 @@ export function SuggestionPopover({
         {onDismiss && (
           <button
             onClick={onDismiss}
-            className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border-default)] px-2.5 py-1 text-xs text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-hover)]"
+            className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border-default)] px-2.5 py-1 text-xs text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-bg-hover)]"
           >
             <X className="h-3.5 w-3.5" />
             Dismiss

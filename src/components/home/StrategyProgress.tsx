@@ -35,13 +35,13 @@ function ProgressBar({
     <div className="space-y-1">
       <div className="flex items-center justify-between">
         <span className="text-xs text-[var(--color-text-secondary)]">{label}</span>
-        <span className={`text-xs font-mono tabular-nums ${over ? "text-emerald-400" : "text-[var(--color-text-muted)]"}`}>
+        <span className={`text-xs font-mono tabular-nums ${over ? "text-[var(--color-success-400)]" : "text-[var(--color-text-muted)]"}`}>
           {actual}/{target}
         </span>
       </div>
       <div className="h-1.5 rounded-full bg-[var(--color-bg-elevated)] overflow-hidden">
         <div
-          className="h-full rounded-full transition-all duration-500"
+          className="h-full rounded-full transition-all duration-100"
           style={{
             width: `${pct}%`,
             backgroundColor: color,
@@ -53,9 +53,9 @@ function ProgressBar({
 }
 
 const pacingConfig = {
-  ahead: { label: "Ahead", className: "text-emerald-400 bg-emerald-500/10" },
-  on_track: { label: "On track", className: "text-blue-400 bg-blue-500/10" },
-  behind: { label: "Behind", className: "text-amber-400 bg-amber-500/10" },
+  ahead: { label: "Ahead", className: "text-[var(--color-success-400)] bg-[var(--color-success-500)]/10" },
+  on_track: { label: "On track", className: "text-[var(--color-text-secondary)] bg-[var(--color-bg-elevated)]" },
+  behind: { label: "Behind", className: "text-[var(--color-warning-400)] bg-[var(--color-warning-500)]/10" },
 };
 
 export function StrategyProgress({ className }: { className?: string }) {
@@ -111,7 +111,7 @@ export function StrategyProgress({ className }: { className?: string }) {
             </div>
             <Link
               href="/strategy"
-              className="text-xs font-medium text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors flex items-center gap-1"
+              className="text-xs font-medium text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] transition-colors flex items-center gap-1"
             >
               Set targets
               <ArrowRight size={12} />
@@ -145,9 +145,9 @@ export function StrategyProgress({ className }: { className?: string }) {
         </div>
 
         <div className="space-y-2.5">
-          <ProgressBar label="Posts" actual={data.posts.actual} target={data.posts.target} color="rgb(96, 165, 250)" />
-          <ProgressBar label="Threads" actual={data.threads.actual} target={data.threads.target} color="rgb(192, 132, 252)" />
-          <ProgressBar label="Replies" actual={data.replies.actual} target={data.replies.target} color="rgb(52, 211, 153)" />
+          <ProgressBar label="Posts" actual={data.posts.actual} target={data.posts.target} color="var(--color-accent-500)" />
+          <ProgressBar label="Threads" actual={data.threads.actual} target={data.threads.target} color="var(--color-accent-500)" />
+          <ProgressBar label="Replies" actual={data.replies.actual} target={data.replies.target} color="var(--color-success-500)" />
         </div>
 
         {data.pillars.length > 0 && (
@@ -158,7 +158,7 @@ export function StrategyProgress({ className }: { className?: string }) {
                   key={p.pillar}
                   className={`text-[10px] px-2 py-0.5 rounded-full border ${
                     p.actual >= p.target
-                      ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                      ? "border-[var(--color-success-500)]/30 text-[var(--color-success-400)] bg-[var(--color-success-500)]/10"
                       : "border-[var(--color-border-default)] text-[var(--color-text-muted)]"
                   }`}
                 >

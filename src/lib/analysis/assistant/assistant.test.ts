@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { runTier0 } from "./tier0";
-import { resolveQuote, resolveFindings, buildSegments, applyReplacement } from "./spans";
-import { composeScores, resemblanceToGrade } from "./score";
+import { resolveQuote, resolveFindings, buildSegments, applyReplacement, guardedFix } from "./spans";
+import { composeScores, scorePenalties, resemblanceToGrade, FINDING_DEDUCTIONS } from "./score";
 import { mergeReport, type AssistantScores, type AssistantFindings } from "./merge";
 import type { Finding } from "./types";
 
@@ -67,10 +67,74 @@ describe("runTier0 — deterministic findings", () => {
     expect(quotes).not.toContain("justice");
   });
 
+  it("makes the link and engagement-bait findings removable (one-click fix)", () => {
+    const r = runTier0({ text: "great stuff RT if you agree" });
+    const bait = r.findings.find((f) => f.signal === "negative_feedback");
+    expect(bait?.replacement).toBe("");
+    // accepting the bait removal cleanly cuts the phrase (and an adjacent space)
+    expect(applyReplacement("great stuff RT if you agree", bait!).text).toBe("great stuff you agree");
+
+    const link = runTier0({ text: "read https://example.com now" }).findings.find(
+      (f) => f.signal === "external_link"
+    );
+    expect(link?.replacement).toBe("");
+  });
+
+  it("flags the 3rd+ hashtag as removable reach findings", () => {
+    const r = runTier0({ text: "shipping #build #indie #saas #startup" });
+    const tags = r.findings.filter((f) => f.signal === "hashtag_spam");
+    expect(tags.length).toBe(2); // #saas and #startup (the 3rd and 4th)
+    expect(tags.every((f) => f.class === "reach" && f.replacement === "")).toBe(true);
+    // 1–2 hashtags are fine — no flag
+    expect(runTier0({ text: "shipping #build #indie" }).findings.some((f) => f.signal === "hashtag_spam")).toBe(false);
+  });
+
+  it("flags a leading @mention as a reach finding (card, no auto-fix)", () => {
+    const r = runTier0({ text: "@someone totally agree with this" });
+    const lead = r.findings.find((f) => f.signal === "leading_mention");
+    expect(lead?.class).toBe("reach");
+    expect(lead?.span?.quote).toBe("@someone");
+    expect(lead?.replacement).toBeUndefined();
+    // a mid-post mention is fine
+    expect(runTier0({ text: "totally agree with @someone" }).findings.some((f) => f.signal === "leading_mention")).toBe(false);
+  });
+
+  it("lowers reach for hashtag spam and a leading mention", () => {
+    const clean = runTier0({ text: "what's your take on shipping fast?" }).scores.reach;
+    const spam = runTier0({ text: "what's your take? #a #b #c #d" }).scores.reach;
+    const lead = runTier0({ text: "@bob what's your take on this?" }).scores.reach;
+    expect(spam).toBeLessThan(clean);
+    expect(lead).toBeLessThan(clean);
+  });
+
   it("drops reach when a link is present and raises it with a reply hook", () => {
     const linkScore = runTier0({ text: "read https://example.com now" }).scores.reach;
     const hookScore = runTier0({ text: "what's your take on this?" }).scores.reach;
     expect(hookScore).toBeGreaterThan(linkScore);
+  });
+
+  it("flags markdown that won't render on X as removable correctness findings", () => {
+    const r = runTier0({ text: "this is **bold** and a [link](https://x.com) and `code`" });
+    const md = r.findings.filter((f) => f.signal === "markdown");
+    expect(md.length).toBe(3);
+    expect(md.every((f) => f.class === "correctness")).toBe(true);
+    const bold = md.find((f) => f.span?.quote === "**bold**");
+    expect(bold?.replacement).toBe("bold"); // strips the markers
+    const link = md.find((f) => f.span?.quote.startsWith("[link]"));
+    expect(link?.replacement).toBe("link https://x.com");
+  });
+
+  it("strips a markdown heading prefix while keeping the title", () => {
+    const r = runTier0({ text: "## My Big Header" });
+    const heading = r.findings.find((f) => f.signal === "markdown");
+    expect(heading?.span?.quote).toBe("## ");
+    expect(heading?.replacement).toBe("");
+    expect(applyReplacement("## My Big Header", heading!).text).toBe("My Big Header");
+  });
+
+  it("does not flag plain text as markdown", () => {
+    const r = runTier0({ text: "a normal post with no markdown at all" });
+    expect(r.findings.some((f) => f.signal === "markdown")).toBe(false);
   });
 
   it("marks the headline score provisional before a live read", () => {
@@ -96,11 +160,30 @@ describe("spans — anchoring is miscount-proof", () => {
     expect(resolveQuote(text, "go", 0)?.start).toBe(0);
   });
 
-  it("strips the span (keeps the card) when an LLM quote isn't found verbatim", () => {
+  it("invalidates a live finding whose anchored quote was edited away (self-fix)", () => {
     const findings: Finding[] = [
       { id: "v1", class: "voice", severity: "warning", title: "drift", why: "x", source: "live", span: { quote: "not in text", start: 5, end: 16 } },
     ];
-    const resolved = resolveFindings("a totally different draft", findings);
+    // The quote anchored once (it has a span) but no longer exists → the user
+    // fixed it themselves; the suggestion must disappear, not linger as a card.
+    expect(resolveFindings("a totally different draft", findings)).toHaveLength(0);
+  });
+
+  it("keeps a never-anchored live finding as a panel-only card", () => {
+    const findings: Finding[] = [
+      { id: "v1", class: "voice", severity: "warning", title: "drift", why: "x", source: "live" },
+    ];
+    const resolved = resolveFindings("any draft", findings);
+    expect(resolved).toHaveLength(1);
+    expect(resolved[0].span).toBeUndefined();
+  });
+
+  it("strips a de-anchored tier0 finding to a card (same-render safety net)", () => {
+    const findings: Finding[] = [
+      { id: "t1", class: "reach", severity: "warning", title: "bait", why: "x", source: "tier0", span: { quote: "gone now", start: 0, end: 8 } },
+    ];
+    const resolved = resolveFindings("something else entirely", findings);
+    expect(resolved).toHaveLength(1);
     expect(resolved[0].span).toBeUndefined();
   });
 
@@ -140,6 +223,37 @@ describe("spans — overlap resolution into render segments", () => {
   });
 });
 
+describe("spans — guardedFix (LLM overcorrection guardrail)", () => {
+  it("passes a genuine minimal edit", () => {
+    expect(guardedFix("it's", "its", true, 100)).toBe("it's");
+  });
+
+  it("rejects a fix for an unanchored quote (would replace the whole draft)", () => {
+    expect(guardedFix("a rewrite", "paraphrased quote", false, 100)).toBeUndefined();
+  });
+
+  it("rejects a no-op fix that restates the quote", () => {
+    expect(guardedFix(" same text ", "same text", true, 100)).toBeUndefined();
+  });
+
+  it("rejects a fix that balloons far past the quote (not a minimal edit)", () => {
+    const quote = "short phrase";
+    const fix = "x".repeat(quote.length * 3 + 30);
+    expect(guardedFix(fix, quote, true, 300)).toBeUndefined();
+  });
+
+  it("rejects a whole-post rewrite disguised as a span fix", () => {
+    const draft = "this is basically the entire draft text right here";
+    const quote = draft.slice(0, Math.ceil(draft.length * 0.9));
+    expect(guardedFix("rewritten", quote, true, draft.length)).toBeUndefined();
+  });
+
+  it("drops empty/missing fixes", () => {
+    expect(guardedFix(undefined, "q", true, 100)).toBeUndefined();
+    expect(guardedFix("   ", "q", true, 100)).toBeUndefined();
+  });
+});
+
 describe("spans — applyReplacement (Accept)", () => {
   it("replaces a span", () => {
     const f: Finding = { id: "x", class: "clarity", severity: "suggestion", title: "", why: "", source: "tier0", span: { quote: "really ", start: 5, end: 12 }, replacement: "" };
@@ -160,12 +274,19 @@ describe("score composition", () => {
     expect(s.performance).toBeNull();
   });
 
-  it("blends voice + performance + reach once live", () => {
+  it("blends voice + algorithm + performance once live (voice and algorithm co-equal)", () => {
     const s = composeScores({ reach: 60, voice: 90, resemblance: 80 });
-    // 0.45*90 + 0.35*80 + 0.20*60 = 40.5 + 28 + 12 = 80.5 → 81 (rounding may yield 81)
-    expect(s.post).toBeGreaterThanOrEqual(80);
+    // 0.40*90 + 0.40*60 + 0.20*80 = 36 + 24 + 16 = 76
+    expect(s.post).toBe(76);
     expect(s.postProvisional).toBe(false);
     expect(s.performance).toBe("B");
+  });
+
+  it("weights the algorithm as heavily as voice", () => {
+    // Same gap, mirrored between voice and reach → identical post score.
+    const voiceStrong = composeScores({ reach: 50, voice: 90, resemblance: 70 });
+    const algoStrong = composeScores({ reach: 90, voice: 50, resemblance: 70 });
+    expect(voiceStrong.post).toBe(algoStrong.post);
   });
 
   it("maps resemblance to letter grades", () => {
@@ -198,7 +319,8 @@ describe("mergeReport", () => {
       summary: "Solid, but lose the link.",
     };
     const merged = mergeReport(text, base(), scores, findings);
-    expect(merged.scores.voice).toBe(88);
+    // The open live voice finding holds its deduction out of the Voice sub-score.
+    expect(merged.scores.voice).toBe(88 - FINDING_DEDUCTIONS.voiceLive);
     expect(merged.scores.performance).toBe("B");
     expect(merged.findings.find((f) => f.id === "v1")?.span).toBeTruthy();
     expect(merged.chips.find((c) => c.kind === "missing_pattern")).toBeTruthy();
@@ -210,5 +332,147 @@ describe("mergeReport", () => {
     expect(merged.scores.voice).toBe(64);
     expect(merged.scores.performance).toBe("C");
     expect(merged.scores.postProvisional).toBe(false);
+  });
+
+  it("drops a live finding whose span overlaps a tier0 finding (deterministic wins)", () => {
+    const text = "read https://example.com about just shipping";
+    const url = "https://example.com";
+    const findings: AssistantFindings = {
+      voice_findings: [
+        // Duplicates the tier0 external-link finding on the same characters.
+        { id: "v-dup", class: "voice", severity: "warning", title: "link tone", why: "x", source: "live", span: { quote: url, start: text.indexOf(url), end: text.indexOf(url) + url.length } },
+        // Non-overlapping live finding survives arbitration.
+        { id: "v-ok", class: "voice", severity: "warning", title: "drift", why: "x", source: "live", span: { quote: "shipping", start: text.indexOf("shipping"), end: text.indexOf("shipping") + 8 } },
+      ],
+      missing_pattern_chips: [],
+      summary: "",
+    };
+    const merged = mergeReport(text, base(), null, findings);
+    expect(merged.findings.find((f) => f.id === "v-dup")).toBeUndefined();
+    expect(merged.findings.find((f) => f.id === "v-ok")).toBeTruthy();
+    // The tier0 link finding itself is still there.
+    expect(merged.findings.find((f) => f.signal === "external_link")).toBeTruthy();
+  });
+
+  it("keeps a span-less live finding through arbitration (cards don't contest spans)", () => {
+    const text = "read https://example.com about just shipping";
+    const findings: AssistantFindings = {
+      voice_findings: [
+        { id: "v-card", class: "voice", severity: "warning", title: "overall tone", why: "x", source: "live" },
+      ],
+      missing_pattern_chips: [],
+      summary: "",
+    };
+    const merged = mergeReport(text, base(), null, findings);
+    expect(merged.findings.find((f) => f.id === "v-card")).toBeTruthy();
+  });
+
+  it("merges live reach (algorithm) findings and deducts them from the Algorithm sub-score", () => {
+    const text = "Shipped a new feature today. It works pretty well I think.";
+    const t0 = runTier0({ text });
+    const findings: AssistantFindings = {
+      voice_findings: [],
+      reach_findings: [
+        { id: "algo:0", class: "reach", severity: "warning", title: "Weak hook", why: "first line gives no reason to stop", source: "live", signal: "algorithm_fit", span: { quote: "Shipped a new feature today.", start: 0, end: 28 } },
+      ],
+      missing_pattern_chips: [],
+      summary: "",
+    };
+    const withAlgo = mergeReport(text, t0, null, findings);
+    const without = mergeReport(text, t0, null, null);
+    expect(withAlgo.findings.find((f) => f.id === "algo:0")).toBeTruthy();
+    expect(withAlgo.scores.reach).toBe(without.scores.reach - FINDING_DEDUCTIONS.reachLive);
+  });
+});
+
+describe("findings-coupled scoring — the accept/dismiss invariant", () => {
+  const l2: AssistantScores = { voice_score: 80, resemblance_score: 70 };
+
+  /** Post score for `text` with the given live findings still open. */
+  function postScore(text: string, live: AssistantFindings | null, hidden?: (f: Finding) => boolean): number {
+    return mergeReport(text, runTier0({ text }), l2, live, hidden).scores.post;
+  }
+
+  it("accepting a tier0 reach fix (link removal) raises the post score", () => {
+    const text = "read https://example.com now. what do you think?";
+    const link = runTier0({ text }).findings.find((f) => f.signal === "external_link")!;
+    const { text: fixed } = applyReplacement(text, link);
+    expect(postScore(fixed, null)).toBeGreaterThan(postScore(text, null));
+  });
+
+  it("accepting a clarity (filler) fix raises the post score", () => {
+    const text = "this really matters a lot to me, what do you think?";
+    const filler = runTier0({ text }).findings.find((f) => f.signal === "filler")!;
+    const { text: fixed } = applyReplacement(text, filler);
+    expect(postScore(fixed, null)).toBeGreaterThan(postScore(text, null));
+  });
+
+  it("accepting a correctness (markdown) fix raises the post score", () => {
+    const text = "here is **the big idea** for today, what do you think?";
+    const md = runTier0({ text }).findings.find((f) => f.signal === "markdown")!;
+    const { text: fixed } = applyReplacement(text, md);
+    expect(postScore(fixed, null)).toBeGreaterThan(postScore(text, null));
+  });
+
+  it("accepting a live voice fix raises the post score (deduction released)", () => {
+    const text = "We are pleased to announce our new offering today.";
+    const drift: Finding = {
+      id: "voice:0", class: "voice", severity: "warning", title: "Too corporate", why: "you never write like a press release", source: "live", signal: "voice_drift",
+      span: { quote: "We are pleased to announce", start: 0, end: 26 }, replacement: "Just shipped",
+    };
+    const live: AssistantFindings = { voice_findings: [drift], missing_pattern_chips: [], summary: "" };
+    const before = postScore(text, live);
+    // Accept: apply the replacement and drop the finding (useAssistant's rebase).
+    const { text: fixed } = applyReplacement(text, drift);
+    const after = postScore(fixed, { ...live, voice_findings: [] });
+    expect(after).toBeGreaterThan(before);
+  });
+
+  it("dismissing a finding also releases its deduction (isHidden)", () => {
+    const text = "We are pleased to announce our new offering today.";
+    const drift: Finding = {
+      id: "voice:0", class: "voice", severity: "warning", title: "Too corporate", why: "x", source: "live", signal: "voice_drift",
+      span: { quote: "We are pleased to announce", start: 0, end: 26 },
+    };
+    const live: AssistantFindings = { voice_findings: [drift], missing_pattern_chips: [], summary: "" };
+    const open = postScore(text, live);
+    const dismissed = postScore(text, live, (f) => f.id === "voice:0");
+    expect(dismissed).toBeGreaterThan(open);
+  });
+
+  it("clarity deductions are capped so filler can never dominate the headline", () => {
+    const clarity = Array.from({ length: 10 }, (_, i) => ({
+      id: `filler:${i}`, class: "clarity" as const, severity: "suggestion" as const,
+      title: "", why: "", source: "tier0" as const, signal: "filler",
+    }));
+    expect(scorePenalties(clarity).craft).toBe(FINDING_DEDUCTIONS.clarityCap);
+  });
+
+  it("deductions clamp at the floor — a pile of findings can't go below 0", () => {
+    const s = composeScores({
+      reach: 5, voice: 3, resemblance: 10,
+      penalties: { voice: 50, algorithm: 50, craft: 50 },
+    });
+    expect(s.post).toBe(0);
+    expect(s.voice).toBe(0);
+    expect(s.reach).toBe(0);
+  });
+});
+
+describe("runTier0 — wall of text (dwell formatting)", () => {
+  it("cautions on a long unbroken block and prices it into the reach score", () => {
+    const block = "word ".repeat(50).trim() + " what do you think?"; // >200 chars, no newline
+    const broken = block.slice(0, 120) + "\n" + block.slice(120);
+    const r1 = runTier0({ text: block });
+    const r2 = runTier0({ text: broken });
+    expect(r1.badges.find((b) => b.id === "wall-of-text")).toBeTruthy();
+    expect(r1.chips.find((c) => c.id === "chip:line-breaks")).toBeTruthy();
+    expect(r2.badges.find((b) => b.id === "wall-of-text")).toBeUndefined();
+    expect(r2.scores.reach).toBeGreaterThan(r1.scores.reach);
+  });
+
+  it("does not flag threads (each tweet is short by design)", () => {
+    const block = "word ".repeat(50).trim();
+    expect(runTier0({ text: block, isThread: true }).badges.find((b) => b.id === "wall-of-text")).toBeUndefined();
   });
 });

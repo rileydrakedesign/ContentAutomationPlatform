@@ -7,6 +7,8 @@ import { refreshOwnPostMetrics } from "@/lib/analysis/own-posts-refresh";
 import { syncUserTimeline } from "@/lib/analysis/timeline-sync";
 import { refreshVoiceExamples } from "@/lib/analysis/voice-refresh";
 import { refreshVoiceVectors } from "@/lib/analysis/assistant/vectors";
+import { sweepUser, cleanupCandidatePool } from "@/lib/radar/sweep";
+import { isRadarBetaUser } from "@/lib/radar/flag";
 import { getUserSubscription } from "@/lib/stripe/subscription";
 import { PLANS, isSubscriptionActive } from "@/types/subscription";
 
@@ -47,7 +49,7 @@ export async function GET(request: NextRequest) {
   // The jobs are independent — one failing must not block the others.
   let reset: number | null = null;
   let rollup: Awaited<ReturnType<typeof computeDailyUsage>> | null = null;
-  let upkeep: { users: number; metrics_updated: number; synced: number; examples_refreshed: number } | null = null;
+  let upkeep: Awaited<ReturnType<typeof runLoopUpkeep>> | null = null;
   const errors: string[] = [];
 
   try {
@@ -117,6 +119,8 @@ async function runLoopUpkeep() {
   let metricsUpdated = 0;
   let synced = 0;
   let examplesRefreshed = 0;
+  let radarReads = 0;
+  let radarQueued = 0;
 
   for (const conn of connections || []) {
     users++;
@@ -142,6 +146,20 @@ async function runLoopUpkeep() {
       }
     } catch (err) {
       console.error(`[daily-ops] timeline sync failed for ${userId}:`, err);
+    }
+
+    // 2b. Radar sweep — beta allowlist only. Per-user, on the user's token,
+    //     per-unit daily read budgets enforced inside sweepUser. This is the
+    //     "queue refills daily" baseline; the in-app "Sweep now" covers
+    //     intraday freshness.
+    try {
+      if (isRadarBetaUser(userId)) {
+        const s = await sweepUser(supabase, userId);
+        radarReads += s.reads;
+        radarQueued += s.queued;
+      }
+    } catch (err) {
+      console.error(`[daily-ops] radar sweep failed for ${userId}:`, err);
     }
 
     // 3. Voice example refresh — for users who opted into auto-refresh on this
@@ -171,5 +189,19 @@ async function runLoopUpkeep() {
     }
   }
 
-  return { users, metrics_updated: metricsUpdated, synced, examples_refreshed: examplesRefreshed };
+  // Radar pool hygiene: drop candidates past the recent-search horizon.
+  try {
+    await cleanupCandidatePool(supabase);
+  } catch (err) {
+    console.error("[daily-ops] radar pool cleanup failed:", err);
+  }
+
+  return {
+    users,
+    metrics_updated: metricsUpdated,
+    synced,
+    examples_refreshed: examplesRefreshed,
+    radar_reads: radarReads,
+    radar_queued: radarQueued,
+  };
 }

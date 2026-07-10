@@ -32,6 +32,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid contentType" }, { status: 400 });
     }
 
+    // ⚠️ COMPLIANCE FLAG (C1 audit, 2026-07): API reply-publish path. Per the
+    // Feb-2026 X rules + PRD_CORE §4.4, replies go through the handoff (web
+    // intent → extension assist → copy) — the dashboard Reply finder no longer
+    // calls this branch (it uses /api/reply/handoff). Kept only for existing
+    // v1-API/MCP callers; deprecation is a flagged product decision. Do not
+    // add new callers.
+    //
     // Reply — post in reply to a target tweet and log it to the reply pool so it
     // feeds the reply voice (same store the extension uses).
     if (contentType === "X_REPLY") {

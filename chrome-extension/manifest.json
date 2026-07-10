@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Agents For X: AI Replies and Reply Targeting for X",
   "short_name": "Agents For X",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Reply faster on X with personalized AI drafts, see which posts are worth your reply, and save tweets you love.",
   "permissions": [
     "storage",
@@ -24,6 +24,11 @@
       "matches": ["https://x.com/*", "https://twitter.com/*"],
       "js": ["assistant-engine.js", "assistant-ui.js", "content.js"],
       "css": ["content.css"]
+    },
+    {
+      "matches": ["https://app.agentsforx.com/*", "http://localhost:3000/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
     }
   ],
   "action": {

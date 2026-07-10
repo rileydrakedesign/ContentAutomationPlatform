@@ -12,14 +12,16 @@ interface FunnelStage {
   color: string;
 }
 
+// GALLEY: top of the funnel is rubric (the metric you care about), descending
+// through paper into muted — a monochrome proof-sheet ramp, no indigo.
 const STAGE_COLORS = [
-  "rgb(129, 140, 248)", // indigo-400
-  "rgb(99, 102, 241)",  // indigo-500
-  "rgb(79, 70, 229)",   // indigo-600
-  "rgb(67, 56, 202)",   // indigo-700
-  "rgb(55, 48, 163)",   // indigo-800
-  "rgb(49, 46, 129)",   // indigo-900
-  "rgb(40, 37, 105)",   // deeper
+  "var(--color-accent-500)",   // rubric — impressions
+  "var(--color-accent-500)",  // paper
+  "var(--color-accent-600)",
+  "var(--color-accent-600)",
+  "var(--color-text-secondary)",
+  "var(--color-text-muted)",
+  "var(--color-border-strong)",
 ];
 
 const STAGE_DEFS: { key: keyof PostAnalytics; label: string }[] = [

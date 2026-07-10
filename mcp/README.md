@@ -1,13 +1,16 @@
 # Agents For X — MCP Server
 
-An [MCP](https://modelcontextprotocol.io) server that lets Claude (and other MCP
-clients) draft, schedule, and publish X posts and replies **in your voice**, read
-your analytics, and manage your patterns, inspiration, and strategy — all through
-your Agents For X account.
+An [MCP](https://modelcontextprotocol.io) server for **Agents For X — the
+real-time writing assistant for X**. It lets Claude (and other MCP clients) fetch
+your voice context and write posts and replies **in your voice**, voice-check
+drafts against what actually performs for you, then draft, schedule, and publish —
+plus read your analytics and manage your patterns, inspiration, and strategy, all
+through your Agents For X account.
 
-Generation runs through your saved voice settings, examples, and inspiration
-posts on the server, so the agent doesn't need to know your style — it just asks
-for content and gets it in your voice.
+The preferred loop is **write → check**: the agent calls `get_writing_context`
+and writes the post itself in your voice, then `check_draft` scores it against
+your tuned voice and proven patterns. Server-side generation stays available as a
+fallback when the agent can't write directly.
 
 > **Full documentation** lives in [`docs/`](../docs/README.md): MCP
 > [overview](../docs/mcp/overview.md) · [setup](../docs/mcp/setup.md) ·

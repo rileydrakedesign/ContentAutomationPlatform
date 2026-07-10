@@ -164,10 +164,16 @@ and the live assistant *is* the demonstration.
 **Deferred / open (see feature docs §"Current state & gaps"):**
 - Plan-gating of free to Tier-0-only (lever exists, not pulled).
 - L1 local WASM grammar/clarity; thread-level scoring; in-X fuzzy underlines hardening.
-- Landing site + MCP tool-catalog reframing (research has the positioning; surfaces lag).
-- App root `/` is still the analytics dashboard (only `/create` is editor-first).
-- Known seams flagged by the feature docs: duplicate opportunity score (server vs
-  extension); in-app publish not metered (only v1/MCP is); dual URL detectors.
+- MCP tool-catalog reframing (research has the positioning; the catalog lags).
+  Landing surfaces were rewritten to the assistant story (2026-07-04).
+- App root `/` is the analytics dashboard **by decision** (2026-07-04): nav is
+  Write-first and onboarding ends in the editor, but returning users land on the
+  dashboard. Revisit post-launch if editor WAU says otherwise.
+- Seams closed 2026-07-04: URL detection unified (one `LINKED_TLDS`/`findLinks`
+  in `tweet-text.ts` for counting, underlines, and billing); boost-opportunity
+  scoring reconciled onto canonical `weightedEngagement`; reply finder rebuilt
+  on the live assistant (in-app metered voice-check removed). Still open &
+  intentional: in-app publish not metered (only v1/MCP is).
 
 ## 12. Non-goals
 

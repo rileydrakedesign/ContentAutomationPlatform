@@ -51,8 +51,8 @@ export function ChatMessage({
         <div
           className={`inline-block px-4 py-2 rounded-2xl text-sm ${
             isUser
-              ? "bg-[var(--color-primary-500)] text-[var(--color-text-primary)] rounded-tr-sm"
-              : "bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] rounded-tl-sm"
+              ? "bg-[var(--color-primary-500)] text-[var(--color-text-inverse)] rounded-tr-sm"
+              : "bg-[var(--color-bg-elevated)] text-[var(--color-text-inverse)] rounded-tl-sm"
           }`}
         >
           {message.content}
@@ -108,8 +108,8 @@ export function ChatMessage({
           !message.requiresAction &&
           message.suggestedChanges &&
           Object.keys(message.suggestedChanges).length > 0 && (
-            <div className="mt-2 px-4 py-3 bg-[var(--color-primary-500)]/10 border border-[var(--color-primary-500)]/20 rounded-lg">
-              <p className="text-xs text-[var(--color-primary-400)] mb-2">Suggested changes:</p>
+            <div className="mt-2 px-4 py-3 bg-[var(--color-accent-500)]/10 border border-[var(--color-accent-500)]/20 rounded-lg">
+              <p className="text-xs text-[var(--color-accent-400)] mb-2">Suggested changes:</p>
               <div className="space-y-1 text-xs text-[var(--color-text-secondary)]">
                 {Object.entries(message.suggestedChanges).map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between">
@@ -125,7 +125,7 @@ export function ChatMessage({
                   className={`mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition ${
                     changesAccepted
                       ? "bg-[var(--color-success-500)]/20 text-[var(--color-success-400)] cursor-default"
-                      : "bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-[var(--color-text-primary)]"
+                      : "bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-[var(--color-text-inverse)]"
                   }`}
                 >
                   {changesAccepted ? (

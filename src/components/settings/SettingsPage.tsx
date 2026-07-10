@@ -164,8 +164,8 @@ export function SettingsPage() {
         <div
           className={`mb-4 p-4 rounded-lg ${
             message.type === "success"
-              ? "bg-teal-500/10 border border-teal-500/20 text-teal-400"
-              : "bg-red-500/10 border border-red-500/20 text-[var(--color-danger-400)]"
+              ? "bg-[var(--color-success-500)]/10 border border-[var(--color-success-500)]/20 text-[var(--color-success-400)]"
+              : "bg-[var(--color-danger-500)]/10 border border-[var(--color-danger-500)]/20 text-[var(--color-danger-400)]"
           }`}
         >
           {message.text}
@@ -226,7 +226,7 @@ export function SettingsPage() {
                     <button
                       onClick={syncPosts}
                       disabled={syncing || !canSync}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-muted)] rounded-lg text-sm transition"
+                      className="px-4 py-2 bg-[var(--color-warning-500)] hover:bg-[var(--color-warning-400)] text-[var(--color-text-inverse)] disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-muted)] rounded-lg text-sm transition-colors duration-100"
                     >
                       {syncing ? "Syncing..." : "Sync Posts"}
                     </button>
@@ -242,7 +242,7 @@ export function SettingsPage() {
                     <button
                       onClick={syncAnalytics}
                       disabled={syncingAnalytics || !canSync}
-                      className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-muted)] rounded-lg text-sm transition"
+                      className="px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-400)] text-[var(--color-text-inverse)] disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-inverse)] rounded-lg text-sm transition-colors duration-100"
                     >
                       {syncingAnalytics ? "Syncing..." : "Sync Analytics"}
                     </button>
@@ -251,7 +251,7 @@ export function SettingsPage() {
                   <div className="pt-4 border-t border-[var(--color-border-default)]">
                     <button
                       onClick={disconnectX}
-                      className="text-sm text-[var(--color-danger-400)] hover:text-red-300 transition"
+                      className="text-sm text-[var(--color-danger-400)] hover:text-[var(--color-accent-400)] transition-colors duration-100"
                     >
                       Disconnect X account
                     </button>
@@ -266,7 +266,7 @@ export function SettingsPage() {
                   <button
                     onClick={connectX}
                     disabled={connecting}
-                    className="w-full py-3 bg-white text-slate-900 font-medium rounded-lg hover:bg-slate-200 disabled:opacity-50 transition flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-[var(--color-primary-500)] text-[var(--color-text-inverse)] font-medium rounded-lg hover:bg-[var(--color-primary-400)] disabled:opacity-50 transition-colors duration-100 flex items-center justify-center gap-2"
                   >
                     {connecting ? (
                       "Connecting..."
@@ -290,19 +290,19 @@ export function SettingsPage() {
               <div className="space-y-3 text-sm text-[var(--color-text-secondary)]">
                 <div className="flex gap-3">
                   <span className="text-[var(--color-warning-400)]">1.</span>
-                  <span>Connect your X account to sync your posts automatically</span>
+                  <span>Connect your X account or upload your analytics CSV</span>
                 </div>
                 <div className="flex gap-3">
                   <span className="text-[var(--color-warning-400)]">2.</span>
-                  <span>Your posts appear on the Inspiration page with engagement metrics</span>
+                  <span>A tune-up learns your voice and patterns from your own top posts</span>
                 </div>
                 <div className="flex gap-3">
                   <span className="text-[var(--color-warning-400)]">3.</span>
-                  <span>Promote top performers to use as inspiration for new content</span>
+                  <span>Write in the editor with live coaching on voice and the algorithm</span>
                 </div>
                 <div className="flex gap-3">
                   <span className="text-[var(--color-warning-400)]">4.</span>
-                  <span>Generate new posts from a topic in your own voice</span>
+                  <span>Accept the fixes you want, then publish or schedule</span>
                 </div>
               </div>
             </Card>

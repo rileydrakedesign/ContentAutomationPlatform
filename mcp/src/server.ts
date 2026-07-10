@@ -6,7 +6,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ApiClient } from "./client";
 import { registerTools } from "./tools";
 
-const INSTRUCTIONS = `Agents For X is a content voice tuner: it analyzes the user's niche, positioning, and top-performing posts, then makes sure everything you write sounds like the user and matches what actually performs for them. You can draft, schedule, and publish X (Twitter) posts and replies in the user's own voice, read their analytics, and manage their patterns, inspiration, and strategy.
+const INSTRUCTIONS = `Agents For X is a real-time writing assistant for X (Twitter): it grounds every check in the user's niche, positioning, and top-performing posts, then keeps everything you write sounding like the user and reaching on the algorithm. The user is the author — you help keep their posts and replies on-voice and on-algorithm, and can also draft, schedule, and publish in their own voice, read their analytics, and manage their patterns, inspiration, and strategy.
 
 Voice — how to write content (in order of preference):
 1. PREFERRED: call get_writing_context (voiceType "post" or "reply") and WRITE THE CONTENT YOURSELF following the returned system prompt — it includes the user's voice controls, niche positioning, proven high-engagement patterns, and real examples. You are the best available writer; this is free.

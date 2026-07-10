@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getUserSubscription } from "@/lib/stripe/subscription";
 import { PLANS, isSubscriptionActive, type PlanConfig } from "@/types/subscription";
 import { apiError } from "@/lib/api/response";
+import { findLinks } from "@/lib/x-api/tweet-text";
 
 // Credit costs for the agent surface (v1 API + MCP). Retail: 1 credit = $0.01.
 // Source of truth: MCP_PROD_READINESS_PLAN.md §B2 — keep the two in sync.
@@ -39,42 +40,15 @@ export interface CreditBalance {
   resetsAt: string | null;
 }
 
-// TLDs X will linkify as bare domains (t.co-shortenable → billed as a URL
-// post). Allowlist, not "any dot-word": "node.js", "$3.50", "e.g." must not
-// count. A miss here undercharges one post by ~$0.19; a false positive
-// overcharges a user 27 cents — so cover the common web, skip the exotic.
-const LINKED_TLDS = new Set([
-  "com", "net", "org", "io", "ai", "dev", "co", "app", "xyz", "me", "gg",
-  "tv", "so", "sh", "to", "ly", "fm", "im", "is", "us", "uk", "ca", "de",
-  "fr", "es", "it", "nl", "jp", "in", "au", "br", "ch", "se", "no", "fi",
-  "dk", "pl", "be", "at", "nz", "ie", "info", "biz", "news", "blog", "tech",
-  "online", "site", "store", "shop", "cloud", "link", "live", "email",
-  "social", "world", "today", "life", "space", "website", "fun", "page",
-  "wiki", "studio", "agency", "design", "media", "network", "systems",
-  "solutions", "digital", "group", "team", "tools", "run", "plus", "pro",
-  "one", "top", "vip", "club", "money", "finance", "capital", "ventures",
-  "fund", "exchange", "market", "games", "art", "photos", "city", "land",
-  "earth", "energy", "health", "care", "fitness", "coach", "academy",
-  "school", "education", "training", "expert", "guru", "ninja", "rocks",
-  "cool", "wtf", "lol", "fyi", "tips", "guide", "help", "support", "chat",
-  "stream", "tube", "audio", "video", "zone", "works", "codes", "build",
-]);
-
-/** Whether X would bill this post at the URL rate ($0.20 vs $0.015). */
+/**
+ * Whether X would bill this post at the URL rate ($0.20 vs $0.015). Uses the
+ * canonical link detection in tweet-text (LINKED_TLDS allowlist, emails
+ * excluded) so billing, char counting, and the assistant's link findings can
+ * never disagree on "does this post contain a link". A miss undercharges one
+ * post by ~$0.19; a false positive overcharges a user 27 cents.
+ */
 export function containsUrl(text: string): boolean {
-  if (/https?:\/\/\S+/i.test(text)) return true;
-
-  for (const raw of text.split(/\s+/)) {
-    // Strip wrapping punctuation: "(foo.com)," → "foo.com"
-    const token = raw.replace(/^[("'[]+/, "").replace(/[)"'\],.!?:;]+$/, "");
-    // @mentions, emails, and $cashtags are never links
-    if (!token || token.startsWith("@") || token.startsWith("$") || token.includes("@")) {
-      continue;
-    }
-    const m = token.match(/^(?:[a-z0-9][a-z0-9-]*\.)+([a-z]{2,})(?:[/?#]\S*)?$/i);
-    if (m && LINKED_TLDS.has(m[1].toLowerCase())) return true;
-  }
-  return false;
+  return findLinks(text).length > 0;
 }
 
 /** Credit cost for publishing these tweet texts (thread = sum of tweets). */

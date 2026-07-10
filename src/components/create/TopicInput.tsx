@@ -34,7 +34,7 @@ export function TopicInput({ value, onChange, suggestions = [] }: TopicInputProp
           rows={6}
           className={`
             w-full min-h-[160px] px-4 py-3 text-sm resize-y transition-all duration-200
-            ${isFocused ? "ring-2 ring-[var(--color-primary-500)]/20" : ""}
+            ${isFocused ? "ring-2 ring-[var(--color-accent-500)]/20" : ""}
           `}
         />
         <div className="absolute bottom-3 right-3 flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
@@ -55,7 +55,7 @@ export function TopicInput({ value, onChange, suggestions = [] }: TopicInputProp
                   px-3 py-1.5 text-xs font-medium rounded-full
                   bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]
                   border border-[var(--color-border-default)]
-                  hover:border-[var(--color-primary-500)]/50 hover:text-[var(--color-primary-400)]
+                  hover:border-[var(--color-accent-500)]/50 hover:text-[var(--color-accent-400)]
                   transition-all duration-200 cursor-pointer
                 "
               >

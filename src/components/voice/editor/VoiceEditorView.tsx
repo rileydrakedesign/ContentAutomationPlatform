@@ -298,8 +298,8 @@ export function VoiceEditorView({
         {/* Chat header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border-default)]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-[var(--color-primary-400)]" />
+            <div className="w-10 h-10 rounded-xl bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-[var(--color-accent-400)]" />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -330,7 +330,7 @@ export function VoiceEditorView({
         <div className="flex-1 overflow-auto p-5 space-y-4">
           {loading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="w-8 h-8 border-2 border-[var(--color-primary-500)] border-t-transparent rounded-full animate-spin" />
+              <span aria-hidden className="inline-block animate-[blink_1s_steps(1)_infinite] text-[var(--color-accent-400)]">▌</span>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-8">
@@ -354,7 +354,7 @@ export function VoiceEditorView({
                   <button
                     key={suggestion}
                     onClick={() => handleSendMessage(suggestion)}
-                    className="px-3 py-1.5 text-xs font-medium text-[var(--color-primary-400)] bg-[var(--color-primary-500)]/10 rounded-full border border-[var(--color-primary-500)]/20 hover:bg-[var(--color-primary-500)]/20 transition-colors cursor-pointer"
+                    className="px-3 py-1.5 text-xs font-medium text-[var(--color-accent-400)] bg-[var(--color-accent-500)]/10 rounded-full border border-[var(--color-accent-500)]/20 hover:bg-[var(--color-accent-500)]/20 transition-colors duration-100 cursor-pointer"
                   >
                     {suggestion}
                   </button>

@@ -36,20 +36,20 @@ export const TOUR_STEPS: TourStep[] = [
     target: "dashboard-header",
     title: "Welcome to Agents for X",
     description:
-      "This is your command center. Analyze your niche, tune your voice, and generate content that sounds like you — it all starts right here.",
+      "This is your command center. You write, the assistant coaches — showing you where a post drifts from your voice and where it'll lose to the algorithm, grounded in your own top posts.",
     placement: "bottom",
     skippable: false,
     navigate: "/",
     icon: Sparkles,
-    iconColor: "var(--color-primary-400)",
-    iconBg: "var(--color-primary-500)",
+    iconColor: "var(--color-accent-400)",
+    iconBg: "var(--color-accent-500)",
   },
   {
     id: "extension",
     target: "setup-checklist",
     title: "Install the Chrome Extension",
     description:
-      "Save inspiration posts and generate AI replies directly in your X timeline with one click.",
+      "Take the writing assistant onto X itself — voice and reach checks in X's composer, plus saved inspiration and in-voice replies, without leaving the timeline.",
     placement: "bottom",
     skippable: true,
     navigate: "/",
@@ -58,8 +58,8 @@ export const TOUR_STEPS: TourStep[] = [
       href: "https://github.com/rileydrakedesign/ContentAutomationPlatform/tree/main/chrome-extension",
     },
     icon: Chrome,
-    iconColor: "var(--color-primary-400)",
-    iconBg: "var(--color-primary-500)",
+    iconColor: "var(--color-accent-400)",
+    iconBg: "var(--color-accent-500)",
   },
   {
     id: "connect",
@@ -80,7 +80,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: "voice-header",
     title: "Tune Your Voice",
     description:
-      "Add voice examples, tune the dials, or upload a CSV — generation is honed on your proven patterns, and Voice check scores any draft against your tuned voice. Click Next when you're ready to continue.",
+      "Add voice examples, tune the dials, or upload a CSV — the assistant is honed on your proven patterns and scores every draft against your tuned voice as you write. Click Next when you're ready to continue.",
     placement: "right",
     skippable: true,
     navigate: "/voice",
@@ -94,7 +94,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: "quick-actions",
     title: "You're all set!",
     description:
-      "Generate content that sounds like you, run a Voice Tune-Up from Insights, or explore your dashboard. The more you use it, the sharper your voice gets.",
+      "Hit \"Write a post\" to open the editor — the assistant checks voice and reach live as you type. When you want to sharpen its read on you, run a Voice Tune-Up from Insights.",
     placement: "bottom",
     skippable: false,
     navigate: "/",

@@ -169,7 +169,7 @@ export default async function AuthorizePage({
               key={s}
               className="text-sm text-[var(--color-text-secondary)] flex items-start gap-2"
             >
-              <span className="text-[var(--color-primary-400)] mt-0.5">✓</span>
+              <span className="text-[var(--color-accent-400)] mt-0.5">✓</span>
               {SCOPE_LABELS[s] ?? s}
             </li>
           ))}
@@ -180,7 +180,7 @@ export default async function AuthorizePage({
             type="submit"
             name="decision"
             value="deny"
-            className="flex-1 py-2.5 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] font-medium rounded-lg hover:bg-[var(--color-bg-hover)] transition"
+            className="flex-1 py-2.5 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] font-medium rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors duration-100"
           >
             Deny
           </button>
@@ -188,7 +188,7 @@ export default async function AuthorizePage({
             type="submit"
             name="decision"
             value="approve"
-            className="flex-1 py-2.5 bg-[var(--color-primary-500)] text-white font-medium rounded-lg hover:bg-[var(--color-primary-600)] transition"
+            className="flex-1 py-2.5 bg-[var(--color-primary-500)] text-[var(--color-text-inverse)] font-medium rounded-lg hover:bg-[var(--color-primary-600)] transition-colors duration-100"
           >
             Connect
           </button>

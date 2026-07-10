@@ -84,7 +84,7 @@ export function PollEditor({
               maxLength={MAX_POLL_OPTION_LEN}
               onChange={(e) => setOption(i, e.target.value)}
               placeholder={`Choice ${i + 1}`}
-              className="flex-1 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-500)]"
+              className="flex-1 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-lg px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent-500)]"
             />
             <span className="text-[10px] text-[var(--color-text-muted)] w-10 text-right tabular-nums">
               {opt.length}/{MAX_POLL_OPTION_LEN}
@@ -108,7 +108,7 @@ export function PollEditor({
           <button
             type="button"
             onClick={addOption}
-            className="inline-flex items-center gap-1 text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)]"
+            className="inline-flex items-center gap-1 text-xs text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)]"
           >
             <Plus className="w-3.5 h-3.5" />
             Add choice
@@ -122,7 +122,7 @@ export function PollEditor({
           <select
             value={poll.durationMinutes}
             onChange={(e) => onChange({ ...poll, durationMinutes: Number(e.target.value) })}
-            className="bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-500)]"
+            className="bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent-500)]"
           >
             {POLL_DURATIONS.map((d) => (
               <option key={d.minutes} value={d.minutes}>

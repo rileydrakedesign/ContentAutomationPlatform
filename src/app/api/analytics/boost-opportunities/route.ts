@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
+import { weightedEngagement } from "@/lib/utils/engagement";
 import type { PostAnalytics } from "@/types/analytics";
 
-// Scoring weights must sum to 1.
+// Scoring weights must sum to 1. The engagement dimension is the canonical
+// weightedEngagement (replies ≫ retweets ≈ bookmarks > likes) per impression —
+// the same signal the rest of the app ranks by — not a flat interaction sum.
 const SCORE_WEIGHTS = {
   engagementRate: 0.6,
   impressions: 0.25,
@@ -34,6 +37,8 @@ type Candidate = {
   impressions: number;
   engagements: number;
   engagement_rate: number;
+  /** weightedEngagement per impression — the dimension the score ranks by. */
+  weighted_rate: number;
   age_hours: number;
   recency_norm: number;
 };
@@ -67,7 +72,7 @@ function parseDateMaybe(dateStr: string | null | undefined): Date | null {
 
 /** Returns [erNorm, impNorm] — single pass over candidates to avoid two separate iterations. */
 function normalizeScoreInputs(candidates: Candidate[]): [number[], number[]] {
-  const ers = candidates.map((c) => c.engagement_rate);
+  const ers = candidates.map((c) => c.weighted_rate);
   const imps = candidates.map((c) => c.impressions);
 
   function normalize(values: number[]): number[] {
@@ -118,6 +123,7 @@ function buildCandidate(
   windowMs: number
 ): Candidate {
   const engagements = likes + replies + reposts + bookmarks;
+  const weighted = weightedEngagement({ likes, replies, reposts, bookmarks, impressions });
   return {
     post_id: postId,
     post_url: postUrl,
@@ -126,6 +132,7 @@ function buildCandidate(
     impressions,
     engagements,
     engagement_rate: impressions > 0 ? engagements / impressions : 0,
+    weighted_rate: impressions > 0 ? weighted / impressions : 0,
     age_hours: ageMs / (1000 * 60 * 60),
     recency_norm: clamp01(1 - ageMs / windowMs),
   };

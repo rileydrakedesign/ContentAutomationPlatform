@@ -107,7 +107,7 @@ export function VoiceCheckResult({
               variant="secondary"
               size="sm"
               onClick={() => onApplyEdit(result.suggested_edit)}
-              icon={<Wand2 className="w-4 h-4 text-[var(--color-primary-400)]" />}
+              icon={<Wand2 className="w-4 h-4 text-[var(--color-accent-400)]" />}
             >
               Apply edit
             </Button>

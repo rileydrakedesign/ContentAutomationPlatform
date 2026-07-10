@@ -196,17 +196,11 @@ export async function runPrepublishRead(
   const algorithm_notes = buildAlgorithmNotes();
 
   // Gather the user's "model": their content-shaping patterns + post pool.
-  const [patternsRaw, pool, voiceSettingsRes] = await Promise.all([
+  const [patternsRaw, pool] = await Promise.all([
     options.patternsOverride
       ? Promise.resolve(options.patternsOverride)
       : fetchEnabledPatterns(supabase, userId),
     getAnalyzablePosts(supabase, userId).catch(() => []),
-    supabase
-      .from("user_voice_settings")
-      .select("ai_model")
-      .eq("user_id", userId)
-      .eq("voice_type", "post")
-      .maybeSingle(),
   ]);
 
   const patterns = (patternsRaw || []).filter(isGenerationApplicablePattern);
@@ -230,7 +224,7 @@ export async function runPrepublishRead(
 
   // Layers 2 + 3 — one LLM call: detect which proven patterns the draft hits /
   // misses, and judge resemblance to the user's winners vs their median.
-  const aiProvider: AIProvider = resolveProvider(voiceSettingsRes.data?.ai_model as string | null);
+  const aiProvider: AIProvider = resolveProvider();
   const medianPosts = pool.slice(Math.floor(pool.length / 2), Math.floor(pool.length / 2) + 4);
 
   const patternList = patterns

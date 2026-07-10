@@ -1,7 +1,7 @@
 {
   "name": "@agentsforx/mcp",
   "version": "1.0.0",
-  "description": "MCP server for Agents For X — generate, draft, schedule, and publish X posts and replies in your voice, plus analytics.",
+  "description": "MCP server for Agents For X, the real-time writing assistant for X — fetch the user's voice context and write posts and replies in their voice, voice-check drafts, then draft, schedule, and publish, plus analytics. Generation available as a fallback.",
   "license": "MIT",
   "type": "module",
   "engines": {

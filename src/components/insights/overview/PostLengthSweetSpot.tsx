@@ -72,7 +72,7 @@ export function PostLengthSweetSpot({ posts }: Props) {
           <CardTitle>Post Length Sweet Spot</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-[var(--color-text-tertiary)]">
+          <p className="text-sm text-[var(--color-text-muted)]">
             Need 5+ posts with at least 2 buckets having 2+ posts each
           </p>
         </CardContent>
@@ -105,8 +105,8 @@ export function PostLengthSweetSpot({ posts }: Props) {
                   style={{
                     height: `${Math.max(pct, b.avgEngagement > 0 ? 8 : 0)}%`,
                     backgroundColor: isBest
-                      ? "rgb(99, 102, 241)"
-                      : "rgba(99, 102, 241, 0.3)",
+                      ? "var(--color-accent-500)"
+                      : "rgba(224, 75, 36, 0.3)",
                   }}
                 />
               </div>
@@ -118,11 +118,11 @@ export function PostLengthSweetSpot({ posts }: Props) {
         <div className="flex gap-3 mt-2">
           {buckets.map((b, i) => (
             <div key={b.label} className="flex-1 text-center">
-              <p className={`text-xs font-medium ${i === bestIdx ? "text-indigo-400" : "text-[var(--color-text-secondary)]"}`}>
+              <p className={`text-xs font-medium ${i === bestIdx ? "text-[var(--color-accent-400)]" : "text-[var(--color-text-secondary)]"}`}>
                 {b.label}
               </p>
-              <p className="text-[10px] text-[var(--color-text-tertiary)]">{b.range} chars</p>
-              <p className="text-[10px] text-[var(--color-text-tertiary)]">{b.posts.length} posts</p>
+              <p className="text-[10px] text-[var(--color-text-muted)]">{b.range} chars</p>
+              <p className="text-[10px] text-[var(--color-text-muted)]">{b.posts.length} posts</p>
             </div>
           ))}
         </div>

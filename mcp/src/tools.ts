@@ -103,7 +103,7 @@ export function registerTools(server: McpServer, api: ApiClient): void {
     {
       title: "Get voice settings",
       description:
-        "Read the user's voice configuration (tone/energy/stance dials, guardrails, AI model) and their voice examples for the given voice type. Use to understand how generation will sound before generating. Free.",
+        "Read the user's voice configuration (tone/energy/stance dials, guardrails) and their voice examples for the given voice type. Use to understand how the user's voice sounds before you write or generate. Free.",
       inputSchema: {
         voiceType: z
           .enum(["post", "reply"])
@@ -130,8 +130,6 @@ export function registerTools(server: McpServer, api: ApiClient): void {
           .describe("0 = calm, 100 = punchy."),
         stance_neutral_opinionated: z.number().int().min(0).max(100).optional()
           .describe("0 = neutral, 100 = opinionated."),
-        ai_model: z.enum(["openai", "claude", "grok"]).optional()
-          .describe("Which AI provider generates content in this voice."),
         special_notes: z.string().optional(),
         guardrails: z
           .object({
@@ -192,7 +190,7 @@ export function registerTools(server: McpServer, api: ApiClient): void {
     () => run(() => api.get("/api/v1/niche"))
   );
 
-  // ── Generation (voice-applied) ─────────────────────────────────
+  // ── Writing & voice-check (the write → check loop) ─────────────
   server.registerTool(
     "get_writing_context",
     {
@@ -463,6 +461,10 @@ export function registerTools(server: McpServer, api: ApiClient): void {
       )
   );
 
+  // ⚠️ COMPLIANCE FLAG (C1 audit, 2026-07): publish_reply publishes a reply via
+  // the X API (v1 publish route). Per the Feb-2026 X rules + PRD_CORE §4.4,
+  // replies should go through the handoff flow, never the API — deprecating
+  // this tool is a flagged product decision for the next phase.
   server.registerTool(
     "publish_reply",
     {

@@ -1,7 +1,7 @@
 // Shared mapping for X v2 search results: derives per-post reply eligibility
 // and an optional traction score. Used by /api/v1/search and
 // /api/v1/search/reply-targets so the two stay in lockstep.
-import { weightedEngagement } from "@/lib/utils/engagement";
+import { opportunityTraction } from "@/lib/utils/engagement";
 import type { XTweetV2, XUserV2 } from "./client";
 
 export type ReplyEligibility = "open" | "open_mentioned" | "restricted" | "unknown";
@@ -11,7 +11,11 @@ export interface EnrichedSearchTweet {
   text: string;
   created_at: string | null;
   metrics: XTweetV2["public_metrics"] | null;
-  author: { username: string | null; name: string | null } | null;
+  author: {
+    username: string | null;
+    name: string | null;
+    followers_count?: number | null;
+  } | null;
   reply_settings: string | null;
   is_auth_mentioned: boolean;
   reply_allowed: boolean;
@@ -108,6 +112,8 @@ export function mapSearchResults(
         ? {
             username: users.get(tweet.author_id)?.username ?? null,
             name: users.get(tweet.author_id)?.name ?? null,
+            followers_count:
+              users.get(tweet.author_id)?.public_metrics?.followers_count ?? null,
           }
         : null,
       reply_settings: replySettings,
@@ -118,11 +124,12 @@ export function mapSearchResults(
   });
 }
 
-// Light traction score for ranking reply candidates: canonical weighted
-// engagement (replies 5× · reposts 4× · likes/bookmarks 3× · impressions
-// 0.001×) decayed by post age, so fresh posts with momentum outrank old
-// saturated ones. A reply on a still-rising post gets more eyeballs than one
-// buried under thousands on a day-old post.
+// Light traction score for ranking reply candidates: the canonical
+// opportunityTraction (engagement.ts) — weighted engagement decayed by post
+// age, so fresh posts with momentum outrank old saturated ones. A reply on a
+// still-rising post gets more eyeballs than one buried under thousands on a
+// day-old post. The extension pill ranks with the same function (bundled via
+// chrome-extension/src/engine-entry.ts), so the two orderings cannot drift.
 export function tractionScore(
   tweet: EnrichedSearchTweet,
   nowMs: number
@@ -130,18 +137,19 @@ export function tractionScore(
   const pm = tweet.metrics;
   if (!pm) return 0;
 
-  const engagement = weightedEngagement({
-    likes: pm.like_count,
-    retweets: pm.retweet_count,
-    replies: pm.reply_count,
-    bookmarks: pm.bookmark_count,
-    impressions: pm.impression_count,
-  });
-
   const createdMs = tweet.created_at ? Date.parse(tweet.created_at) : NaN;
   const ageHours = Number.isFinite(createdMs)
-    ? Math.max(1, (nowMs - createdMs) / 3_600_000)
+    ? (nowMs - createdMs) / 3_600_000
     : 1;
 
-  return engagement / ageHours;
+  return opportunityTraction(
+    {
+      likes: pm.like_count,
+      retweets: pm.retweet_count,
+      replies: pm.reply_count,
+      bookmarks: pm.bookmark_count,
+      impressions: pm.impression_count,
+    },
+    ageHours
+  );
 }

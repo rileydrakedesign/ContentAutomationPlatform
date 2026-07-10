@@ -61,6 +61,13 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
     );
   }
 
+  // ⚠️ COMPLIANCE FLAG (C1 audit, 2026-07): X_REPLY here is an API
+  // reply-publish path (also reached via MCP publish_reply). Per the Feb-2026
+  // X rules + PRD_CORE §4.4, replies should go through the handoff (web intent
+  // → extension assist → copy), never the API; deprecating this public surface
+  // is a flagged product decision. X_POST/X_THREAD may keep using the API only
+  // where the Feb-2026 unsolicited-mention/quote rules permit — that audit is
+  // open. Do not add new reply callers.
   if (contentType === "X_POST" || contentType === "X_REPLY") {
     const text = String(payload.text || "").trim();
     if (!text) {

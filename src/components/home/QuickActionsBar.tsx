@@ -18,7 +18,7 @@ export function QuickActionsBar({ onUploadClick }: QuickActionsBarProps) {
           icon={<Plus className="w-4 h-4" />}
           glow
         >
-          Create Draft
+          Write a post
         </Button>
       </Link>
       <Button

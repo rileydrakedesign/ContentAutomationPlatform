@@ -133,7 +133,7 @@ function QueueItemCard({
   const canDelete = item.status !== "publishing";
 
   return (
-    <Card className="hover:border-[var(--color-border-strong)] transition-all duration-200">
+    <Card className="hover:border-[var(--color-border-strong)] transition-colors duration-100">
       <CardContent>
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1 space-y-2">
@@ -184,7 +184,7 @@ function QueueItemCard({
                 {canExpand && (
                   <button
                     onClick={() => setExpanded((v) => !v)}
-                    className="mt-1.5 text-xs font-medium text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition-colors"
+                    className="mt-1.5 text-xs font-medium text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] transition-colors"
                   >
                     {expanded ? "Show less" : isThread ? `Show all ${texts.length} tweets` : "Show more"}
                   </button>
@@ -225,7 +225,7 @@ function QueueItemCard({
                     href={`https://x.com/i/web/status/${pid}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] underline underline-offset-2"
+                    className="text-xs text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] underline underline-offset-2"
                   >
                     View on X ↗
                   </a>
@@ -244,7 +244,7 @@ function QueueItemCard({
                 <button
                   onClick={() => onAction(item.id, "cancel")}
                   disabled={busy}
-                  className="px-3 py-1.5 rounded-md text-xs font-medium border bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] border-[var(--color-border-default)] hover:bg-[var(--color-bg-hover)] disabled:opacity-50 transition"
+                  className="px-3 py-1.5 rounded-md text-xs font-medium border bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] border-[var(--color-border-default)] hover:bg-[var(--color-bg-hover)] disabled:opacity-50 transition-colors duration-100"
                 >
                   {busy ? "Working…" : "Cancel"}
                 </button>
@@ -253,7 +253,7 @@ function QueueItemCard({
                 <button
                   onClick={() => onAction(item.id, "retry")}
                   disabled={busy}
-                  className="px-3 py-1.5 rounded-md text-xs font-medium border bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] border-[var(--color-primary-500)]/20 hover:bg-[var(--color-primary-500)]/15 disabled:opacity-50 transition"
+                  className="px-3 py-1.5 rounded-md text-xs font-medium border bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border-[var(--color-accent-500)]/20 hover:bg-[var(--color-accent-500)]/15 disabled:opacity-50 transition-colors duration-100"
                 >
                   {busy ? "Working…" : "Retry"}
                 </button>
@@ -262,7 +262,7 @@ function QueueItemCard({
                 <button
                   onClick={() => onAction(item.id, "delete")}
                   disabled={busy}
-                  className="px-3 py-1.5 rounded-md text-xs font-medium border bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-[var(--color-danger-400)] hover:border-[var(--color-danger-500)]/30 disabled:opacity-50 transition"
+                  className="px-3 py-1.5 rounded-md text-xs font-medium border bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-[var(--color-danger-400)] hover:border-[var(--color-danger-500)]/30 disabled:opacity-50 transition-colors duration-100"
                 >
                   {busy ? "Working…" : "Delete"}
                 </button>
@@ -392,7 +392,7 @@ export function QueuePage() {
         </div>
         <Link
           href="/create"
-          className="text-sm text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)]"
+          className="text-sm text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)]"
         >
           Create
         </Link>
@@ -452,7 +452,7 @@ export function QueuePage() {
             <div className="flex items-center justify-between">
               <button
                 onClick={() => navigateMonth(-1)}
-                className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition"
+                className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-colors duration-100"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
@@ -462,14 +462,14 @@ export function QueuePage() {
                 </span>
                 <button
                   onClick={goToToday}
-                  className="px-2 py-1 rounded-md text-xs font-medium text-[var(--color-primary-400)] hover:bg-[var(--color-primary-500)]/10 transition"
+                  className="px-2 py-1 rounded-md text-xs font-medium text-[var(--color-accent-400)] hover:bg-[var(--color-accent-500)]/10 transition-colors duration-100"
                 >
                   Today
                 </button>
               </div>
               <button
                 onClick={() => navigateMonth(1)}
-                className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition"
+                className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-colors duration-100"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
@@ -505,17 +505,17 @@ export function QueuePage() {
                     key={dateStr}
                     onClick={() => setSelectedDate(isSelected ? null : dateStr)}
                     className={`
-                      bg-[var(--color-bg-elevated)] min-h-[72px] p-2 text-left transition-all duration-150 cursor-pointer
+                      bg-[var(--color-bg-elevated)] min-h-[72px] p-2 text-left transition-colors duration-100 cursor-pointer
                       hover:bg-[var(--color-bg-hover)]
-                      ${isSelected ? "ring-2 ring-[var(--color-primary-500)] ring-inset" : ""}
+                      ${isSelected ? "ring-2 ring-[var(--color-accent-500)] ring-inset" : ""}
                     `}
                   >
                     <span
                       className={`
                         inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium
                         ${isToday
-                          ? "bg-[var(--color-primary-500)] text-white"
-                          : "text-[var(--color-text-primary)]"
+                          ? "bg-[var(--color-primary-500)] text-[var(--color-text-inverse)]"
+                          : "text-[var(--color-text-inverse)]"
                         }
                       `}
                     >

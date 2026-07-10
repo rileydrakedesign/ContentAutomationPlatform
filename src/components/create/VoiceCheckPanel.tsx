@@ -35,7 +35,7 @@ export function VoiceCheckPanel({
         size="sm"
         onClick={() => check(text)}
         disabled={!text.trim()}
-        icon={<AudioLines className="w-4 h-4 text-[var(--color-primary-400)]" />}
+        icon={<AudioLines className="w-4 h-4 text-[var(--color-accent-400)]" />}
         loading={checking}
       >
         Voice check

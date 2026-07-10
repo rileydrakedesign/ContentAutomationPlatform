@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
-import { Sparkles, Loader2, RefreshCw, MessageSquare, TrendingUp, Zap } from "lucide-react";
+import { Sparkles, RefreshCw, MessageSquare, TrendingUp, Zap } from "lucide-react";
 import { useSubscription } from "@/components/auth/SubscriptionProvider";
 import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
 import { parseGateError } from "@/lib/utils/gate-error";
@@ -35,10 +35,10 @@ const PATTERN_TYPE_LABELS: Record<string, string> = {
 };
 
 const PATTERN_TYPE_COLORS: Record<string, string> = {
-  hook_style: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  format: "bg-violet-500/10 text-violet-400 border-violet-500/20",
-  topic: "bg-green-500/10 text-green-400 border-green-500/20",
-  engagement_trigger: "bg-red-500/10 text-red-400 border-red-500/20",
+  hook_style: "bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border-[var(--color-accent-500)]/20",
+  format: "bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border-[var(--color-accent-500)]/20",
+  topic: "bg-[var(--color-success-500)]/10 text-[var(--color-success-400)] border-[var(--color-success-500)]/20",
+  engagement_trigger: "bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border-[var(--color-accent-500)]/20",
 };
 
 export function PatternsTab() {
@@ -143,11 +143,11 @@ export function PatternsTab() {
         <button
           onClick={handleExtractPatterns}
           disabled={extracting || !canExtract}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-muted)] text-white rounded-lg font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-inverse)] text-[var(--color-text-inverse)] rounded-lg font-medium transition-colors duration-100"
         >
           {extracting ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <span aria-hidden className="inline-block animate-[blink_1s_steps(1)_infinite]">▌</span>
               <span>Extracting...</span>
             </>
           ) : (
@@ -161,8 +161,8 @@ export function PatternsTab() {
 
       {patterns.length === 0 ? (
         <Card className="p-8 text-center">
-          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-            <Sparkles className="w-6 h-6 text-[var(--color-primary-400)]" />
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+            <Sparkles className="w-6 h-6 text-[var(--color-accent-400)]" />
           </div>
           <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">No Patterns Yet</h3>
           <p className="text-[var(--color-text-secondary)] mb-4 max-w-md mx-auto">
@@ -202,7 +202,7 @@ export function PatternsTab() {
                           {pattern.pattern_name}
                         </span>
                         {pattern.multiplier > 1.2 && (
-                          <span className="px-2 py-0.5 bg-green-500/10 text-green-400 rounded-full text-xs font-medium">
+                          <span className="px-2 py-0.5 bg-[var(--color-success-500)]/10 text-[var(--color-success-400)] rounded-full text-xs font-medium">
                             {pattern.multiplier.toFixed(1)}x engagement
                           </span>
                         )}
@@ -225,7 +225,7 @@ export function PatternsTab() {
                       }`}
                     >
                       <span
-                        className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                        className={`absolute top-1 w-4 h-4 bg-[var(--color-bg-surface)] rounded-full ${
                           pattern.is_enabled ? "left-7" : "left-1"
                         }`}
                       />

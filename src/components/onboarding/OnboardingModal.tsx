@@ -13,7 +13,7 @@ import {
   Sparkles,
   MessageSquare,
   Bookmark,
-  Loader2,
+  PenSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
@@ -114,21 +114,21 @@ export function OnboardingModal({ onComplete }: { onComplete: () => void }) {
     }
   }, [finish, router]);
 
-  /** Close the modal and go to the dashboard (where the CSV upload lives). */
-  const finishToDashboard = useCallback(async () => {
+  /** Close the modal and land in the editor, where the writing assistant is live. */
+  const finishToEditor = useCallback(async () => {
     await finish();
-    router.push("/");
+    router.push("/create");
   }, [finish, router]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-bg-base)]/60 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-2xl mx-4 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-2xl shadow-[var(--shadow-xl)] overflow-hidden">
         {/* Progress bar */}
         <div className="flex gap-1 px-6 pt-6">
           {STEPS.map((s, i) => (
             <div
               key={s.id}
-              className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
+              className={`h-1 flex-1 rounded-full transition-colors duration-100 ${
                 i <= currentStep
                   ? "bg-[var(--color-primary-500)]"
                   : "bg-[var(--color-bg-elevated)]"
@@ -142,9 +142,9 @@ export function OnboardingModal({ onComplete }: { onComplete: () => void }) {
           {STEPS.map((s, i) => (
             <span
               key={s.id}
-              className={`text-[10px] font-medium uppercase tracking-wider transition-colors ${
+              className={`text-[10px] font-medium uppercase tracking-wider transition-colors duration-100 ${
                 i <= currentStep
-                  ? "text-[var(--color-primary-400)]"
+                  ? "text-[var(--color-accent-400)]"
                   : "text-[var(--color-text-muted)]"
               }`}
             >
@@ -184,39 +184,35 @@ export function OnboardingModal({ onComplete }: { onComplete: () => void }) {
               </Button>
             )}
             {isLast ? (
-              hasAnalytics ? (
-                <>
-                  <Button variant="ghost" size="sm" onClick={finish} disabled={tuningUp}>
-                    Go to Dashboard
-                  </Button>
+              <>
+                {hasAnalytics && (
                   <Button
-                    variant="primary"
-                    size="md"
-                    glow
+                    variant="ghost"
+                    size="sm"
                     onClick={runFirstTuneup}
                     disabled={tuningUp}
                     icon={
                       tuningUp ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span aria-hidden className="inline-block animate-[blink_1s_steps(1)_infinite]">▌</span>
                       ) : (
-                        <Sparkles className="w-4 h-4" />
+                        <Sparkles className="w-3.5 h-3.5" />
                       )
                     }
                   >
-                    {tuningUp ? "Tuning your voice…" : "Run your first Voice Tune-Up"}
+                    {tuningUp ? "Tuning your voice…" : "Run a Voice Tune-Up first"}
                   </Button>
-                </>
-              ) : (
+                )}
                 <Button
                   variant="primary"
                   size="md"
                   glow
-                  onClick={finishToDashboard}
-                  icon={<Upload className="w-4 h-4" />}
+                  onClick={finishToEditor}
+                  disabled={tuningUp}
+                  icon={<PenSquare className="w-4 h-4" />}
                 >
-                  Go to Dashboard
+                  Write your first post
                 </Button>
-              )
+              </>
             ) : (
               <Button variant="primary" size="md" onClick={next} icon={<ArrowRight className="w-4 h-4" />} iconPosition="right">
                 Continue
@@ -236,33 +232,34 @@ export function OnboardingModal({ onComplete }: { onComplete: () => void }) {
 function WelcomeStep() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center text-center">
-      <div className="w-16 h-16 rounded-2xl bg-[var(--color-primary-500)]/10 flex items-center justify-center mb-6">
-        <Sparkles className="w-8 h-8 text-[var(--color-primary-400)]" />
+      <div className="w-16 h-16 rounded-2xl bg-[var(--color-accent-500)]/10 flex items-center justify-center mb-6">
+        <Sparkles className="w-8 h-8 text-[var(--color-accent-400)]" />
       </div>
       <h2 className="text-2xl font-semibold text-[var(--color-text-primary)] text-heading">
         Welcome to Agents for X
       </h2>
       <p className="text-[var(--color-text-secondary)] mt-3 max-w-md leading-relaxed">
-        Analyze your niche, tune your voice, and generate content that sounds
-        like you — and performs like your best posts. Let&apos;s get you set up
-        in under 2 minutes.
+        You write, it coaches. As you type, the assistant shows you where a
+        post drifts from your voice and where it&apos;ll lose to the algorithm
+        — grounded in your own top posts. Let&apos;s get you set up in under 2
+        minutes.
       </p>
 
       <div className="grid grid-cols-3 gap-4 mt-8 w-full max-w-lg">
         <FeatureCard
-          icon={<Bookmark className="w-5 h-5" />}
-          label="Analyze your niche"
-          desc="Audience + positioning"
-        />
-        <FeatureCard
-          icon={<MessageSquare className="w-5 h-5" />}
-          label="Tune your voice"
-          desc="Examples + patterns"
+          icon={<PenSquare className="w-5 h-5" />}
+          label="You write"
+          desc="Your words, your posts"
         />
         <FeatureCard
           icon={<Sparkles className="w-5 h-5" />}
-          label="Generate content"
-          desc="Sounds like you"
+          label="It coaches"
+          desc="Flags voice drift + reach risks live"
+        />
+        <FeatureCard
+          icon={<Bookmark className="w-5 h-5" />}
+          label="Grounded in you"
+          desc="Learns from your top posts"
         />
       </div>
     </div>
@@ -273,22 +270,27 @@ function ExtensionStep() {
   return (
     <div className="flex-1 flex flex-col">
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-          <Chrome className="w-5 h-5 text-[var(--color-primary-400)]" />
+        <div className="w-10 h-10 rounded-xl bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+          <Chrome className="w-5 h-5 text-[var(--color-accent-400)]" />
         </div>
         <div>
           <h2 className="text-xl font-semibold text-[var(--color-text-primary)] text-heading">
             Install the Chrome Extension
           </h2>
-          <p className="text-xs text-[var(--color-text-muted)]">This is where the magic happens</p>
+          <p className="text-xs text-[var(--color-text-muted)]">Your writing assistant, right inside X</p>
         </div>
       </div>
 
       <p className="text-sm text-[var(--color-text-secondary)] mt-4 leading-relaxed">
-        The extension adds buttons directly to your X timeline so you can:
+        The extension brings the writing assistant into X&apos;s own composer — so you can:
       </p>
 
       <div className="space-y-3 mt-4">
+        <BulletItem
+          icon={<Sparkles className="w-4 h-4" />}
+          title="Write on-voice, inside X"
+          desc="The assistant checks voice and reach as you type in X's own composer"
+        />
         <BulletItem
           icon={<Bookmark className="w-4 h-4" />}
           title="Save inspiration posts"
@@ -296,13 +298,8 @@ function ExtensionStep() {
         />
         <BulletItem
           icon={<MessageSquare className="w-4 h-4" />}
-          title="Generate AI replies"
-          desc="Choose a tone (helpful, controversial, insightful...) and get 3 reply options"
-        />
-        <BulletItem
-          icon={<Sparkles className="w-4 h-4" />}
-          title="Score opportunities"
-          desc="See which posts are worth engaging with based on metrics and timing"
+          title="Reply in your voice"
+          desc="Check your replies before you send — or grab an in-voice option as a starting point"
         />
       </div>
 
@@ -312,7 +309,7 @@ function ExtensionStep() {
             Install from Chrome Web Store or load manually:
           </p>
           <ol className="text-xs text-[var(--color-text-secondary)] space-y-1.5 list-decimal list-inside">
-            <li>Go to <span className="font-mono text-[var(--color-primary-400)]">chrome://extensions</span></li>
+            <li>Go to <span className="font-mono text-[var(--color-accent-400)]">chrome://extensions</span></li>
             <li>Enable &quot;Developer mode&quot; (top right)</li>
             <li>Click &quot;Load unpacked&quot; and select the <span className="font-mono">chrome-extension/dist</span> folder</li>
           </ol>
@@ -382,14 +379,15 @@ function VoiceStep() {
           <h2 className="text-xl font-semibold text-[var(--color-text-primary)] text-heading">
             Tune Your Voice
           </h2>
-          <p className="text-xs text-[var(--color-text-muted)]">So generated content sounds like you</p>
+          <p className="text-xs text-[var(--color-text-muted)]">So your posts sound like you, not generic AI</p>
         </div>
       </div>
 
       <p className="text-sm text-[var(--color-text-secondary)] mt-4 leading-relaxed">
-        Voice tuning is what makes drafts and replies sound like <em>you</em> instead of generic AI.
-        It combines your voice examples, your proven patterns, and your positioning — and a Voice check
-        scores any draft against your tuned voice.
+        Your voice profile is what the assistant coaches you against. It
+        combines your voice examples, your proven patterns, and your
+        positioning — so as you write, it can tell exactly where a post
+        drifts from how <em>you</em> actually sound.
       </p>
 
       <div className="space-y-3 mt-6">
@@ -401,7 +399,7 @@ function VoiceStep() {
         <BulletItem
           icon={<CheckCircle2 className="w-4 h-4 text-[var(--color-success-400)]" />}
           title="Tune the dials"
-          desc="Adjust tone, energy, and stance to fine-tune the output"
+          desc="Adjust tone, energy, and stance to define how you sound"
         />
         <BulletItem
           icon={<Upload className="w-4 h-4 text-[var(--color-text-muted)]" />}
@@ -437,22 +435,23 @@ function ReadyStep({ hasAnalytics }: { hasAnalytics: boolean | null }) {
       </h2>
       {hasAnalytics ? (
         <p className="text-[var(--color-text-secondary)] mt-3 max-w-md leading-relaxed">
-          Your analytics are in. Run your first Voice Tune-Up to analyze your
-          posts, surface your proven patterns, and generate your Voice Report.
-          It takes about half a minute.
+          The assistant is live in the editor — write your first post and
+          watch it check voice and reach as you type. Your analytics are in,
+          so you can also run a quick Voice Tune-Up first to sharpen its read
+          on your voice.
         </p>
       ) : (
         <p className="text-[var(--color-text-secondary)] mt-3 max-w-md leading-relaxed">
-          Upload your X analytics CSV or connect your X account, then run your
-          first Voice Tune-Up. It analyzes your posts, surfaces your proven
-          patterns, and generates your Voice Report.
+          The assistant is live in the editor — write your first post and
+          watch it check voice and reach as you type. Upload your X analytics
+          CSV anytime to ground it in your own top posts.
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-3 mt-8 w-full max-w-sm text-left">
         <QuickLink label="Open X" desc="Start engaging" href="https://x.com" external />
         <QuickLink label="Voice Settings" desc="Tune your voice" href="/voice" />
-        <QuickLink label="Create Drafts" desc="Write in your voice" href="/create" />
+        <QuickLink label="Open the Editor" desc="Write with the assistant" href="/create" />
         <QuickLink label="Upload CSV" desc="Import analytics" href="/" />
       </div>
     </div>
@@ -466,7 +465,7 @@ function ReadyStep({ hasAnalytics }: { hasAnalytics: boolean | null }) {
 function FeatureCard({ icon, label, desc }: { icon: React.ReactNode; label: string; desc: string }) {
   return (
     <div className="flex flex-col items-center p-4 rounded-xl bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)]">
-      <div className="text-[var(--color-primary-400)] mb-2">{icon}</div>
+      <div className="text-[var(--color-accent-400)] mb-2">{icon}</div>
       <p className="text-sm font-medium text-[var(--color-text-primary)]">{label}</p>
       <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{desc}</p>
     </div>
@@ -476,7 +475,7 @@ function FeatureCard({ icon, label, desc }: { icon: React.ReactNode; label: stri
 function BulletItem({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="mt-0.5 text-[var(--color-primary-400)] shrink-0">{icon}</div>
+      <div className="mt-0.5 text-[var(--color-accent-400)] shrink-0">{icon}</div>
       <div>
         <p className="text-sm font-medium text-[var(--color-text-primary)]">{title}</p>
         <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{desc}</p>

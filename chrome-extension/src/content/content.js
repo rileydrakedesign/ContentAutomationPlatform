@@ -112,18 +112,14 @@ function calculatePostAgeMinutes(timestamp) {
  * Calculate opportunity score for a post
  * Returns { score, rawScore, reasons } or null if scoring not possible
  */
-// Canonical weighted engagement — MUST mirror the server's
-// src/lib/utils/engagement.ts (replies 5× · retweets 4× · likes/bookmarks 3× ·
-// impressions 0.001×) so the extension's opportunity number is the same signal
-// the server ranks reply targets by (findReplyTargets / tractionScore). One
-// formula, consistent and improvable in one place.
+// Canonical scoring comes from the bundled engine (assistant-engine.js, built
+// from src/lib/utils/engagement.ts via engine-entry.ts) — the extension runs
+// the SAME weightedEngagement/opportunityTraction the server ranks reply
+// targets with (findReplyTargets / tractionScore), so pill ordering and server
+// ordering cannot drift. No local weights: the old hand-copy here had drifted
+// (G5). Guarded by the parity test in engagement.test.ts.
 function weightedEngagement(metrics) {
-  const likes = metrics.likes || 0;
-  const retweets = metrics.retweets || 0;
-  const replies = metrics.replies || 0;
-  const bookmarks = metrics.bookmarks || 0;
-  const views = metrics.views || 0;
-  return likes * 3 + retweets * 4 + replies * 5 + bookmarks * 3 + views * 0.001;
+  return window.AFXAssistant.weightedEngagement(metrics);
 }
 
 function calculateOpportunityScore(metrics, ageMinutes) {
@@ -144,9 +140,11 @@ function calculateOpportunityScore(metrics, ageMinutes) {
     return null;
   }
 
-  // The server's traction score: canonical weighted engagement decayed by post
-  // age, so fresh + rising posts outrank old + saturated ones.
-  const traction = weightedEngagement(metrics) / ageHours;
+  // The server's traction score, verbatim: canonical weighted engagement
+  // decayed by post age (with the shared sub-hour floor), so fresh + rising
+  // posts outrank old + saturated ones — and the pill ranks exactly like
+  // findReplyTargets does.
+  const traction = window.AFXAssistant.opportunityTraction(metrics, ageHours);
 
   const competition = (metrics.replies || 0) + 1;
   const reasons = [];
@@ -173,8 +171,17 @@ function calculateOpportunityScore(metrics, ageMinutes) {
 }
 
 /**
- * Normalize score to 0-100 using rolling min/max
+ * Normalize score to 0-100 against a rolling window of recent raw scores.
+ *
+ * Returns null while the window is still warming up (BACKLOG EXT-8: min/max
+ * over a handful of samples made the first post a meaningless 50 and early
+ * pills jumpy) — callers skip display and don't cache, so the post is scored
+ * again once the window is representative. Bounds are the p10/p90 of the
+ * window rather than raw min/max, so one viral outlier can't squash every
+ * other pill toward 0.
  */
+const NORMALIZE_MIN_SAMPLES = 8;
+
 function normalizeScore(rawScore) {
   // Update rolling stats
   scoreStats.samples.push(rawScore);
@@ -182,18 +189,21 @@ function normalizeScore(rawScore) {
     scoreStats.samples.shift();
   }
 
-  // Calculate min/max from samples
-  if (scoreStats.samples.length > 0) {
-    scoreStats.min = Math.min(...scoreStats.samples);
-    scoreStats.max = Math.max(...scoreStats.samples);
+  if (scoreStats.samples.length < NORMALIZE_MIN_SAMPLES) {
+    return null; // warming up — not enough context to rank against
   }
+
+  // Percentile bounds (p10/p90) from the rolling window
+  const sorted = [...scoreStats.samples].sort((a, b) => a - b);
+  scoreStats.min = sorted[Math.floor(sorted.length * 0.1)];
+  scoreStats.max = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.9))];
 
   // Avoid division by zero
   if (scoreStats.max === scoreStats.min) {
     return 50; // Default to middle if no range
   }
 
-  // Normalize to 0-100
+  // Normalize to 0-100, clamped (scores outside p10–p90 pin to the ends)
   const normalized = ((rawScore - scoreStats.min) / (scoreStats.max - scoreStats.min)) * 100;
   return Math.round(Math.max(0, Math.min(100, normalized)));
 }
@@ -450,8 +460,10 @@ function scoreAndDisplayOpportunity(articleElement) {
   const result = calculateOpportunityScore(postData.metrics, ageMinutes);
   if (!result || result.filtered) return;
 
-  // Normalize score to 0-100
+  // Normalize score to 0-100; null while the rolling window warms up —
+  // don't cache or display, so this post gets re-scored on a later pass.
   const normalizedScore = normalizeScore(result.score);
+  if (normalizedScore === null) return;
 
   // Cache the result
   scoreCache.set(tweetId, {
@@ -1449,17 +1461,20 @@ function showReplyPicker(picker, replyButton, replies, articleElement) {
     const selectedReply = replies[currentIndex].text;
     hideReplyPicker(picker);
 
-    // Capture context so we can log the reply when user clicks Post
+    // Capture context so we can log the reply when user clicks Post — parent
+    // text included, so the reply pool stores the full (parent → reply) pair.
     const timeElement = articleElement.querySelector('time');
     const linkElement = timeElement?.closest('a');
     const repliedToUrl = linkElement?.href || '';
     const repliedToId = extractTweetId(repliedToUrl);
+    const repliedToText =
+      articleElement.querySelector('[data-testid="tweetText"]')?.textContent || '';
 
     // Click X's native reply button to open composer
     const xReplyButton = articleElement.querySelector('[data-testid="reply"]');
     if (xReplyButton) {
       xReplyButton.click();
-      await injectReplyText(selectedReply, { repliedToUrl, repliedToId });
+      await injectReplyText(selectedReply, { repliedToUrl, repliedToId, repliedToText });
     } else {
       alert('Generated reply copied to clipboard:\n\n' + selectedReply);
       navigator.clipboard.writeText(selectedReply);
@@ -1740,8 +1755,11 @@ function hideToneDropdown(dropdown) {
   }
 }
 
-// Wait for composer and inject reply text
-async function injectReplyText(text, replyMeta = null) {
+// Wait for composer and inject reply text.
+// opts.skipSendLogger: the tier-2 handoff already persisted its record via the
+// dashboard (/api/reply/handoff) — attaching the send logger too would write a
+// duplicate reply-pool row.
+async function injectReplyText(text, replyMeta = null, opts = {}) {
   // Wait for the reply modal to appear (max 3 seconds)
   let attempts = 0;
   const maxAttempts = 30;
@@ -1844,7 +1862,7 @@ async function injectReplyText(text, replyMeta = null) {
 
         if (injected) {
           console.log('[Content Pipeline] Reply injected successfully (paste)');
-          attachReplySendLogger(text, replyMeta);
+          if (!opts.skipSendLogger) attachReplySendLogger(text, replyMeta);
           return;
         }
 
@@ -1857,7 +1875,7 @@ async function injectReplyText(text, replyMeta = null) {
 
         await new Promise(resolve => setTimeout(resolve, 100));
         console.log('[Content Pipeline] Reply injected via insertText fallback');
-        attachReplySendLogger(text, replyMeta);
+        if (!opts.skipSendLogger) attachReplySendLogger(text, replyMeta);
         return;
       }
     }
@@ -1898,6 +1916,7 @@ function attachReplySendLogger(replyText, meta) {
               reply_text: replyText,
               replied_to_post_id: meta?.repliedToId || null,
               replied_to_post_url: meta?.repliedToUrl || null,
+              replied_to_text: meta?.repliedToText || null,
               sent_at: new Date().toISOString(),
             },
           });
@@ -2034,9 +2053,26 @@ function processVisiblePosts() {
 // INTERSECTION OBSERVER FOR OPPORTUNITY SCORING
 // ===========================================
 
-// Throttle opportunity scoring updates
+// Throttle opportunity scoring updates. BACKLOG EXT-9: the old throttle
+// early-returned on the whole entries batch, so when several posts intersected
+// at once only the first batch got scored and the rest were silently dropped.
+// Now throttled entries queue up and a trailing flush scores them — nothing
+// visible goes unscored.
 let lastScoreUpdate = 0;
 const SCORE_THROTTLE_MS = 500;
+const pendingScoreArticles = new Set();
+let pendingScoreFlushTimer = null;
+
+function scorePendingArticles() {
+  lastScoreUpdate = Date.now();
+  for (const article of pendingScoreArticles) {
+    // Still attached and not already scored
+    if (article.isConnected && !article.querySelector(`.${OPP_PILL_CLASS}`)) {
+      scoreAndDisplayOpportunity(article);
+    }
+  }
+  pendingScoreArticles.clear();
+}
 
 // IntersectionObserver for viewport-based scoring
 let opportunityObserver = null;
@@ -2046,19 +2082,26 @@ function initOpportunityObserver() {
 
   opportunityObserver = new IntersectionObserver(
     (entries) => {
-      const now = Date.now();
-      if (now - lastScoreUpdate < SCORE_THROTTLE_MS) return;
-      lastScoreUpdate = now;
-
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          const article = entry.target;
-          // Only score if not already scored
-          if (!article.querySelector(`.${OPP_PILL_CLASS}`)) {
-            scoreAndDisplayOpportunity(article);
-          }
+          pendingScoreArticles.add(entry.target);
         }
       });
+      if (pendingScoreArticles.size === 0) return;
+
+      const wait = SCORE_THROTTLE_MS - (Date.now() - lastScoreUpdate);
+      if (wait <= 0) {
+        if (pendingScoreFlushTimer) {
+          clearTimeout(pendingScoreFlushTimer);
+          pendingScoreFlushTimer = null;
+        }
+        scorePendingArticles();
+      } else if (!pendingScoreFlushTimer) {
+        pendingScoreFlushTimer = setTimeout(() => {
+          pendingScoreFlushTimer = null;
+          scorePendingArticles();
+        }, wait);
+      }
     },
     {
       root: null, // viewport
@@ -2146,6 +2189,76 @@ if (isExtensionContextValid()) {
         // Re-score
         scoreAndDisplayOpportunity(article);
       });
+    }
+  });
+}
+
+// ===========================================
+// REPLY HANDOFF TIER 2 (PRD_CORE §4.4)
+// ===========================================
+// The dashboard hands a composed reply to the extension (bridge.js →
+// background REPLY_HANDOFF → this tab). If a fresh pending handoff matches the
+// status page we just opened, click the focal tweet's native reply button and
+// prefill X's composer via the DraftJS paste pipeline. The writing assistant
+// (assistant-ui.js) mounts on that composer reply-aware. We NEVER post — the
+// user reviews and hits Post themselves. The dashboard already persisted the
+// handoff record, so the send logger is skipped (no duplicate reply-pool row).
+
+const HANDOFF_MAX_AGE_MS = 2 * 60 * 1000;
+
+async function maybeRunPendingHandoff() {
+  try {
+    if (!isExtensionContextValid()) return;
+
+    const statusMatch = location.pathname.match(/\/status\/(\d+)/);
+    if (!statusMatch) return;
+    const pageStatusId = statusMatch[1];
+
+    const { pendingReplyHandoff: pending } = await chrome.storage.local.get('pendingReplyHandoff');
+    if (!pending || pending.target_post_id !== pageStatusId) return;
+    if (Date.now() - (pending.ts || 0) > HANDOFF_MAX_AGE_MS) {
+      chrome.storage.local.remove('pendingReplyHandoff');
+      return;
+    }
+
+    // Wait for the focal tweet to render (X hydrates the status page slowly).
+    const deadline = Date.now() + 10_000;
+    let replyButton = null;
+    while (Date.now() < deadline && !replyButton) {
+      const articles = document.querySelectorAll('article[data-testid="tweet"]');
+      for (const article of articles) {
+        if (article.querySelector(`a[href*="/status/${pageStatusId}"]`)) {
+          replyButton = article.querySelector('[data-testid="reply"]');
+          if (replyButton) break;
+        }
+      }
+      if (!replyButton) await new Promise((r) => setTimeout(r, 250));
+    }
+    if (!replyButton) {
+      console.warn('[Content Pipeline] Handoff: focal tweet not found — leaving pending record');
+      return;
+    }
+
+    // Consume once (before injecting, so a composer re-render can't double-run).
+    await chrome.storage.local.remove('pendingReplyHandoff');
+
+    console.log('[Content Pipeline] Running reply handoff for', pageStatusId);
+    replyButton.click();
+    await injectReplyText(pending.text, null, { skipSendLogger: true });
+  } catch (e) {
+    console.warn('[Content Pipeline] Reply handoff failed:', e);
+  }
+}
+
+maybeRunPendingHandoff();
+
+// The handoff tab is opened by the background AFTER this script may already be
+// running (SPA nav within an existing x.com tab won't re-run us) — also react
+// to the pending record appearing while we're loaded.
+if (isExtensionContextValid()) {
+  chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && changes.pendingReplyHandoff?.newValue) {
+      maybeRunPendingHandoff();
     }
   });
 }

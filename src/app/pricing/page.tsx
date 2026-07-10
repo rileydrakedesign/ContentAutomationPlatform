@@ -68,12 +68,12 @@ export default function PricingPage() {
             key={plan.id}
             className={`rounded-xl border p-6 flex flex-col ${
               plan.highlighted
-                ? "border-[var(--color-primary-500)]/50 bg-[var(--color-primary-500)]/5 ring-1 ring-[var(--color-primary-500)]/20"
+                ? "border-[var(--color-accent-500)]/50 bg-[var(--color-accent-500)]/10 ring-1 ring-[var(--color-accent-500)]/20"
                 : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)]"
             }`}
           >
             {plan.highlighted && (
-              <div className="text-xs font-medium text-[var(--color-primary-400)] mb-2 uppercase tracking-wide">
+              <div className="text-xs font-medium text-[var(--color-accent-400)] mb-2 uppercase tracking-wide">
                 Most Popular
               </div>
             )}
@@ -108,12 +108,12 @@ export default function PricingPage() {
             <button
               onClick={() => handleSubscribe(plan.id)}
               disabled={plan.id === "free" || loading === plan.id}
-              className={`mt-6 w-full py-2.5 rounded-lg text-sm font-medium transition ${
+              className={`mt-6 w-full py-2.5 rounded-lg text-sm font-medium transition-colors duration-100 ${
                 plan.highlighted
-                  ? "bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-white disabled:opacity-50"
+                  ? "bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] text-[var(--color-text-inverse)] disabled:opacity-50"
                   : plan.id === "free"
-                    ? "bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] cursor-default"
-                    : "bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] disabled:opacity-50"
+                    ? "bg-[var(--color-bg-elevated)] text-[var(--color-text-inverse)] cursor-default"
+                    : "bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-inverse)] disabled:opacity-50"
               }`}
             >
               {loading === plan.id ? "Loading..." : plan.cta}
@@ -126,14 +126,14 @@ export default function PricingPage() {
                 By subscribing you agree to our{" "}
                 <a
                   href="/agent-for-x/terms"
-                  className="text-[var(--color-primary-400)] hover:underline"
+                  className="text-[var(--color-accent-400)] hover:underline"
                 >
                   Terms
                 </a>{" "}
                 and{" "}
                 <a
                   href="/agent-for-x/privacy"
-                  className="text-[var(--color-primary-400)] hover:underline"
+                  className="text-[var(--color-accent-400)] hover:underline"
                 >
                   Privacy Policy
                 </a>
@@ -147,7 +147,7 @@ export default function PricingPage() {
       {!user && (
         <p className="mt-8 text-center text-sm text-[var(--color-text-muted)]">
           You need to be logged in to subscribe.{" "}
-          <a href="/login" className="text-[var(--color-primary-400)] hover:underline">
+          <a href="/login" className="text-[var(--color-accent-400)] hover:underline">
             Log in
           </a>
         </p>

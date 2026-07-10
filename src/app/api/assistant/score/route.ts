@@ -46,12 +46,13 @@ export async function POST(request: NextRequest) {
 
     const result = await scoreDraft(supabase, user.id, text);
 
-    // Cold start: no centroid yet. Fire a refresh without blocking the response so
-    // the next pause gets a real score. Best-effort — a failed refresh just means
-    // the next call also returns neutral and retries.
-    if (result.cold_start) {
+    // Cold start: no centroid yet → score is a neutral placeholder.
+    // Stale: centroids exist but are >7 days old → rebuild so they track new posts.
+    // Either way, refresh in the background without blocking the response. The
+    // refresh stamps updated_at, so a stale draft only kicks this once per window.
+    if (result.cold_start || result.stale) {
       refreshVoiceVectors(supabase, user.id).catch((e) =>
-        console.error("assistant/score cold-start refresh:", e)
+        console.error("assistant/score centroid refresh:", e)
       );
     }
 

@@ -63,7 +63,7 @@ export function BoostOpportunitiesPanel() {
     <Card className="p-6">
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-[var(--color-success-500)]/10 flex items-center justify-center">
             <TrendingUp className="w-5 h-5 text-[var(--color-success-400)]" />
           </div>
           <div>
@@ -79,7 +79,7 @@ export function BoostOpportunitiesPanel() {
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value) as 7 | 14 | 30)}
-            className="bg-[var(--color-bg-base)] border border-white/10 rounded-md px-2 py-1"
+            className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-md px-2 py-1"
           >
             <option value={7}>Last 7d</option>
             <option value={14}>Last 14d</option>
@@ -88,7 +88,7 @@ export function BoostOpportunitiesPanel() {
           <select
             value={minImpressions}
             onChange={(e) => setMinImpressions(Number(e.target.value) as 100 | 200 | 500)}
-            className="bg-[var(--color-bg-base)] border border-white/10 rounded-md px-2 py-1"
+            className="bg-[var(--color-bg-base)] border border-[var(--color-border-default)] rounded-md px-2 py-1"
           >
             <option value={100}>≥ 100 impressions</option>
             <option value={200}>≥ 200 impressions</option>
@@ -108,7 +108,7 @@ export function BoostOpportunitiesPanel() {
       ) : (
         <div className="space-y-3">
           {top.map((it) => (
-            <div key={it.post_id} className="rounded-lg border border-white/10 bg-[var(--color-bg-base)]/40 p-4">
+            <div key={it.post_id} className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-base)]/40 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm text-[var(--color-text-primary)] mb-1">{snippet(it.text)}</p>
@@ -121,7 +121,7 @@ export function BoostOpportunitiesPanel() {
                   href={it.post_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-medium text-[var(--color-text-primary)] whitespace-nowrap"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] transition-colors duration-100 rounded-lg text-xs font-medium text-[var(--color-text-primary)] whitespace-nowrap"
                 >
                   Open <ExternalLink className="w-4 h-4" />
                 </a>

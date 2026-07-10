@@ -6,7 +6,6 @@ import {
   ShieldCheck,
   RefreshCw,
   CheckCircle2,
-  Loader2,
   ExternalLink,
   TrendingUp,
   CircleCheck,
@@ -100,9 +99,9 @@ export function AgenticChain({ steps, sources, scores, liveDraft, active, read }
     <Card className="max-w-2xl mx-auto">
       <CardContent>
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
             {active ? (
-              <Loader2 className="w-4 h-4 text-[var(--color-primary-400)] animate-spin" />
+              <span aria-hidden className="inline-block animate-[blink_1s_steps(1)_infinite] text-[var(--color-accent-400)]">▌</span>
             ) : (
               <CheckCircle2 className="w-4 h-4 text-[var(--color-success-400)]" />
             )}
@@ -127,12 +126,12 @@ export function AgenticChain({ steps, sources, scores, liveDraft, active, read }
                   <div
                     className={`w-7 h-7 rounded-full flex items-center justify-center border ${
                       running
-                        ? "border-[var(--color-primary-500)]/40 bg-[var(--color-primary-500)]/10"
+                        ? "border-[var(--color-accent-500)]/40 bg-[var(--color-accent-500)]/10"
                         : "border-[var(--color-success-500)]/40 bg-[var(--color-success-500)]/10"
                     }`}
                   >
                     {running ? (
-                      <Loader2 className="w-3.5 h-3.5 text-[var(--color-primary-400)] animate-spin" />
+                      <span aria-hidden className="inline-block animate-[blink_1s_steps(1)_infinite] text-[var(--color-accent-400)]">▌</span>
                     ) : (
                       <Icon className="w-3.5 h-3.5 text-[var(--color-success-400)]" />
                     )}
@@ -162,7 +161,7 @@ export function AgenticChain({ steps, sources, scores, liveDraft, active, read }
                             href={src.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] text-[var(--color-primary-400)] hover:underline max-w-full"
+                            className="inline-flex items-center gap-1 text-[11px] text-[var(--color-accent-400)] hover:underline max-w-full"
                           >
                             <ExternalLink className="w-2.5 h-2.5 shrink-0" />
                             <span className="truncate">{src.title || src.url}</span>
@@ -185,7 +184,7 @@ export function AgenticChain({ steps, sources, scores, liveDraft, active, read }
             </p>
             <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap leading-relaxed">
               {liveDraft}
-              <span className="inline-block w-1.5 h-4 ml-0.5 align-text-bottom bg-[var(--color-primary-400)] animate-pulse" />
+              <span className="inline-block w-1.5 h-4 ml-0.5 align-text-bottom bg-[var(--color-primary-400)] animate-[blink_1s_steps(1)_infinite]" />
             </p>
           </div>
         )}
@@ -270,7 +269,7 @@ export function AgenticChain({ steps, sources, scores, liveDraft, active, read }
             {/* How X treats this — transparency disclosure */}
             {read.algorithm_notes.length > 0 && (
               <details className="mt-2.5 group">
-                <summary className="cursor-pointer text-[11px] text-[var(--color-primary-400)] hover:underline list-none">
+                <summary className="cursor-pointer text-[11px] text-[var(--color-accent-400)] hover:underline list-none">
                   How X treats this ▾
                 </summary>
                 <ul className="mt-2 space-y-1">

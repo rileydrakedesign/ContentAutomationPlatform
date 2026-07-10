@@ -47,6 +47,10 @@ export async function syncUserTimeline(
 
   // Fetch recent tweets via pagination
   const allTweets: PostAnalytics[] = [];
+  // Replies the user posted natively on X, with their targets — feeds the
+  // reply pool below so already-replied dedup (G7/R1.4 "timeline sync" half)
+  // catches replies that never went through us.
+  const ownReplies: Array<{ text: string; replied_to_post_id: string; sent_at: string }> = [];
   let paginationToken: string | undefined;
   for (let page = 0; page < pages; page++) {
     const { data: tweets, meta } = await getUserTimeline(
@@ -57,6 +61,14 @@ export async function syncUserTimeline(
     );
     for (const tweet of tweets) {
       allTweets.push(mapV2ToPostAnalytics(tweet));
+      const repliedTo = tweet.referenced_tweets?.find((r) => r.type === "replied_to");
+      if (repliedTo?.id) {
+        ownReplies.push({
+          text: tweet.text,
+          replied_to_post_id: repliedTo.id,
+          sent_at: tweet.created_at || new Date().toISOString(),
+        });
+      }
     }
     paginationToken = meta.next_token;
     if (!paginationToken) break;
@@ -136,6 +148,47 @@ export async function syncUserTimeline(
     .from("x_connections")
     .update({ last_api_sync_at: new Date().toISOString() })
     .eq("user_id", userId);
+
+  // Mirror natively-posted replies into the reply pool (extension_replies) —
+  // the single already-replied dedup source findReplyTargets reads, and the
+  // reply-voice corpus. Best-effort and idempotent: only targets not already
+  // recorded (by handoff, extension send-log, or a prior sync) are inserted.
+  if (ownReplies.length > 0) {
+    try {
+      const targetIds = [...new Set(ownReplies.map((r) => r.replied_to_post_id))];
+      const { data: existing } = await supabase
+        .from("extension_replies")
+        .select("replied_to_post_id")
+        .eq("user_id", userId)
+        .in("replied_to_post_id", targetIds);
+      const known = new Set((existing || []).map((r) => String(r.replied_to_post_id)));
+      const fresh = ownReplies.filter((r) => !known.has(r.replied_to_post_id));
+      if (fresh.length > 0) {
+        // Parent text, when we have it on file: targets that came through a
+        // Radar sweep sit in the candidate pool — no X read needed. Native
+        // replies to posts we never saw stay text-less (id only).
+        const { data: candidates } = await supabase
+          .from("candidate_posts")
+          .select("post_id, text")
+          .in("post_id", fresh.map((r) => r.replied_to_post_id));
+        const parentText = new Map(
+          (candidates || []).map((c) => [String(c.post_id), String(c.text || "")])
+        );
+        await supabase.from("extension_replies").insert(
+          fresh.map((r) => ({
+            user_id: userId,
+            reply_text: r.text,
+            replied_to_post_id: r.replied_to_post_id,
+            replied_to_post_url: null,
+            replied_to_text: parentText.get(r.replied_to_post_id) || null,
+            sent_at: r.sent_at,
+          }))
+        );
+      }
+    } catch (e) {
+      console.warn("timeline sync: reply-pool mirror failed (non-fatal):", e);
+    }
+  }
 
   return { synced: allTweets.length, merged: mergedCount, total: mergedPosts.length };
 }

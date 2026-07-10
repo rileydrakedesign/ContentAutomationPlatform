@@ -20,6 +20,10 @@ export async function POST(request: NextRequest) {
     const reply_text = String(body?.reply_text || "").trim();
     const replied_to_post_id = body?.replied_to_post_id ? String(body.replied_to_post_id) : null;
     const replied_to_post_url = body?.replied_to_post_url ? String(body.replied_to_post_url) : null;
+    // Parent post text — pairs the reply with what it answered (reply pool).
+    const replied_to_text = body?.replied_to_text
+      ? String(body.replied_to_text).slice(0, 2000)
+      : null;
     let sent_at: string;
     if (body?.sent_at) {
       const parsedDate = new Date(String(body.sent_at));
@@ -42,6 +46,7 @@ export async function POST(request: NextRequest) {
         reply_text,
         replied_to_post_id,
         replied_to_post_url,
+        replied_to_text,
         sent_at,
       });
 

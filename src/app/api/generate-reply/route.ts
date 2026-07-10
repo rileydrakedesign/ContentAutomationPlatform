@@ -174,20 +174,8 @@ export async function POST(request: NextRequest) {
       systemPrompt = REPLY_SYSTEM_PROMPT;
     }
 
-    // Get user's AI model preference (CLAUDE_ONLY forces "claude" regardless)
-    let aiProvider: AIProvider = resolveProvider(null);
-    try {
-      const { data: settings } = await supabase
-        .from("user_voice_settings")
-        .select("ai_model")
-        .eq("user_id", user.id)
-        .eq("voice_type", "reply")
-        .single();
-
-      aiProvider = resolveProvider(settings?.ai_model as string | null);
-    } catch (settingsError) {
-      console.log("[generate-reply] Could not fetch AI model preference, using default:", settingsError);
-    }
+    // All generation runs on Claude — no per-user model preference.
+    const aiProvider: AIProvider = resolveProvider();
 
     console.log("[generate-reply] Starting AI call with provider:", aiProvider);
     console.log("[generate-reply] System prompt length:", systemPrompt.length);

@@ -64,7 +64,7 @@ export function LinkPreview({ text }: { text: string }) {
       <button
         type="button"
         onClick={() => setDismissed(url)}
-        className="absolute top-1.5 right-1.5 z-10 p-1 rounded-full bg-black/50 text-white hover:bg-black/70"
+        className="absolute top-1.5 right-1.5 z-10 p-1 rounded-full bg-black/50 text-[var(--color-text-primary)] hover:bg-black/70"
         title="Hide preview"
       >
         <X className="w-3.5 h-3.5" />

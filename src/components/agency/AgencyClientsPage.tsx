@@ -234,7 +234,7 @@ function Roster({
     <Card>
       <CardContent className="space-y-1.5">
         <div className="flex items-center gap-2 mb-2 px-1">
-          <Users className="w-4 h-4 text-[var(--color-primary-400)]" />
+          <Users className="w-4 h-4 text-[var(--color-accent-400)]" />
           <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Roster</h3>
           <span className="text-xs text-[var(--color-text-muted)] ml-auto">{clients.length}</span>
         </div>
@@ -253,7 +253,7 @@ function Roster({
                 onClick={() => onSelect(c.id)}
                 className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors ${
                   isActive
-                    ? "border-[var(--color-primary-500)] bg-[var(--color-primary-500)]/10"
+                    ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/10"
                     : "border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] hover:border-[var(--color-border-default)]"
                 }`}
               >
@@ -275,7 +275,7 @@ function Roster({
                   )}
                   <ChevronRight
                     className={`w-4 h-4 shrink-0 ${
-                      isActive ? "text-[var(--color-primary-400)]" : "text-[var(--color-text-muted)]"
+                      isActive ? "text-[var(--color-accent-400)]" : "text-[var(--color-text-muted)]"
                     }`}
                   />
                 </div>
@@ -321,7 +321,7 @@ function AddClientForm({
           onChange={(e) => onName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && onAdd()}
           placeholder="Client name"
-          className="w-full h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)]"
+          className="w-full h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent-500)]"
         />
         <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] px-3">
           <AtSign className="w-4 h-4 text-[var(--color-text-muted)]" />
@@ -373,8 +373,8 @@ function EmptyState({
   return (
     <Card>
       <CardContent className="max-w-xl mx-auto py-8 space-y-5 text-center">
-        <div className="w-12 h-12 rounded-xl bg-[var(--color-primary-500)]/10 flex items-center justify-center mx-auto">
-          <Users className="w-6 h-6 text-[var(--color-primary-400)]" />
+        <div className="w-12 h-12 rounded-xl bg-[var(--color-accent-500)]/10 flex items-center justify-center mx-auto">
+          <Users className="w-6 h-6 text-[var(--color-accent-400)]" />
         </div>
         <div className="space-y-1.5">
           <h2 className="text-heading text-lg font-semibold text-[var(--color-text-primary)]">
@@ -606,7 +606,7 @@ function ClientDetail({
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 placeholder="Client name"
-                className="w-full h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-500)]"
+                className="w-full h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent-500)]"
               />
               <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] px-3">
                 <AtSign className="w-4 h-4 text-[var(--color-text-muted)]" />
@@ -685,12 +685,12 @@ function ClientDetail({
               aria-checked={client.approval_required}
               className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
                 client.approval_required
-                  ? "bg-[var(--color-primary-500)]"
+                  ? "bg-[var(--color-accent-500)]"
                   : "bg-[var(--color-bg-hover)] border border-[var(--color-border-default)]"
               }`}
             >
               <span
-                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                className={`absolute top-0.5 w-5 h-5 rounded-full bg-[var(--color-text-primary)] ${
                   client.approval_required ? "translate-x-5" : "translate-x-0.5"
                 }`}
               />
@@ -738,8 +738,8 @@ function ClientDetail({
       <Card>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-              <Upload className="w-4 h-4 text-[var(--color-primary-400)]" />
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+              <Upload className="w-4 h-4 text-[var(--color-accent-400)]" />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -810,8 +810,8 @@ function ClientDetail({
       <Card>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-              <AudioLines className="w-4 h-4 text-[var(--color-primary-400)]" />
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+              <AudioLines className="w-4 h-4 text-[var(--color-accent-400)]" />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -827,7 +827,7 @@ function ClientDetail({
             value={checkText}
             onChange={(e) => setCheckText(e.target.value)}
             placeholder={`Paste a draft to score against ${client.client_name}'s voice…`}
-            className="w-full min-h-[110px] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)] resize-y"
+            className="w-full min-h-[110px] bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-xl px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent-500)] resize-y"
           />
 
           {checkError && <p className="text-xs text-[var(--color-danger-400)]">{checkError}</p>}
@@ -869,7 +869,7 @@ function ClientDetail({
               onChange={(e) => setBrandName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && saveBrand()}
               placeholder="Brand name"
-              className="flex-1 h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-500)]"
+              className="flex-1 h-9 px-3 text-sm bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent-500)]"
             />
             <Button
               size="sm"

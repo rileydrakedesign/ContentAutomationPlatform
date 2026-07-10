@@ -15,6 +15,7 @@ import {
   scoreBand,
   type Tier0Input,
 } from "@/lib/analysis/assistant";
+import { weightedEngagement, opportunityTraction } from "@/lib/utils/engagement";
 
 // The content-script UI calls runTier0(text, opts) and reads a flat
 // { reach, charCount, overLimit } shape — adapt the TS engine's object signature
@@ -31,7 +32,19 @@ function runTier0(text: string, opts: Omit<Tier0Input, "text"> = {}) {
   };
 }
 
-const AFXAssistant = { runTier0, CLASS_STYLE, SEVERITY_DECORATION, BAND_COLOR, scoreBand };
+// Opportunity scoring (content.js pill) uses the same canonical functions the
+// server ranks reply targets with (engagement.ts / search-mapping.ts
+// tractionScore) — one formula, pill ordering === server ordering by
+// construction. Guarded by the parity test in engagement.test.ts.
+const AFXAssistant = {
+  runTier0,
+  CLASS_STYLE,
+  SEVERITY_DECORATION,
+  BAND_COLOR,
+  scoreBand,
+  weightedEngagement,
+  opportunityTraction,
+};
 
 declare global {
   interface Window {

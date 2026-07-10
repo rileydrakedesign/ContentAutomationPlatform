@@ -195,7 +195,7 @@ export function BillingTab() {
                     key={p.id}
                     onClick={() => buyPack(p.id)}
                     disabled={packLoading !== null}
-                    className="flex-1 px-3 py-2 bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] rounded text-xs transition disabled:opacity-50"
+                    className="flex-1 px-3 py-2 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] rounded text-xs transition-colors duration-100 disabled:opacity-50"
                   >
                     {packLoading === p.id
                       ? "Opening..."
@@ -215,7 +215,7 @@ export function BillingTab() {
             </p>
             <a
               href="/pricing"
-              className="inline-block px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded text-sm font-medium transition"
+              className="inline-block px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-400)] text-[var(--color-text-inverse)] rounded text-sm font-medium transition-colors duration-100"
             >
               View Plans
             </a>
@@ -228,7 +228,7 @@ export function BillingTab() {
             <button
               onClick={openPortal}
               disabled={portalLoading}
-              className="px-4 py-2 bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] rounded text-sm transition disabled:opacity-50"
+              className="px-4 py-2 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-primary)] rounded text-sm transition-colors duration-100 disabled:opacity-50"
             >
               {portalLoading ? "Opening..." : "Manage Billing"}
             </button>
@@ -247,7 +247,7 @@ export function BillingTab() {
             href="https://x.com/AgentsForX"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[var(--color-primary-400)] hover:underline"
+            className="text-[var(--color-accent-400)] hover:underline"
           >
             @AgentsForX
           </a>{" "}

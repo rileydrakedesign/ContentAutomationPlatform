@@ -18,7 +18,7 @@ function Bubble({ role, content }: { role: Turn["role"]; content: string }) {
       <div
         className={
           isUser
-            ? "max-w-[85%] rounded-2xl px-4 py-3 bg-[var(--color-primary-500)]/15 border border-[var(--color-primary-500)]/20 text-[var(--color-text-primary)]"
+            ? "max-w-[85%] rounded-2xl px-4 py-3 bg-[var(--color-accent-500)]/15 border border-[var(--color-accent-500)]/20 text-[var(--color-text-primary)]"
             : "max-w-[85%] rounded-2xl px-4 py-3 bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-primary)]"
         }
       >

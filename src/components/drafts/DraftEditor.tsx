@@ -3,23 +3,20 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AudioLines } from "lucide-react";
-import { useVoiceCheck } from "@/components/create/useVoiceCheck";
-import { VoiceCheckResult } from "@/components/create/VoiceCheckResult";
-import { isVoiceCheckSurfaced } from "@/lib/voice/publish-gate";
 import {
   readPersistedValue,
   writePersistedValue,
   removePersistedValue,
 } from "@/hooks/usePersistentState";
-import { ComposeTextarea } from "@/components/compose/ComposeTextarea";
 import { HighlightedTextarea } from "@/components/compose/HighlightedTextarea";
-import { AssistantPanel } from "@/components/assistant/AssistantPanel";
+import { ThreadTweetEditor } from "@/components/compose/ThreadTweetEditor";
+import { AssistantScorePanel, AssistantSuggestionList } from "@/components/assistant/AssistantPanel";
 import { useAssistant } from "@/components/assistant/useAssistant";
-import { isAssistantEnabled } from "@/lib/assistant/flag";
+import { useVoiceGuardrails } from "@/components/assistant/useVoiceGuardrails";
 import { MediaUploader } from "@/components/compose/MediaUploader";
 import { LinkPreview } from "@/components/compose/LinkPreview";
 import { PollEditor } from "@/components/compose/PollEditor";
+import { PublishActions } from "@/components/compose/PublishActions";
 import { parseAttachedMedia, type AttachedMedia } from "@/lib/x-api/media";
 import { parseDraftPoll, type DraftPoll } from "@/lib/x-api/poll";
 import { GripVertical, ChevronUp, ChevronDown } from "lucide-react";
@@ -48,19 +45,20 @@ function XPostEditor({
     });
   }
 
-  // Writing assistant (Grammarly-for-tweets). The hook is always called (Tier-0
-  // is cheap and pure); `enabled` gates the LLM Live Read and the UI swap.
-  const assistantOn = isAssistantEnabled();
+  // Writing assistant (Grammarly-for-tweets).
+  const { avoidWords, authenticity } = useVoiceGuardrails("post");
   const assistant = useAssistant({
     text,
     onChangeText: (t) => set({ text: t }),
     voiceType: "post",
     hasMedia: media.length > 0,
-    enabled: assistantOn,
+    avoidWords,
+    authenticity,
+    enabled: true,
     autoLiveRead: true,
   });
 
-  const composer = assistantOn ? (
+  const composer = (
     <HighlightedTextarea
       value={text}
       onChange={(t) => set({ text: t })}
@@ -69,8 +67,6 @@ function XPostEditor({
       onDismiss={assistant.dismiss}
       minHeightClass="min-h-[200px]"
     />
-  ) : (
-    <ComposeTextarea value={text} onChange={(t) => set({ text: t })} minHeightClass="min-h-[200px]" />
   );
 
   const editorBody = (
@@ -92,20 +88,28 @@ function XPostEditor({
     </div>
   );
 
-  if (!assistantOn) return editorBody;
-
-  // Two-column layout: editor + always-visible assistant sidebar (UX §5).
+  // Editor + holistic score share one row (score centered inline); the suggestion
+  // list flows full-width below (UX §5).
+  const hasContent = text.trim().length > 0;
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
-      {editorBody}
-      <AssistantPanel
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
+        {editorBody}
+        <AssistantScorePanel
+          report={assistant.report}
+          hasContent={hasContent}
+          checking={assistant.checking}
+          stale={assistant.stale}
+          liveError={assistant.liveError}
+          scoreUnavailable={assistant.scoreUnavailable}
+        />
+      </div>
+      <AssistantSuggestionList
         report={assistant.report}
+        hasContent={hasContent}
         checking={assistant.checking}
-        stale={assistant.stale}
-        liveError={assistant.liveError}
         onAccept={assistant.accept}
         onDismiss={assistant.dismiss}
-        onDeepCheck={assistant.runDeepCheck}
       />
     </div>
   );
@@ -121,6 +125,11 @@ function XThreadEditor({
   // Defensive: accept either { tweets: string[] } (canonical) or legacy { posts: string[] }
   const tweets = content.tweets ?? content.posts ?? [""];
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  // Which tweet has the assistant's full attention (score panel + auto L3 read).
+  const [focusedIndex, setFocusedIndex] = useState(0);
+
+  // Voice guardrails fetched once for the whole thread, passed to every tweet.
+  const { avoidWords, authenticity } = useVoiceGuardrails("post");
 
   function updateTweet(index: number, value: string) {
     const newTweets = [...tweets];
@@ -130,11 +139,13 @@ function XThreadEditor({
 
   function addTweet() {
     onChange({ tweets: [...tweets, ""] });
+    setFocusedIndex(tweets.length);
   }
 
   function removeTweet(index: number) {
     const newTweets = tweets.filter((_, i) => i !== index);
     onChange({ tweets: newTweets });
+    setFocusedIndex((f) => Math.min(f > index ? f - 1 : f, Math.max(0, newTweets.length - 1)));
   }
 
   // Reorder: drag the grip handle, or use the up/down buttons (keyboard-accessible).
@@ -144,6 +155,8 @@ function XThreadEditor({
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     onChange({ tweets: next });
+    // Keep the assistant focus on the tweet that moved.
+    setFocusedIndex((f) => (f === from ? to : f));
   }
 
   return (
@@ -209,13 +222,23 @@ function XThreadEditor({
               </button>
             )}
           </div>
-          <ComposeTextarea value={tweet} onChange={(v) => updateTweet(index, v)} rows={3} />
+          <ThreadTweetEditor
+            text={tweet}
+            onChangeText={(v) => updateTweet(index, v)}
+            index={index}
+            total={tweets.length}
+            focused={focusedIndex === index}
+            onFocus={() => setFocusedIndex(index)}
+            avoidWords={avoidWords}
+            authenticity={authenticity}
+            placeholder={index === 0 ? "Start your thread..." : "Continue the thread..."}
+          />
         </div>
       ))}
       {tweets.length < 6 && (
         <button
           onClick={addTweet}
-          className="text-sm text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)]"
+          className="text-sm text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)]"
         >
           + Add Tweet
         </button>
@@ -261,12 +284,8 @@ export function DraftEditor({
   // accidental nav doesn't lose them. For a new draft this is the only place
   // the content lives until the user explicitly saves or publishes.
   const bufferKey = isNew ? "draft:new:buf" : `draft:${draftId}:buf`;
-  const [publishing, setPublishing] = useState(false);
-  const [scheduleAt, setScheduleAt] = useState<string>("");
-  const [publishMessage, setPublishMessage] = useState<string | null>(null);
-
-  // Ambient voice-check: the score must be surfaced before publish/schedule.
-  const { checking, result, checkedText, error: voiceError, check, markChecked } = useVoiceCheck("post");
+  // Save-path errors only — publish errors live inside PublishActions.
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   // Restore any in-progress edits once on mount (prefer the buffer only when it
   // actually differs from the content we were handed).
@@ -294,21 +313,6 @@ export function DraftEditor({
   }
 
   const text = currentText();
-  // "Surfaced" = the score the user is looking at matches the text they'll ship.
-  const voiceChecked = isVoiceCheckSurfaced({
-    hasResult: result !== null,
-    checkedText,
-    currentText: text,
-  });
-
-  function applyVoiceEdit(newText: string) {
-    if (type === "X_POST") {
-      setEditedContent({ text: newText });
-    } else {
-      setEditedContent({ tweets: newText.split(/\n{2,}/) });
-    }
-    markChecked(newText);
-  }
 
   function discardUnsaved() {
     setEditedContent(initialContent);
@@ -321,7 +325,7 @@ export function DraftEditor({
   // user off to its permanent editor URL.
   async function save() {
     setSaving(true);
-    setPublishMessage(null);
+    setSaveMessage(null);
     try {
       if (isNew) {
         const res = await fetch("/api/drafts", {
@@ -337,7 +341,7 @@ export function DraftEditor({
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          setPublishMessage(data.error || "Failed to save draft");
+          setSaveMessage(data.error || "Failed to save draft");
           return;
         }
         const saved = await res.json();
@@ -356,106 +360,12 @@ export function DraftEditor({
           setRestoredUnsaved(false);
         } else {
           const data = await res.json().catch(() => ({}));
-          setPublishMessage(data.error || "Failed to save edits");
+          setSaveMessage(data.error || "Failed to save edits");
         }
       }
     } finally {
       setSaving(false);
     }
-  }
-
-  async function publishNow() {
-    if (type !== "X_POST" && type !== "X_THREAD") return;
-    setPublishing(true);
-    setPublishMessage(null);
-
-    try {
-      const res = await fetch("/api/publish/now", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          // A transient draft publishes with no draftId — it never becomes a row.
-          draftId: draftId || undefined,
-          contentType: type,
-          payload: editedContent,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        removePersistedValue(bufferKey);
-        onPersisted?.();
-        router.push(isNew ? "/create" : "/create?tab=drafts");
-        return;
-      } else {
-        setPublishMessage(data.error || "Failed to publish");
-      }
-    } catch {
-      setPublishMessage("Failed to publish");
-    } finally {
-      setPublishing(false);
-    }
-  }
-
-  async function schedulePublish() {
-    if (type !== "X_POST" && type !== "X_THREAD") return;
-    if (!scheduleAt) {
-      setPublishMessage("Pick a schedule time");
-      return;
-    }
-
-    setPublishing(true);
-    setPublishMessage(null);
-
-    try {
-      const res = await fetch("/api/publish/schedule", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          draftId: draftId || undefined,
-          contentType: type,
-          payload: editedContent,
-          scheduledFor: new Date(scheduleAt).toISOString(),
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        removePersistedValue(bufferKey);
-        onPersisted?.();
-        router.push("/queue");
-        return;
-      } else {
-        setPublishMessage(data.error || "Failed to schedule");
-      }
-    } catch {
-      setPublishMessage("Failed to schedule");
-    } finally {
-      setPublishing(false);
-    }
-  }
-
-  // Voice-check is optional everywhere (handoff #6). Two clearly-labeled paths:
-  // a direct Post/Schedule that ships immediately, and a "Voice-check &…" that
-  // runs the 3-credit check and surfaces the score first. Nothing blocks an
-  // un-checked draft.
-  async function handlePostNow() {
-    if (!text.trim()) return;
-    await publishNow();
-  }
-
-  async function handleSchedule() {
-    if (!scheduleAt) {
-      setPublishMessage("Pick a schedule time");
-      return;
-    }
-    if (!text.trim()) return;
-    await schedulePublish();
-  }
-
-  async function handleVoiceCheck() {
-    if (!text.trim()) return;
-    await check(text);
   }
 
   const typeLabels: Record<DraftType, string> = {
@@ -466,7 +376,7 @@ export function DraftEditor({
   const statusColors: Record<string, string> = {
     DRAFT: "bg-[var(--color-warning-500)]/10 text-[var(--color-warning-400)] border-[var(--color-warning-500)]/20",
     POSTED: "bg-[var(--color-success-500)]/10 text-[var(--color-success-400)] border-[var(--color-success-500)]/20",
-    SCHEDULED: "bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)] border-[var(--color-primary-500)]/20",
+    SCHEDULED: "bg-[var(--color-accent-500)]/10 text-[var(--color-accent-400)] border-[var(--color-accent-500)]/20",
     REJECTED: "bg-[var(--color-danger-500)]/10 text-[var(--color-danger-400)] border-[var(--color-danger-500)]/20",
   };
 
@@ -543,7 +453,7 @@ export function DraftEditor({
         <button
           onClick={save}
           disabled={saving || (isNew && !text.trim())}
-          className="px-4 py-2 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] border border-[var(--color-border-default)] disabled:opacity-50 rounded-lg text-sm transition"
+          className="px-4 py-2 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] border border-[var(--color-border-default)] disabled:opacity-50 rounded-lg text-sm transition-colors duration-100"
         >
           {saving ? "Saving..." : isNew ? "Save Draft" : "Save Edits"}
         </button>
@@ -552,104 +462,30 @@ export function DraftEditor({
             Saving keeps this in All Drafts. You can also post or schedule without saving.
           </span>
         )}
+        {saveMessage && (
+          <span className="text-xs text-[var(--color-danger-400)]">{saveMessage}</span>
+        )}
       </div>
 
       {(type === "X_POST" || type === "X_THREAD") && (
-        <div className="bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Publish</h2>
-
-          {publishMessage && (
-            <div className="mb-3 text-sm text-[var(--color-text-secondary)]">
-              {publishMessage}
-            </div>
-          )}
-
-          {/* Reply-audience setting — native X composer option */}
-          <div className="mb-4 flex items-center gap-2">
-            <label className="text-xs text-[var(--color-text-secondary)]">Who can reply</label>
-            <select
-              value={String((editedContent?.replySettings as string) || "everyone")}
-              onChange={(e) =>
-                setEditedContent((prev) => ({ ...(prev || {}), replySettings: e.target.value }))
-              }
-              className="bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-500)]"
-            >
-              <option value="everyone">Everyone</option>
-              <option value="following">Accounts you follow</option>
-              <option value="mentionedUsers">Only accounts you mention</option>
-            </select>
-          </div>
-
-          {/* Ambient voice-check — surfaced before publish */}
-          {voiceError && (
-            <div className="mb-3 rounded-xl border border-[var(--color-danger-500)]/30 bg-[var(--color-danger-500)]/5 px-4 py-3">
-              <p className="text-sm text-[var(--color-danger-400)]">{voiceError}</p>
-            </div>
-          )}
-          {result ? (
-            <VoiceCheckResult
-              result={result}
-              currentText={text}
-              checkedText={checkedText}
-              onApplyEdit={applyVoiceEdit}
-              className="mb-4"
-            />
-          ) : (
-            <div className="mb-4 flex items-start gap-2 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-4 py-3">
-              <AudioLines className="w-4 h-4 text-[var(--color-primary-400)] shrink-0 mt-0.5" />
-              <p className="text-xs text-[var(--color-text-secondary)]">
-                Post directly, or run an optional voice check (3 credits) first to
-                see how well this sounds like you — and what&apos;s working — before
-                it ships.
-              </p>
-            </div>
-          )}
-
-          <div className="flex flex-col md:flex-row gap-3 md:items-end md:justify-between">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-[var(--color-text-secondary)]">Schedule time</label>
-              <input
-                type="datetime-local"
-                value={scheduleAt}
-                onChange={(e) => setScheduleAt(e.target.value)}
-                className="bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-primary-500)] focus:ring-1 focus:ring-[var(--color-primary-500)] transition"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {/* Primary: post immediately, no check required */}
-              <button
-                onClick={handlePostNow}
-                disabled={publishing || checking || !text.trim()}
-                className="px-4 py-2 bg-[var(--color-primary-500)] text-white rounded-lg text-sm font-medium hover:bg-[var(--color-primary-600)] disabled:opacity-60 transition"
-              >
-                {publishing ? "Working..." : "Post now"}
-              </button>
-              <button
-                onClick={handleSchedule}
-                disabled={publishing || checking || !scheduleAt}
-                className="px-4 py-2 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] border border-[var(--color-border-default)] disabled:opacity-50 rounded-lg text-sm font-medium transition"
-              >
-                Schedule
-              </button>
-              {/* Secondary: optional voice-check first */}
-              <button
-                onClick={handleVoiceCheck}
-                disabled={publishing || checking || !text.trim() || voiceChecked}
-                className="px-4 py-2 bg-transparent hover:bg-[var(--color-bg-hover)] border border-[var(--color-primary-500)]/40 text-[var(--color-primary-400)] disabled:opacity-50 rounded-lg text-sm font-medium transition"
-                title="Run a 3-credit voice check and see the score before you post"
-              >
-                {checking ? "Checking voice…" : voiceChecked ? "Voice-checked ✓" : "Voice-check first"}
-              </button>
-            </div>
-          </div>
-
-          <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-            {voiceChecked
-              ? "Voice score reviewed for this exact text — post or schedule when ready."
-              : "Requires X connected. Voice-check is optional — post directly or check first."}
-          </p>
-        </div>
+        <PublishActions
+          contentType={type}
+          payload={editedContent}
+          // A transient draft publishes with no draftId — it never becomes a row.
+          draftId={draftId || undefined}
+          canPublish={Boolean(text.trim())}
+          replySettings={String((editedContent?.replySettings as string) || "everyone")}
+          onReplySettingsChange={(v) =>
+            setEditedContent((prev) => ({ ...(prev || {}), replySettings: v }))
+          }
+          onPublished={(kind) => {
+            removePersistedValue(bufferKey);
+            onPersisted?.();
+            router.push(
+              kind === "scheduled" ? "/queue" : isNew ? "/create" : "/create?tab=drafts"
+            );
+          }}
+        />
       )}
     </div>
   );

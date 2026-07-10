@@ -20,7 +20,8 @@ export function VoicePage() {
                 Voice & Patterns
               </h1>
               <p className="text-[var(--color-text-secondary)] text-sm mt-1">
-                Configure how AI generates content in your unique voice
+                Your voice, learned from your top posts — the coach keeps everything you write
+                sounding like you
               </p>
             </div>
             <TabsList>

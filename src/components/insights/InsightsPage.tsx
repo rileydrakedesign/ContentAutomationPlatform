@@ -15,7 +15,7 @@ import { CsvUploadDrawer } from "@/components/home/CsvUploadDrawer";
 import { VoiceReport, type VoiceReportData } from "./VoiceReport";
 import { useSubscription } from "@/components/auth/SubscriptionProvider";
 import { parseGateError } from "@/lib/utils/gate-error";
-import { Lock, Loader2, Sparkles } from "lucide-react";
+import { Lock, Sparkles } from "lucide-react";
 import Link from "next/link";
 import type { UserAnalyticsData } from "@/types/analytics";
 
@@ -119,11 +119,11 @@ export function InsightsPage() {
         <button
           onClick={handleRunTuneup}
           disabled={tuningUp}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-muted)] text-white rounded-lg font-medium transition-colors shrink-0"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-inverse)] text-[var(--color-text-inverse)] rounded-lg font-medium transition-colors duration-100 shrink-0"
         >
           {tuningUp ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <span aria-hidden className="inline-block animate-[blink_1s_steps(1)_infinite]">▌</span>
               <span>Analyzing your voice…</span>
             </>
           ) : (
@@ -140,21 +140,21 @@ export function InsightsPage() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="voice">
             <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-[var(--color-primary-400)]" />
+              <Sparkles className="w-3 h-3 text-[var(--color-accent-400)]" />
               Voice Report
             </span>
           </TabsTrigger>
           <TabsTrigger value="patterns">
             <span className="flex items-center gap-1.5">
               Patterns
-              {isFreePlan && <Lock className="w-3 h-3 text-[var(--color-primary-400)]" />}
+              {isFreePlan && <Lock className="w-3 h-3 text-[var(--color-accent-400)]" />}
             </span>
           </TabsTrigger>
           <TabsTrigger value="actions">Actions</TabsTrigger>
           <TabsTrigger value="assistant">
             <span className="flex items-center gap-1.5">
               Assistant
-              {isFreePlan && <Lock className="w-3 h-3 text-[var(--color-primary-400)]" />}
+              {isFreePlan && <Lock className="w-3 h-3 text-[var(--color-accent-400)]" />}
             </span>
           </TabsTrigger>
         </TabsList>
@@ -169,7 +169,7 @@ export function InsightsPage() {
                 {tuneupError.upgrade && (
                   <Link
                     href="/pricing"
-                    className="text-xs font-semibold text-[var(--color-primary-400)] hover:text-[var(--color-primary-300)] transition shrink-0"
+                    className="text-xs font-semibold text-[var(--color-accent-400)] hover:text-[var(--color-accent-400)] transition shrink-0"
                   >
                     Upgrade
                   </Link>
@@ -177,8 +177,8 @@ export function InsightsPage() {
               </div>
             )}
             {tuningUp && !tuneupReport && (
-              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[var(--color-primary-500)]/5 border border-[var(--color-primary-500)]/20">
-                <Loader2 className="w-4 h-4 animate-spin text-[var(--color-primary-400)]" />
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[var(--color-accent-500)]/5 border border-[var(--color-accent-500)]/20">
+                <span aria-hidden className="inline-block animate-[blink_1s_steps(1)_infinite] text-[var(--color-accent-400)]">▌</span>
                 <span className="text-sm text-[var(--color-text-secondary)]">
                   Analyzing your voice… This usually takes 20–40 seconds.
                 </span>
@@ -186,7 +186,7 @@ export function InsightsPage() {
             )}
             {reportLoading && !tuneupReport && !tuningUp && (
               <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)]">
-                <Loader2 className="w-4 h-4 animate-spin text-[var(--color-primary-400)]" />
+                <span aria-hidden className="inline-block animate-[blink_1s_steps(1)_infinite] text-[var(--color-accent-400)]">▌</span>
                 <span className="text-sm text-[var(--color-text-secondary)]">
                   Loading your latest Voice Report…
                 </span>
@@ -198,8 +198,8 @@ export function InsightsPage() {
               !reportLoading &&
               !tuningUp && (
                 <div className="flex flex-col items-center justify-center text-center gap-3 py-16 px-6 rounded-xl border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-elevated)]/40">
-                  <div className="w-11 h-11 rounded-xl bg-[var(--color-primary-500)]/10 flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-[var(--color-primary-400)]" />
+                  <div className="w-11 h-11 rounded-xl bg-[var(--color-accent-500)]/10 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-[var(--color-accent-400)]" />
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -214,7 +214,7 @@ export function InsightsPage() {
                   <button
                     onClick={handleRunTuneup}
                     disabled={tuningUp}
-                    className="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-muted)] text-white rounded-lg text-sm font-medium transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary-500)] hover:bg-[var(--color-primary-600)] disabled:bg-[var(--color-bg-hover)] disabled:text-[var(--color-text-inverse)] text-[var(--color-text-inverse)] rounded-lg text-sm font-medium transition-colors duration-100"
                   >
                     <Sparkles className="w-4 h-4" />
                     <span>Run Voice Tune-Up</span>

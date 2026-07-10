@@ -13,6 +13,11 @@ export interface XUserV2 {
   name: string;
   username: string;
   profile_image_url?: string;
+  public_metrics?: {
+    followers_count?: number;
+    following_count?: number;
+    tweet_count?: number;
+  };
 }
 
 export interface XTweetV2 {
@@ -393,7 +398,10 @@ export async function getTweetsBatch(
 export async function searchRecentTweets(
   accessToken: string,
   query: string,
-  maxResults: number = 10
+  maxResults: number = 10,
+  // Delta sweeps (Radar): only posts newer than this ID. X bills per post
+  // returned, so cursored sweeps pay only for NEW posts each pass.
+  sinceId?: string
 ): Promise<{ data: XTweetV2[]; includes?: { users?: XUserV2[] } }> {
   const url = `${X_API_BASE}/2/tweets/search/recent`;
 
@@ -403,12 +411,15 @@ export async function searchRecentTweets(
     accessToken,
     {
       query,
+      ...(sinceId ? { since_id: sinceId } : {}),
       // reply_settings + entities (with author_id expansion) let the consumer
       // determine reply eligibility per post without extra API calls. These
-      // fields are free on all paid v2 tiers.
+      // fields are free on all paid v2 tiers. Author public_metrics powers the
+      // Opportunity author-band factor (the proven 10k–100k engage-back band)
+      // — fields don't bill separately; only posts returned do.
       "tweet.fields": "created_at,public_metrics,reply_settings,entities",
       "expansions": "author_id",
-      "user.fields": "username,name",
+      "user.fields": "username,name,public_metrics",
       max_results: Math.max(10, Math.min(maxResults, 100)).toString(),
     }
   );
@@ -637,9 +648,8 @@ export function mapV2ToPostAnalytics(tweet: XTweetV2): PostAnalytics {
   const reposts = pm?.retweet_count ?? 0;
   const bookmarks = pm?.bookmark_count ?? 0;
 
-  const isReply =
-    tweet.referenced_tweets?.some((r) => r.type === "replied_to") ||
-    tweet.text.startsWith("@");
+  const repliedTo = tweet.referenced_tweets?.find((r) => r.type === "replied_to");
+  const isReply = Boolean(repliedTo) || tweet.text.startsWith("@");
 
   return {
     id: tweet.id,
@@ -658,6 +668,7 @@ export function mapV2ToPostAnalytics(tweet: XTweetV2): PostAnalytics {
     url_clicks: 0,
     engagement_score: weightedEngagement({ likes, reposts, replies, bookmarks, impressions }),
     is_reply: !!isReply,
+    in_reply_to_post_id: repliedTo?.id ?? null,
     data_source: "api",
   };
 }
