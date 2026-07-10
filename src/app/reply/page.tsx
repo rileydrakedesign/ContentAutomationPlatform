@@ -1,5 +1,5 @@
-import { ReplyFinderPage } from "@/components/reply/ReplyFinderPage";
+import { RadarPage } from "@/components/reply/RadarPage";
 
 export default function ReplyRoute() {
-  return <ReplyFinderPage />;
+  return <RadarPage />;
 }
