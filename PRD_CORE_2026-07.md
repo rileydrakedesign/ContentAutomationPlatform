@@ -141,6 +141,7 @@ Account-level: weighted engagement trend (canonical `engagement.ts`), best-times
 ### 5.4 Requirements
 
 - R3.1 Reply outcomes visible ≤24h after posting; each Results row: target, your reply, 3 numbers, engage-back badge.
+  - *Amendment (2026-07-10, owner decision during the Radar Desk redesign):* per-reply Results rows live **in the Radar rail's Replied filter** — the replied queue rows accrete outcome badges in place rather than moving to a separate per-reply list. This intentionally softens "Results is a separate surface" for reply outcomes; the Results surface keeps account-level trends, watch-level performance, and the feedback-loop insights (§5.2–5.3). Attribution still keys off handoff records, not queue state.
 - R3.2 Follower metrics always carry the "estimate" label; no causal claims in UI copy.
 - R3.3 Watch re-ranking measurably shifts queue composition within 30 days (visible in a "what changed" note).
 - R3.4 All reads on user tokens; own-post re-reads ride the 24h dedup window (COGS ≈ existing analytics sync).

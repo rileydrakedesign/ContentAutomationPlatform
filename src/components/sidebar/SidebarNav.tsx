@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BarChart2, PenSquare, Sliders, CalendarClock, Target, Reply, Users, Lock } from "lucide-react";
+import { LayoutDashboard, BarChart2, PenSquare, Sliders, CalendarClock, Target, Radar, Users, Lock } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 import { useSubscription } from "@/components/auth/SubscriptionProvider";
 
@@ -10,7 +10,7 @@ const navLinks = [
   { href: "/create", label: "Write", icon: PenSquare },
   { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/insights", label: "Insights", icon: BarChart2, proFeatures: ["patternExtraction", "insightsChat"] },
-  { href: "/reply", label: "Reply", icon: Reply, proFeatures: ["xApiSync"] },
+  { href: "/reply", label: "Radar", icon: Radar, proFeatures: ["xApiSync"] },
   { href: "/queue", label: "Queue", icon: CalendarClock, proFeatures: ["scheduling"] },
   { href: "/voice", label: "Voice", icon: Sliders },
   { href: "/strategy", label: "Strategy", icon: Target },
