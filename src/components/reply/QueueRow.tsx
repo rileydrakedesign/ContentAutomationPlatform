@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
-import { Clock, X } from "lucide-react";
+import { X } from "lucide-react";
 import { SkipReasonPicker } from "./SkipReasonPicker";
 import { formatAge, type RadarTarget, type SkipReason } from "./types";
 
@@ -42,15 +42,11 @@ export function QueueRow({
   target,
   selected,
   onSelect,
-  onSnooze,
-  onUnsnooze,
   onSkip,
 }: {
   target: RadarTarget;
   selected: boolean;
   onSelect: (t: RadarTarget) => void;
-  onSnooze: (t: RadarTarget) => void;
-  onUnsnooze: (t: RadarTarget) => void;
   onSkip: (t: RadarTarget, reason: SkipReason) => void;
 }) {
   const [pickingSkip, setPickingSkip] = useState(false);
@@ -113,35 +109,14 @@ export function QueueRow({
             {target.state === "replied" ? (
               <OutcomeBadges target={target} />
             ) : (
-              <>
-                {target.state === "new" ? (
-                  <button
-                    onClick={() => onSnooze(target)}
-                    title="Snooze — keep for later"
-                    aria-label="Snooze"
-                    className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors duration-100"
-                  >
-                    <Clock className="w-3.5 h-3.5" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => onUnsnooze(target)}
-                    title="Back to new"
-                    aria-label="Unsnooze"
-                    className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors duration-100"
-                  >
-                    <Clock className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                <button
-                  onClick={() => setPickingSkip(true)}
-                  title="Skip — with a reason, it teaches the radar"
-                  aria-label="Skip"
-                  className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-accent-400)] transition-colors duration-100"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </>
+              <button
+                onClick={() => setPickingSkip(true)}
+                title="Skip — with a reason, it teaches the radar"
+                aria-label="Skip"
+                className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-accent-400)] transition-colors duration-100"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             )}
           </span>
         </div>

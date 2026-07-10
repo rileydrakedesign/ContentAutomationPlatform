@@ -80,33 +80,37 @@ export function ReplyDesk({
         </span>
       </div>
 
-      <DeskHeader target={target} />
-      <DeskComposer target={target} replyText={replyText} onChangeText={setReplyText} />
+      {/* One scroll for the whole desk: a long post pushes the composer
+          down, never under — scroll continues from post into editor. */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <DeskHeader target={target} />
+        <DeskComposer target={target} replyText={replyText} onChangeText={setReplyText} />
 
-      <div className="px-6 py-4 border-t border-[var(--color-border-default)]">
-        {handoffError && (
-          <p className="text-sm text-[var(--color-danger-400)] mb-2">{handoffError}</p>
-        )}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            onClick={() => replyOnX(target, replyText)}
-            loading={posting}
-            disabled={posting || !replyText.trim()}
-            icon={<Send className="w-4 h-4" />}
-          >
-            {posting ? "Opening X…" : "Reply on X"}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => copyAndOpen(target, replyText)}
-            disabled={posting || !replyText.trim()}
-            icon={<Copy className="w-4 h-4" />}
-          >
-            Copy & open post
-          </Button>
-          <span className="ml-auto text-xs text-[var(--color-text-muted)] hidden sm:block">
-            You post it on X — replies never publish via the API.
-          </span>
+        <div className="px-6 py-4 border-t border-[var(--color-border-default)]">
+          {handoffError && (
+            <p className="text-sm text-[var(--color-danger-400)] mb-2">{handoffError}</p>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => replyOnX(target, replyText)}
+              loading={posting}
+              disabled={posting || !replyText.trim()}
+              icon={<Send className="w-4 h-4" />}
+            >
+              {posting ? "Opening X…" : "Reply on X"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => copyAndOpen(target, replyText)}
+              disabled={posting || !replyText.trim()}
+              icon={<Copy className="w-4 h-4" />}
+            >
+              Copy & open post
+            </Button>
+            <span className="ml-auto text-xs text-[var(--color-text-muted)] hidden sm:block">
+              You post it on X — replies never publish via the API.
+            </span>
+          </div>
         </div>
       </div>
     </div>

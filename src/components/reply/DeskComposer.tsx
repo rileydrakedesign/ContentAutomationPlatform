@@ -79,7 +79,7 @@ export function DeskComposer({
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-3">
+    <div className="px-6 py-4 space-y-3">
       <div className="flex items-center gap-2">
         <Button
           variant="secondary"

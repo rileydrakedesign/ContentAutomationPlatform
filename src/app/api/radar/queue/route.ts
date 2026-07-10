@@ -102,6 +102,7 @@ export async function GET(request: NextRequest) {
           reasons: i.reasons || [],
           skip_reason: i.skip_reason ?? null,
           updated_at: i.updated_at,
+          watch_id: i.watch_id ?? null,
           watch_label: i.watch_id ? watchLabels.get(i.watch_id) ?? null : null,
           post: byId.get(i.candidate_post_id),
         })),

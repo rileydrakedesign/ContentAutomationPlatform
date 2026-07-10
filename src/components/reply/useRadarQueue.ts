@@ -10,6 +10,7 @@ interface ApiQueueItem {
   reasons: string[];
   skip_reason: string | null;
   updated_at: string;
+  watch_id: string | null;
   watch_label: string | null;
   post: {
     post_id: string;
@@ -42,6 +43,7 @@ function toTarget(i: ApiQueueItem): RadarTarget {
     metrics: i.post.metrics ?? null,
     score: Number(i.score) || 0,
     reasons: Array.isArray(i.reasons) ? i.reasons : [],
+    watchId: i.watch_id,
     watchLabel: i.watch_label,
     state: i.state,
     skipReason: (i.skip_reason as SkipReason | null) ?? null,
@@ -68,7 +70,7 @@ export function useRadarQueue() {
 
   const fetchQueue = useCallback(async () => {
     try {
-      const res = await fetch("/api/radar/queue?states=new,snoozed,replied");
+      const res = await fetch("/api/radar/queue?states=new,replied");
       if (res.status === 403) {
         setNotBeta(true);
         return;
@@ -184,10 +186,34 @@ export function useRadarQueue() {
     });
   }, []);
 
+  /** Create a custom watch from a phrase; the next sweep hunts it. */
+  const addWatch = useCallback(
+    async (phrase: string): Promise<{ ok: boolean; message: string }> => {
+      try {
+        const res = await fetch("/api/radar/watches", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phrase }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          return { ok: false, message: data.error || "Couldn't add the watch." };
+        }
+        await fetchQueue();
+        return {
+          ok: true,
+          message: `Watching "${data.watch?.label ?? phrase}" — hit Sweep to hunt it now.`,
+        };
+      } catch {
+        return { ok: false, message: "Couldn't add the watch." };
+      }
+    },
+    [fetchQueue]
+  );
+
   const counts = useMemo<Record<QueueFilter, number>>(
     () => ({
       new: targets.filter((t) => t.state === "new").length,
-      snoozed: targets.filter((t) => t.state === "snoozed").length,
       replied: targets.filter((t) => t.state === "replied").length,
     }),
     [targets]
@@ -206,6 +232,7 @@ export function useRadarQueue() {
     fetchQueue,
     setState,
     toggleWatch,
+    addWatch,
     sweep,
     mergeHunt,
   };

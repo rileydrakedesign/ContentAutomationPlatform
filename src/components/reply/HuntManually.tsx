@@ -32,6 +32,7 @@ function toHuntTarget(t: SearchTweet): RadarTarget {
     metrics: t.metrics ?? null,
     score: t.opportunity?.score ?? 0,
     reasons: t.opportunity?.reasons ?? [],
+    watchId: null,
     watchLabel: null,
     state: "new",
     skipReason: null,

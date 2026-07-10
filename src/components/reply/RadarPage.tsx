@@ -8,7 +8,7 @@ import { QueueRail } from "./QueueRail";
 import { ReplyDesk } from "./ReplyDesk";
 import { FirstRunReveal } from "./FirstRunReveal";
 import { DoneForToday } from "./DoneForToday";
-import type { QueueFilter, RadarTarget, SkipReason } from "./types";
+import type { QueueFilter, RadarTarget, SkipReason, Watch } from "./types";
 
 /**
  * Radar — the daily reply desk. Left rail: watches + the bounded, ranked
@@ -18,8 +18,11 @@ import type { QueueFilter, RadarTarget, SkipReason } from "./types";
  */
 export function RadarPage() {
   const queue = useRadarQueue();
-  const [filter, setFilter] = usePersistentState<QueueFilter>("radar:filter", "new");
+  const [rawFilter, setFilter] = usePersistentState<QueueFilter>("radar:filter", "new");
+  // Older sessions may have persisted the retired "snoozed" filter.
+  const filter: QueueFilter = rawFilter === "replied" ? "replied" : "new";
   const [selectedKey, setSelectedKey] = usePersistentState<string | null>("radar:selected", null);
+  const [watchFilter, setWatchFilter] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"rail" | "desk">("rail");
   const [focusNonce, setFocusNonce] = useState(0);
   const [sweepNotice, setSweepNotice] = useState<string | null>(null);
@@ -30,8 +33,21 @@ export function RadarPage() {
     new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()
   );
 
-  const visible = queue.targets.filter((t) => t.state === filter);
+  const visible = queue.targets.filter(
+    (t) => t.state === filter && (!watchFilter || t.watchId === watchFilter)
+  );
   const selected = queue.targets.find((t) => t.key === selectedKey) ?? null;
+
+  /** Chip body click: narrow the queue to one watch (click again to clear). */
+  function filterByWatch(w: Watch) {
+    setWatchFilter((prev) => (prev === w.id ? null : w.id));
+  }
+
+  /** Chip × / struck-chip click: pause or resume the watch itself. */
+  function toggleWatch(w: Watch) {
+    queue.toggleWatch(w);
+    if (w.enabled && watchFilter === w.id) setWatchFilter(null);
+  }
 
   function select(t: RadarTarget) {
     setSelectedKey(t.key);
@@ -118,8 +134,8 @@ export function RadarPage() {
   } else if (visible.length === 0) {
     railBody = (
       <p className="px-4 py-6 text-sm text-[var(--color-text-muted)]">
-        {filter === "snoozed"
-          ? "Nothing snoozed."
+        {watchFilter
+          ? "Nothing from this watch right now — click the chip again to show all."
           : filter === "replied"
             ? "Handoffs land here — with their outcomes, soon."
             : "Nothing new from the last sweep — the radar keeps watching."}
@@ -160,15 +176,16 @@ export function RadarPage() {
             onFilter={setFilter}
             selectedKey={selectedKey}
             onSelect={select}
-            onSnooze={(t) => queue.setState(t, "snoozed")}
-            onUnsnooze={(t) => queue.setState(t, "new")}
             onSkip={handleSkip}
             onFocusComposer={focusComposer}
             watches={queue.watches}
+            activeWatchId={watchFilter}
             lastSweptAt={queue.lastSweptAt}
             unitsPaused={queue.unitsPaused}
             sweeping={queue.sweeping}
-            onToggleWatch={queue.toggleWatch}
+            onFilterWatch={filterByWatch}
+            onToggleWatch={toggleWatch}
+            onAddWatch={queue.addWatch}
             onSweep={handleSweep}
             sweepNotice={sweepNotice}
             onHuntResults={(targets) => {

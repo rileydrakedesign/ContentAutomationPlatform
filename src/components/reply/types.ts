@@ -2,8 +2,10 @@
 // operate on one normalized target type, whether it came from the server
 // queue (queueId set) or a manual hunt (queueId null → no server state).
 
+// "snoozed" survives in the server enum but the UI no longer offers it
+// (owner call 2026-07-10: triage is reply or skip — no parking lot).
 export type TriageState = "new" | "snoozed" | "replied" | "skipped";
-export type QueueFilter = "new" | "snoozed" | "replied";
+export type QueueFilter = "new" | "replied";
 export type SkipReason = "wrong_topic" | "too_late" | "not_my_crowd";
 
 // Skip reasons are ranking signal, not failure (PRD §3.4 / §10).
@@ -35,7 +37,8 @@ export interface RadarTarget {
   score: number;
   /** Legible Opportunity factors — "your score, explained" (PRD §3.3). */
   reasons: string[];
-  /** Source watch label; null → manual hunt. */
+  /** Source watch; null → manual hunt. */
+  watchId: string | null;
   watchLabel: string | null;
   state: TriageState;
   skipReason: SkipReason | null;

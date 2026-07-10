@@ -39,15 +39,16 @@ export function QueueRail({
   onFilter,
   selectedKey,
   onSelect,
-  onSnooze,
-  onUnsnooze,
   onSkip,
   onFocusComposer,
   watches,
+  activeWatchId,
   lastSweptAt,
   unitsPaused,
   sweeping,
+  onFilterWatch,
   onToggleWatch,
+  onAddWatch,
   onSweep,
   sweepNotice,
   onHuntResults,
@@ -59,15 +60,16 @@ export function QueueRail({
   onFilter: (f: QueueFilter) => void;
   selectedKey: string | null;
   onSelect: (t: RadarTarget) => void;
-  onSnooze: (t: RadarTarget) => void;
-  onUnsnooze: (t: RadarTarget) => void;
   onSkip: (t: RadarTarget, reason: SkipReason) => void;
   onFocusComposer: () => void;
   watches: Watch[];
+  activeWatchId: string | null;
   lastSweptAt: string | null;
   unitsPaused: number;
   sweeping: boolean;
+  onFilterWatch: (w: Watch) => void;
   onToggleWatch: (w: Watch) => void;
+  onAddWatch: (phrase: string) => Promise<{ ok: boolean; message: string }>;
   onSweep: () => void;
   sweepNotice?: string | null;
   onHuntResults: (targets: RadarTarget[]) => void;
@@ -102,10 +104,13 @@ export function QueueRail({
     <section aria-label="Reply queue" className="flex flex-col min-h-0 h-full">
       <WatchBar
         watches={watches}
+        activeWatchId={activeWatchId}
         lastSweptAt={lastSweptAt}
         unitsPaused={unitsPaused}
         sweeping={sweeping}
+        onFilterWatch={onFilterWatch}
         onToggleWatch={onToggleWatch}
+        onAddWatch={onAddWatch}
         onSweep={onSweep}
         notice={sweepNotice}
       />
@@ -116,9 +121,6 @@ export function QueueRail({
         <TabsList className="px-4">
           <TabsTrigger value="new" count={counts.new}>
             New
-          </TabsTrigger>
-          <TabsTrigger value="snoozed" count={counts.snoozed}>
-            Snoozed
           </TabsTrigger>
           <TabsTrigger value="replied" count={counts.replied}>
             Replied
@@ -141,8 +143,6 @@ export function QueueRail({
               target={t}
               selected={t.key === selectedKey}
               onSelect={onSelect}
-              onSnooze={onSnooze}
-              onUnsnooze={onUnsnooze}
               onSkip={onSkip}
             />
           ))}
