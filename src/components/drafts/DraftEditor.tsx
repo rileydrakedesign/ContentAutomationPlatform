@@ -16,6 +16,7 @@ import { useVoiceGuardrails } from "@/components/assistant/useVoiceGuardrails";
 import { MediaUploader } from "@/components/compose/MediaUploader";
 import { LinkPreview } from "@/components/compose/LinkPreview";
 import { PollEditor } from "@/components/compose/PollEditor";
+import { PublishActions } from "@/components/compose/PublishActions";
 import { parseAttachedMedia, type AttachedMedia } from "@/lib/x-api/media";
 import { parseDraftPoll, type DraftPoll } from "@/lib/x-api/poll";
 import { GripVertical, ChevronUp, ChevronDown } from "lucide-react";
@@ -283,9 +284,8 @@ export function DraftEditor({
   // accidental nav doesn't lose them. For a new draft this is the only place
   // the content lives until the user explicitly saves or publishes.
   const bufferKey = isNew ? "draft:new:buf" : `draft:${draftId}:buf`;
-  const [publishing, setPublishing] = useState(false);
-  const [scheduleAt, setScheduleAt] = useState<string>("");
-  const [publishMessage, setPublishMessage] = useState<string | null>(null);
+  // Save-path errors only — publish errors live inside PublishActions.
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   // Restore any in-progress edits once on mount (prefer the buffer only when it
   // actually differs from the content we were handed).
@@ -325,7 +325,7 @@ export function DraftEditor({
   // user off to its permanent editor URL.
   async function save() {
     setSaving(true);
-    setPublishMessage(null);
+    setSaveMessage(null);
     try {
       if (isNew) {
         const res = await fetch("/api/drafts", {
@@ -341,7 +341,7 @@ export function DraftEditor({
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          setPublishMessage(data.error || "Failed to save draft");
+          setSaveMessage(data.error || "Failed to save draft");
           return;
         }
         const saved = await res.json();
@@ -360,100 +360,12 @@ export function DraftEditor({
           setRestoredUnsaved(false);
         } else {
           const data = await res.json().catch(() => ({}));
-          setPublishMessage(data.error || "Failed to save edits");
+          setSaveMessage(data.error || "Failed to save edits");
         }
       }
     } finally {
       setSaving(false);
     }
-  }
-
-  async function publishNow() {
-    if (type !== "X_POST" && type !== "X_THREAD") return;
-    setPublishing(true);
-    setPublishMessage(null);
-
-    try {
-      const res = await fetch("/api/publish/now", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          // A transient draft publishes with no draftId — it never becomes a row.
-          draftId: draftId || undefined,
-          contentType: type,
-          payload: editedContent,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        removePersistedValue(bufferKey);
-        onPersisted?.();
-        router.push(isNew ? "/create" : "/create?tab=drafts");
-        return;
-      } else {
-        setPublishMessage(data.error || "Failed to publish");
-      }
-    } catch {
-      setPublishMessage("Failed to publish");
-    } finally {
-      setPublishing(false);
-    }
-  }
-
-  async function schedulePublish() {
-    if (type !== "X_POST" && type !== "X_THREAD") return;
-    if (!scheduleAt) {
-      setPublishMessage("Pick a schedule time");
-      return;
-    }
-
-    setPublishing(true);
-    setPublishMessage(null);
-
-    try {
-      const res = await fetch("/api/publish/schedule", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          draftId: draftId || undefined,
-          contentType: type,
-          payload: editedContent,
-          scheduledFor: new Date(scheduleAt).toISOString(),
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        removePersistedValue(bufferKey);
-        onPersisted?.();
-        router.push("/queue");
-        return;
-      } else {
-        setPublishMessage(data.error || "Failed to schedule");
-      }
-    } catch {
-      setPublishMessage("Failed to schedule");
-    } finally {
-      setPublishing(false);
-    }
-  }
-
-  // Publish directly — the live writing assistant in the editor above already
-  // surfaces voice/algorithm/correctness as you write, so there's no separate
-  // pre-publish voice-check gate.
-  async function handlePostNow() {
-    if (!text.trim()) return;
-    await publishNow();
-  }
-
-  async function handleSchedule() {
-    if (!scheduleAt) {
-      setPublishMessage("Pick a schedule time");
-      return;
-    }
-    if (!text.trim()) return;
-    await schedulePublish();
   }
 
   const typeLabels: Record<DraftType, string> = {
@@ -550,68 +462,30 @@ export function DraftEditor({
             Saving keeps this in All Drafts. You can also post or schedule without saving.
           </span>
         )}
+        {saveMessage && (
+          <span className="text-xs text-[var(--color-danger-400)]">{saveMessage}</span>
+        )}
       </div>
 
       {(type === "X_POST" || type === "X_THREAD") && (
-        <div className="bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Publish</h2>
-
-          {publishMessage && (
-            <div className="mb-3 text-sm text-[var(--color-text-secondary)]">
-              {publishMessage}
-            </div>
-          )}
-
-          {/* Reply-audience setting — native X composer option */}
-          <div className="mb-4 flex items-center gap-2">
-            <label className="text-xs text-[var(--color-text-secondary)]">Who can reply</label>
-            <select
-              value={String((editedContent?.replySettings as string) || "everyone")}
-              onChange={(e) =>
-                setEditedContent((prev) => ({ ...(prev || {}), replySettings: e.target.value }))
-              }
-              className="bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent-500)]"
-            >
-              <option value="everyone">Everyone</option>
-              <option value="following">Accounts you follow</option>
-              <option value="mentionedUsers">Only accounts you mention</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col md:flex-row gap-3 md:items-end md:justify-between">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-[var(--color-text-secondary)]">Schedule time</label>
-              <input
-                type="datetime-local"
-                value={scheduleAt}
-                onChange={(e) => setScheduleAt(e.target.value)}
-                className="bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent-500)] focus:ring-1 focus:ring-[var(--color-accent-500)] transition-colors duration-100"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={handlePostNow}
-                disabled={publishing || !text.trim()}
-                className="px-4 py-2 bg-[var(--color-primary-500)] text-[var(--color-text-inverse)] rounded-lg text-sm font-medium hover:bg-[var(--color-primary-600)] disabled:opacity-60 transition-colors duration-100"
-              >
-                {publishing ? "Working..." : "Post now"}
-              </button>
-              <button
-                onClick={handleSchedule}
-                disabled={publishing || !scheduleAt}
-                className="px-4 py-2 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] border border-[var(--color-border-default)] disabled:opacity-50 rounded-lg text-sm font-medium transition-colors duration-100"
-              >
-                Schedule
-              </button>
-            </div>
-          </div>
-
-          <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-            Requires X connected. The editor checks voice, reach, and correctness as
-            you write — post or schedule when you&apos;re happy with it.
-          </p>
-        </div>
+        <PublishActions
+          contentType={type}
+          payload={editedContent}
+          // A transient draft publishes with no draftId — it never becomes a row.
+          draftId={draftId || undefined}
+          canPublish={Boolean(text.trim())}
+          replySettings={String((editedContent?.replySettings as string) || "everyone")}
+          onReplySettingsChange={(v) =>
+            setEditedContent((prev) => ({ ...(prev || {}), replySettings: v }))
+          }
+          onPublished={(kind) => {
+            removePersistedValue(bufferKey);
+            onPersisted?.();
+            router.push(
+              kind === "scheduled" ? "/queue" : isNew ? "/create" : "/create?tab=drafts"
+            );
+          }}
+        />
       )}
     </div>
   );

@@ -43,12 +43,14 @@ import {
 import { useSubscription } from "@/components/auth/SubscriptionProvider";
 import { AiUsageCounter } from "@/components/ui/AiUsageCounter";
 import { parseGateError } from "@/lib/utils/gate-error";
-import {
-  usePersistentState,
-  writePersistedValue,
-  removePersistedValue,
-} from "@/hooks/usePersistentState";
+import { usePersistentState } from "@/hooks/usePersistentState";
 import { ThreadTweetEditor } from "@/components/compose/ThreadTweetEditor";
+import { MediaUploader } from "@/components/compose/MediaUploader";
+import { LinkPreview } from "@/components/compose/LinkPreview";
+import { PollEditor } from "@/components/compose/PollEditor";
+import { PublishActions } from "@/components/compose/PublishActions";
+import type { AttachedMedia } from "@/lib/x-api/media";
+import type { DraftPoll } from "@/lib/x-api/poll";
 
 type DraftType = "X_POST" | "X_THREAD";
 
@@ -155,6 +157,29 @@ export function CreatePage() {
   // Which thread tweet has the assistant's full attention (score panel + auto
   // L3 read). Every tweet still gets underlines + the L2 score.
   const [composeFocusedTweet, setComposeFocusedTweet] = useState(0);
+  // Full composition parity with the draft editor — the Write tab IS the
+  // composer now (publish happens here; no handoff to a second compose box).
+  const [composeMedia, setComposeMedia] = usePersistentState<AttachedMedia[]>(
+    "create:composeMedia",
+    []
+  );
+  const [composePoll, setComposePoll] = usePersistentState<DraftPoll | null>(
+    "create:composePoll",
+    null
+  );
+  const [composeReplySettings, setComposeReplySettings] = usePersistentState(
+    "create:composeReplySettings",
+    "everyone"
+  );
+  // Generation provenance riding along when an AI draft is loaded into Write —
+  // used only when the user saves it as a draft.
+  const [composeSeedMeta, setComposeSeedMeta] = usePersistentState<{
+    topic?: string | null;
+    appliedPatterns?: string[];
+    metadata?: Record<string, unknown>;
+  } | null>("create:composeSeed", null);
+  // Post-publish confirmation shown in place (no navigation to clear it).
+  const [composeNotice, setComposeNotice] = useState<string | null>(null);
 
   // Writing assistant (Grammarly-for-tweets) for the manual compose tab.
   const { avoidWords, authenticity } = useVoiceGuardrails("post");
@@ -162,6 +187,7 @@ export function CreatePage() {
     text: composeText,
     onChangeText: setComposeText,
     voiceType: "post",
+    hasMedia: composeMedia.length > 0,
     avoidWords,
     authenticity,
     enabled: composeType === "X_POST" && activeTab === "compose",
@@ -550,22 +576,36 @@ export function CreatePage() {
     }
   };
 
-  const [savingDraft, setSavingDraft] = useState(false);
-
-  // Hand the generated post off to the transient editor (no DB write yet). It
-  // only becomes a draft if the user explicitly clicks "Save Draft" there —
-  // saving is a deliberate action, not a side-effect of editing/publishing.
+  // Load a generated post INTO the Write tab (no navigation, no DB write). The
+  // Write tab is the one composer: the user lands with the assistant already
+  // reading the text and can edit, save, post, or schedule right there.
   const handleUseDraft = (draft: GeneratedDraft) => {
-    setSavingDraft(true);
-    writePersistedValue("draft:new:seed", {
-      type: draft.type,
-      content: draft.content,
-      topic: draft.topic,
+    const t: DraftType = draft.type === "X_THREAD" ? "X_THREAD" : "X_POST";
+    const hasWork =
+      composeType === "X_POST"
+        ? composeText.trim().length > 0
+        : composeThreadTweets.some((tw) => tw.trim());
+    if (hasWork && !window.confirm("Replace the in-progress post on the Write tab with this draft?")) {
+      return;
+    }
+    setComposeType(t);
+    if (t === "X_POST") {
+      setComposeText(draft.content.text || "");
+    } else {
+      const tweets = draft.content.tweets || draft.content.posts || [""];
+      setComposeThreadTweets(tweets.length ? tweets : [""]);
+      setComposeFocusedTweet(0);
+    }
+    setComposeMedia([]);
+    setComposePoll(null);
+    setComposeSeedMeta({
+      topic: draft.topic || null,
       appliedPatterns: draft.applied_patterns,
       metadata: draft.metadata,
     });
-    removePersistedValue("draft:new:buf");
-    router.push("/drafts/new");
+    setComposeError(null);
+    setComposeNotice(null);
+    setActiveTab("compose");
   };
 
   const handleFeedback = async (index: number, feedbackType: 'like' | 'dislike') => {
@@ -601,33 +641,63 @@ export function CreatePage() {
     }
   };
 
-  // Carry the manually-composed post to the transient editor — same deliberate
-  // save model as the AI flow: it's only persisted if the user saves it there.
-  const handleContinueCompose = () => {
-    const content =
-      composeType === "X_POST"
-        ? { text: composeText }
-        : { tweets: composeThreadTweets };
+  // The Write tab's content payload — same shape the draft editor produces, so
+  // save/publish/schedule take it verbatim.
+  const composeContent = (): Record<string, unknown> =>
+    composeType === "X_POST"
+      ? { text: composeText, media: composeMedia, poll: composePoll }
+      : { tweets: composeThreadTweets };
 
-    const isEmpty =
-      composeType === "X_POST"
-        ? !composeText.trim()
-        : composeThreadTweets.every((t) => !t.trim());
+  const composeIsEmpty =
+    composeType === "X_POST"
+      ? !composeText.trim()
+      : composeThreadTweets.every((t) => !t.trim());
 
-    if (isEmpty) {
+  // After a save or publish the composition is done — clear every buffer so the
+  // tab greets the next post fresh.
+  const clearCompose = () => {
+    setComposeText("");
+    setComposeThreadTweets([""]);
+    setComposeFocusedTweet(0);
+    setComposeMedia([]);
+    setComposePoll(null);
+    setComposeSeedMeta(null);
+  };
+
+  // Save Draft — the deliberate keep-this action (publishing never writes a
+  // draft row). Hands off to the saved draft's permanent editor.
+  const handleSaveDraft = async () => {
+    if (composeIsEmpty) {
       setComposeError("Write something first");
       return;
     }
-
     setSavingCompose(true);
     setComposeError(null);
-    writePersistedValue("draft:new:seed", {
-      type: composeType,
-      content,
-      metadata: { generation_type: "manual" },
-    });
-    removePersistedValue("draft:new:buf");
-    router.push("/drafts/new");
+    try {
+      const res = await fetch("/api/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: composeType,
+          content: { ...composeContent(), replySettings: composeReplySettings },
+          topic: composeSeedMeta?.topic || undefined,
+          appliedPatterns: composeSeedMeta?.appliedPatterns,
+          metadata: composeSeedMeta?.metadata ?? { generation_type: "manual" },
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setComposeError((data as { error?: string }).error || "Failed to save draft");
+        return;
+      }
+      const saved = await res.json();
+      clearCompose();
+      router.push(`/drafts/${saved.id}`);
+    } catch (err) {
+      setComposeError(err instanceof Error ? err.message : "Failed to save draft");
+    } finally {
+      setSavingCompose(false);
+    }
   };
 
   return (
@@ -1072,11 +1142,10 @@ export function CreatePage() {
                     <Button
                       fullWidth
                       onClick={() => handleUseDraft(draft)}
-                      disabled={savingDraft}
                       icon={<ArrowRight className="w-4 h-4" />}
                       iconPosition="right"
                     >
-                      {savingDraft ? "Opening…" : "Edit & Publish"}
+                      Edit & Publish
                     </Button>
                   </CardContent>
                 </Card>
@@ -1211,15 +1280,34 @@ export function CreatePage() {
                     {/* Editor + holistic score share one row; the score block is
                         centered inline with the editor. Suggestions flow below. */}
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
-                      <HighlightedTextarea
-                        value={composeText}
-                        onChange={setComposeText}
-                        findings={composeAssistant.report.findings}
-                        onAccept={composeAssistant.accept}
-                        onDismiss={composeAssistant.dismiss}
-                        placeholder="What's on your mind?"
-                        minHeightClass="min-h-[180px]"
-                      />
+                      <div className="space-y-3">
+                        <HighlightedTextarea
+                          value={composeText}
+                          onChange={setComposeText}
+                          findings={composeAssistant.report.findings}
+                          onAccept={composeAssistant.accept}
+                          onDismiss={composeAssistant.dismiss}
+                          placeholder="What's on your mind?"
+                          minHeightClass="min-h-[180px]"
+                        />
+
+                        {/* Link preview for the first URL (URLs still count as 23 above) */}
+                        <LinkPreview text={composeText} />
+
+                        {/* Media — hidden while a poll is attached (X allows one, not both) */}
+                        {!composePoll && (
+                          <div className="pt-1">
+                            <MediaUploader media={composeMedia} onChange={setComposeMedia} />
+                          </div>
+                        )}
+
+                        {/* Poll — mutually exclusive with media */}
+                        <PollEditor
+                          poll={composePoll}
+                          onChange={setComposePoll}
+                          disabled={!composePoll && composeMedia.length > 0}
+                        />
+                      </div>
                       <AssistantScorePanel
                         report={composeAssistant.report}
                         hasContent={composeText.trim().length > 0}
@@ -1309,28 +1397,51 @@ export function CreatePage() {
               </Card>
             )}
 
-            {/* Save Draft Button */}
-            <Button
-              onClick={handleContinueCompose}
-              loading={savingCompose}
-              disabled={
-                composeType === "X_POST"
-                  ? !composeText.trim()
-                  : composeThreadTweets.every((t) => !t.trim())
-              }
-              fullWidth
-              glow
-              icon={<ArrowRight className="w-5 h-5" />}
-              iconPosition="right"
-              className="h-14 text-base"
-            >
-              {savingCompose ? "Opening…" : "Continue to Publish"}
-            </Button>
+            {/* Post-publish confirmation (publishing keeps you right here) */}
+            {composeNotice && (
+              <Card className="border-[var(--color-success-500)]/30 bg-[var(--color-success-500)]/5">
+                <CardContent className="py-3 flex items-center justify-between gap-3">
+                  <p className="text-sm text-[var(--color-success-400)]">{composeNotice}</p>
+                  <button
+                    onClick={() => setComposeNotice(null)}
+                    className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] shrink-0"
+                  >
+                    Dismiss
+                  </button>
+                </CardContent>
+              </Card>
+            )}
 
-            <p className="text-xs text-center text-[var(--color-text-muted)]">
-              Edit, save as a draft, publish, or schedule on the next screen — nothing
-              is saved until you choose to
-            </p>
+            {/* Save (keep it in All Drafts) — publishing below never writes a row */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSaveDraft}
+                disabled={savingCompose || composeIsEmpty}
+                className="px-4 py-2 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)] border border-[var(--color-border-default)] disabled:opacity-50 rounded-lg text-sm transition-colors duration-100"
+              >
+                {savingCompose ? "Saving..." : "Save Draft"}
+              </button>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                Saving keeps this in All Drafts. You can also post or schedule without saving.
+              </span>
+            </div>
+
+            {/* Publish where you write — same surface, same assistant session */}
+            <PublishActions
+              contentType={composeType}
+              payload={composeContent()}
+              canPublish={!composeIsEmpty}
+              replySettings={composeReplySettings}
+              onReplySettingsChange={setComposeReplySettings}
+              onPublished={(kind) => {
+                clearCompose();
+                if (kind === "scheduled") {
+                  router.push("/queue");
+                } else {
+                  setComposeNotice("Posted to X. The composer is clear for your next post.");
+                }
+              }}
+            />
           </div>
         </TabsContent>
 
