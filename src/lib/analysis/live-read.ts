@@ -24,7 +24,7 @@ import { createChatCompletion, resolveProvider, type AIProvider } from "@/lib/ai
 import { streamText, STREAMABLE_PROVIDERS } from "@/lib/ai/stream";
 import { X_ALGORITHM_WEIGHTS } from "@/lib/analysis/x-algorithm";
 import { getAssembledPromptForUser } from "@/lib/openai/prompts/prompt-assembler";
-import { getAnalyzablePosts } from "@/lib/analysis/posts-pool";
+import { getAnalyzablePosts, getAnalyzableReplies } from "@/lib/analysis/posts-pool";
 import { isGenerationApplicablePattern } from "@/lib/analysis/pattern-applicability";
 import { resolveQuote, guardedFix } from "@/lib/analysis/assistant/spans";
 import { recordCalibrationSample } from "@/lib/analysis/assistant/vectors";
@@ -217,10 +217,16 @@ async function assembleLiveRead(
   userId: string,
   voiceType: "post" | "reply"
 ): Promise<LiveReadContext> {
-  const [systemPrompt, patternsRaw, pool] = await Promise.all([
+  // Reply reads ground on the REPLY pool ((parent → reply) pairs — reply style
+  // is a different craft from post style); post reads on the post pool. Reply
+  // pool too thin → fall back to posts so a new user still gets a grounded read.
+  const [systemPrompt, patternsRaw, pool, replyPool] = await Promise.all([
     getAssembledPromptForUser(supabase, userId, voiceType),
     fetchEnabledPatterns(supabase, userId),
     getAnalyzablePosts(supabase, userId).catch(() => []),
+    voiceType === "reply"
+      ? getAnalyzableReplies(supabase, userId).catch(() => [])
+      : Promise.resolve([]),
   ]);
 
   const provider: AIProvider = liveReadProvider();
@@ -237,6 +243,24 @@ async function assembleLiveRead(
   const topPosts = pool.slice(0, 6);
   const medianPosts = pool.slice(Math.floor(pool.length / 2), Math.floor(pool.length / 2) + 3);
   const patternList = patterns.map((p) => `- [${p.id}] ${p.pattern_name}: ${p.pattern_value}`).join("\n");
+
+  // Reply-mode winners section: pairs, so the judge sees not just how the user
+  // writes replies but how they ANSWER — tone-matching, what they latch onto.
+  const topReplies = replyPool.slice(0, 6);
+  const useReplyGrounding = voiceType === "reply" && topReplies.length >= 3;
+  const winnersSection = useReplyGrounding
+    ? `=== THE USER'S TOP-PERFORMING REPLIES (proven winners — each shown with the post it answered) ===
+${topReplies
+  .map(
+    (r, i) =>
+      `[reply ${i + 1}]${r.parent.text ? ` answering: "${r.parent.text.slice(0, 240)}"` : ""}\n→ their reply: ${r.text}`
+  )
+  .join("\n\n")}`
+    : `=== THE USER'S TOP-PERFORMING POSTS (proven winners) ===
+${topPosts.length ? topPosts.map((p, i) => `[top ${i + 1}] ${p.text}`).join("\n\n") : "(no posting history yet)"}
+
+=== TYPICAL / MEDIAN POSTS (for contrast) ===
+${medianPosts.length ? medianPosts.map((p, i) => `[median ${i + 1}] ${p.text}`).join("\n\n") : "(not enough posts)"}`;
 
   // STATIC grounding BASE — identical call-to-call within a session. The per-mode
   // instruction tail (JSON vs NDJSON) is appended by the caller; the whole prefix
@@ -258,11 +282,7 @@ ${algorithmMechanics}
 ${systemPrompt}
 === END VOICE SPECIFICATION ===
 
-=== THE USER'S TOP-PERFORMING POSTS (proven winners) ===
-${topPosts.length ? topPosts.map((p, i) => `[top ${i + 1}] ${p.text}`).join("\n\n") : "(no posting history yet)"}
-
-=== TYPICAL / MEDIAN POSTS (for contrast) ===
-${medianPosts.length ? medianPosts.map((p, i) => `[median ${i + 1}] ${p.text}`).join("\n\n") : "(not enough posts)"}
+${winnersSection}
 
 === THE USER'S PROVEN PATTERNS (content-shaping; each has an id) ===
 ${patternList || "(no extracted patterns yet)"}`;

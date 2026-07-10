@@ -648,9 +648,8 @@ export function mapV2ToPostAnalytics(tweet: XTweetV2): PostAnalytics {
   const reposts = pm?.retweet_count ?? 0;
   const bookmarks = pm?.bookmark_count ?? 0;
 
-  const isReply =
-    tweet.referenced_tweets?.some((r) => r.type === "replied_to") ||
-    tweet.text.startsWith("@");
+  const repliedTo = tweet.referenced_tweets?.find((r) => r.type === "replied_to");
+  const isReply = Boolean(repliedTo) || tweet.text.startsWith("@");
 
   return {
     id: tweet.id,
@@ -669,6 +668,7 @@ export function mapV2ToPostAnalytics(tweet: XTweetV2): PostAnalytics {
     url_clicks: 0,
     engagement_score: weightedEngagement({ likes, reposts, replies, bookmarks, impressions }),
     is_reply: !!isReply,
+    in_reply_to_post_id: repliedTo?.id ?? null,
     data_source: "api",
   };
 }

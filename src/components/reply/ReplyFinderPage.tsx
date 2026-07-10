@@ -204,6 +204,7 @@ export function ReplyFinderPage() {
           target_post_id: t.id,
           composed_text: replyText,
           target_url: targetUrl(t),
+          target_text: t.text,
         }),
       });
     } catch {

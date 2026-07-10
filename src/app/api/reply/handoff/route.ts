@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
       target_post_id?: string;
       composed_text?: string;
       target_url?: string;
+      target_text?: string;
       watch_id?: string;
     };
     try {
@@ -62,6 +63,9 @@ export async function POST(request: NextRequest) {
       reply_text: composedText,
       replied_to_post_id: targetPostId,
       replied_to_post_url: body.target_url ? String(body.target_url) : null,
+      // The other half of the pair: what the user was answering. Feeds the
+      // reply pool (getAnalyzableReplies) so reply style is analyzed in context.
+      replied_to_text: body.target_text ? String(body.target_text).slice(0, 2000) : null,
       sent_at: new Date().toISOString(),
     });
 

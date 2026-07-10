@@ -1461,17 +1461,20 @@ function showReplyPicker(picker, replyButton, replies, articleElement) {
     const selectedReply = replies[currentIndex].text;
     hideReplyPicker(picker);
 
-    // Capture context so we can log the reply when user clicks Post
+    // Capture context so we can log the reply when user clicks Post — parent
+    // text included, so the reply pool stores the full (parent → reply) pair.
     const timeElement = articleElement.querySelector('time');
     const linkElement = timeElement?.closest('a');
     const repliedToUrl = linkElement?.href || '';
     const repliedToId = extractTweetId(repliedToUrl);
+    const repliedToText =
+      articleElement.querySelector('[data-testid="tweetText"]')?.textContent || '';
 
     // Click X's native reply button to open composer
     const xReplyButton = articleElement.querySelector('[data-testid="reply"]');
     if (xReplyButton) {
       xReplyButton.click();
-      await injectReplyText(selectedReply, { repliedToUrl, repliedToId });
+      await injectReplyText(selectedReply, { repliedToUrl, repliedToId, repliedToText });
     } else {
       alert('Generated reply copied to clipboard:\n\n' + selectedReply);
       navigator.clipboard.writeText(selectedReply);
@@ -1913,6 +1916,7 @@ function attachReplySendLogger(replyText, meta) {
               reply_text: replyText,
               replied_to_post_id: meta?.repliedToId || null,
               replied_to_post_url: meta?.repliedToUrl || null,
+              replied_to_text: meta?.repliedToText || null,
               sent_at: new Date().toISOString(),
             },
           });

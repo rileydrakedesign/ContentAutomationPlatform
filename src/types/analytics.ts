@@ -38,6 +38,10 @@ export interface PostAnalytics {
   url_clicks: number;
   engagement_score: number;
   is_reply: boolean;
+  /** For replies synced via the API: the tweet this reply answered. CSV rows
+   *  don't carry it. The reply pool (posts-pool.ts getAnalyzableReplies) uses
+   *  it to pair each reply with its parent post. */
+  in_reply_to_post_id?: string | null;
   data_source?: "csv" | "api" | "both";
 }
 
