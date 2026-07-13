@@ -23,6 +23,9 @@ export interface XUserV2 {
 export interface XTweetV2 {
   id: string;
   text: string;
+  // Long-form posts truncate `text` at ~280 chars with a t.co link; the full
+  // body arrives here when "note_tweet" is requested in tweet.fields.
+  note_tweet?: { text: string };
   created_at?: string;
   author_id?: string;
   referenced_tweets?: Array<{ type: string; id: string }>;
@@ -416,8 +419,10 @@ export async function searchRecentTweets(
       // determine reply eligibility per post without extra API calls. These
       // fields are free on all paid v2 tiers. Author public_metrics powers the
       // Opportunity author-band factor (the proven 10k–100k engage-back band)
-      // — fields don't bill separately; only posts returned do.
-      "tweet.fields": "created_at,public_metrics,reply_settings,entities",
+      // — fields don't bill separately; only posts returned do. note_tweet
+      // carries the FULL text of long-form posts (plain `text` truncates them
+      // to ~280 chars + a t.co link).
+      "tweet.fields": "created_at,public_metrics,reply_settings,entities,note_tweet",
       "expansions": "author_id",
       "user.fields": "username,name,public_metrics",
       max_results: Math.max(10, Math.min(maxResults, 100)).toString(),

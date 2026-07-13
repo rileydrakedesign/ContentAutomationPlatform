@@ -177,6 +177,33 @@ describe("findReplyTargets — server reply eligibility + traction", () => {
     expect(res.already_replied_count).toBe(1);
   });
 
+  it("serves the full note_tweet body for long-form posts (not the truncated text + t.co stub)", async () => {
+    const fullBody = "long-form post body ".repeat(40).trim();
+    searchRecentTweets.mockResolvedValue({
+      data: [
+        {
+          ...tweet("long1", "everyone", { like_count: 10 }, "2026-06-19T00:00:00Z"),
+          text: "long-form post body long-form… https://t.co/abc123",
+          note_tweet: { text: fullBody },
+        },
+        tweet("short1", "everyone", { like_count: 10 }, "2026-06-19T00:00:00Z"),
+      ],
+      includes: { users: [{ id: "u1", username: "someone", name: "Someone" }] },
+    });
+
+    const res = await findReplyTargets("user-1", {
+      query: "ai",
+      maxResults: 10,
+      sort: "relevance",
+    });
+
+    const long = res.tweets.find((t) => t.id === "long1");
+    const short = res.tweets.find((t) => t.id === "short1");
+    expect(long?.text).toBe(fullBody);
+    expect(long?.text).not.toContain("https://t.co/");
+    expect(short?.text).toBe("post short1");
+  });
+
   it("fails open when the already-replied lookup errors (discovery still works)", async () => {
     searchRecentTweets.mockResolvedValue({
       data: [tweet("open", "everyone", { like_count: 10 }, "2026-06-19T00:00:00Z")],
