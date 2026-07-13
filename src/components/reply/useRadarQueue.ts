@@ -157,12 +157,17 @@ export function useRadarQueue() {
       }
       const s = data.summary || {};
       await fetchQueue();
+      // Say the true thing: "0 swept" with every unit budget-paused is spend
+      // protection, not an empty world.
+      const message =
+        s.units_swept === 0 && (s.units_paused_budget ?? 0) > 0
+          ? "All watches hit today's read budget — they reset tomorrow."
+          : s.queued > 0
+            ? `Swept ${s.units_swept} watch${s.units_swept === 1 ? "" : "es"} — ${s.queued} new target${s.queued === 1 ? "" : "s"}.`
+            : `Swept ${s.units_swept} watch${s.units_swept === 1 ? "" : "es"} — nothing new since last sweep.`;
       return {
         ok: true,
-        message:
-          s.queued > 0
-            ? `Swept ${s.units_swept} watch${s.units_swept === 1 ? "" : "es"} — ${s.queued} new target${s.queued === 1 ? "" : "s"}.`
-            : `Swept ${s.units_swept} watch${s.units_swept === 1 ? "" : "es"} — nothing new since last sweep.`,
+        message,
         seededWatches: s.seeded_watches ?? 0,
         queued: s.queued ?? 0,
       };

@@ -30,19 +30,37 @@ export async function POST(request: NextRequest) {
 
     const admin = createAdminClient();
 
-    const { data: recent } = await admin
-      .from("sweep_units")
-      .select("last_swept_at")
-      .eq("owner_user_id", user.id)
-      .not("last_swept_at", "is", null)
-      .order("last_swept_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (recent?.last_swept_at && Date.now() - Date.parse(recent.last_swept_at) < MIN_INTERVAL_MS) {
-      return NextResponse.json(
-        { error: "Swept recently — the queue is fresh. Try again in a few minutes." },
-        { status: 429 }
-      );
+    // Cooldown skipped in dev (local testing sweeps repeatedly) and whenever
+    // a never-swept unit exists (a just-added watch should hunt immediately —
+    // since_id cursors make re-sweeping the rest nearly free).
+    if (process.env.NODE_ENV !== "development") {
+      const { count: unswept } = await admin
+        .from("sweep_units")
+        .select("id", { count: "exact", head: true })
+        .eq("owner_user_id", user.id)
+        .is("last_swept_at", null);
+      if ((unswept ?? 0) === 0) {
+        const { data: recent } = await admin
+          .from("sweep_units")
+          .select("last_swept_at")
+          .eq("owner_user_id", user.id)
+          .not("last_swept_at", "is", null)
+          .order("last_swept_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const elapsed = recent?.last_swept_at
+          ? Date.now() - Date.parse(recent.last_swept_at)
+          : Infinity;
+        if (elapsed < MIN_INTERVAL_MS) {
+          const wait = Math.max(1, Math.ceil((MIN_INTERVAL_MS - elapsed) / 60000));
+          return NextResponse.json(
+            {
+              error: `Swept recently — the queue is fresh. Try again in ${wait} minute${wait === 1 ? "" : "s"}.`,
+            },
+            { status: 429 }
+          );
+        }
+      }
     }
 
     const summary = await sweepUser(admin, user.id);
