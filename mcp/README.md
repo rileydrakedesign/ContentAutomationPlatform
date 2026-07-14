@@ -84,7 +84,7 @@ empty. Posts containing a URL cost **30** instead of 3 (X bills link posts at
 Per-action prices are in [`docs/api/credits.md`](../docs/api/credits.md) (and on
 each tool in [`docs/mcp/tools.generated.md`](../docs/mcp/tools.generated.md)).
 
-## Tools (36)
+## Tools (33)
 
 The full per-tool reference — every input, type, constraint, credit cost, and the
 REST endpoint each maps to — is **generated** from the Zod schemas in
@@ -104,10 +104,17 @@ the identical set via the shared `registerTools()`.
    3-credit fallback). For replies, `get_tweet` first for context.
 3. `check_draft` → score the draft against the tuned voice and apply the
    suggested edit until it matches.
-4. Show drafts to the user; `create_draft` to save, `send_feedback` on reactions.
-5. `publish_post` / `publish_reply` after explicit user confirmation, or
+4. `find_reply_posts` → surface posts worth replying to.
+5. Show drafts to the user; `create_draft` to save, `send_feedback` on reactions.
+6. `publish_post` / `publish_thread` after explicit user confirmation, or
    `schedule_post` for later.
-6. `get_analytics`, `get_best_times`, `list_patterns`, `get_strategy` to plan.
+7. `get_analytics`, `get_best_times`, `list_patterns` to plan.
+
+**Replies are never published by this server.** There is no reply-publish tool
+and the v1 API returns `410` for `X_REPLY`. To reply, append
+`&text=<url-encoded reply>` to a reply target's `intent_url` and hand the link
+to the user — X's composer opens pre-filled and the user sends it. This is a
+compliance decision (X's Feb-2026 rules on programmatic replies), not a gap.
 
 ## Reliability behavior
 
@@ -145,7 +152,7 @@ Local API: set `CONTENT_API_URL=http://localhost:3000`.
 
 - `src/client.ts` — HTTP client: auth, timeouts, retries/backoff, 429 handling,
   credit-header capture, error hints. No MCP imports.
-- `src/tools.ts` — `registerTools(server, api)`: all 36 tools, hardened zod
+- `src/tools.ts` — `registerTools(server, api)`: all 33 tools, hardened zod
   schemas. No transport assumptions.
 - `src/server.ts` — builds the `McpServer` (instructions + tool registration).
 - `src/stdio.ts` — stdio entrypoint with startup health check.
