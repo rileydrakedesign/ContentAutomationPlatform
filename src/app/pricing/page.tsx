@@ -9,7 +9,6 @@ const planMeta: Record<PlanId, { description: string; cta: string; highlighted: 
   free: { description: "Get started with CSV imports and basic AI", cta: "Current Plan", highlighted: false },
   pro: { description: "Full power for serious X creators", cta: "Upgrade to Pro", highlighted: true },
   agent: { description: "For MCP agents and automation at volume", cta: "Upgrade to Agent", highlighted: false },
-  agency: { description: "Manage isolated client voice profiles", cta: "Upgrade to Agency", highlighted: false },
 };
 
 const plans = (Object.keys(PLANS) as PlanId[])

@@ -67,7 +67,6 @@ const USER_BURST: Record<PlanId, { capacity: number; refillPerMin: number }> = {
   free: { capacity: 6, refillPerMin: 6 },
   pro: { capacity: 20, refillPerMin: 20 },
   agent: { capacity: 40, refillPerMin: 40 },
-  agency: { capacity: 40, refillPerMin: 40 },
 };
 
 /** Per-user burst tier. `cost` lets heavier actions (agentic) consume more. */

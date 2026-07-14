@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BarChart2, PenSquare, Sliders, CalendarClock, Target, Radar, Users, Lock } from "lucide-react";
+import { LayoutDashboard, BarChart2, PenSquare, Sliders, CalendarClock, Radar, Lock } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 import { useSubscription } from "@/components/auth/SubscriptionProvider";
 
@@ -13,9 +13,6 @@ const navLinks = [
   { href: "/reply", label: "Radar", icon: Radar, proFeatures: ["xApiSync"] },
   { href: "/queue", label: "Queue", icon: CalendarClock, proFeatures: ["scheduling"] },
   { href: "/voice", label: "Voice", icon: Sliders },
-  { href: "/strategy", label: "Strategy", icon: Target },
-  // Agency tier only — shown when the user can manage client profiles.
-  { href: "/agency", label: "Clients", icon: Users, requiresFeature: "multiAccount" },
 ];
 
 export function SidebarNav() {
@@ -34,8 +31,6 @@ export function SidebarNav() {
     <nav className="flex-1 overflow-y-auto py-4 px-2">
       <ul className="space-y-1">
         {navLinks.map((link) => {
-          // Tier-only links (e.g. Agency client management) hide unless unlocked.
-          if (link.requiresFeature && !canUseFeature(link.requiresFeature)) return null;
           const Icon = link.icon;
           const active = isActive(link.href, link.exact);
           const hasProFeatures = isFreePlan && link.proFeatures?.some((f) => !canUseFeature(f));
