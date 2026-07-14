@@ -35,7 +35,7 @@ Defined in [`src/lib/ai/providers/claude.ts`](../../src/lib/ai/providers/claude.
 | `fast` | `claude-sonnet-4-6` | `gpt-5.4-nano` | `grok-4.3` | `gpt-oss-120b` | Generation, voice/resemblance checks |
 | `standard` | `claude-sonnet-4-6` | `gpt-5.4-mini` | `grok-4.3` | `gpt-oss-120b` | Insights Q&A, inspiration analysis |
 | `cheap` | `claude-haiku-4-5` | `gpt-5.4-nano` | `grok-4.3` | `gpt-oss-120b` | High-volume structured extraction, voice editor, **Live Read** |
-| — (hardcoded) | `claude-sonnet-4-6` (`PIPELINE_MODEL`) | — | — | — | Agentic post pipeline + refine |
+| — (hardcoded) | `claude-sonnet-4-6` (`DRAFT_MODEL`, [`ai/draft-text.ts:11`](../../src/lib/ai/draft-text.ts)) | — | — | — | Refine |
 | — (embeddings) | n/a | `text-embedding-3-small` | — | — | Writing-assistant voice/performance vectors |
 
 `fast` and `standard` both resolve to Sonnet 4.6 today; `cheap` is the Haiku 4.5 tier
@@ -62,22 +62,13 @@ in try/catch (fail-open)** so a Redis/Upstash outage can't break the user-facing
 | `POST /api/generate-reply` | [`generate-reply/route.ts:198`](../../src/app/api/generate-reply/route.ts) | `fast` → Sonnet 4.6 | 0.7 | 400 | JSON `{replies:[]}` | `generate-reply` | 3 reply options (punchy/insight/spicy). `resolveProvider` → Claude. |
 | `POST /api/drafts/generate-from-topic` | [`drafts/generate-from-topic/route.ts:188`](../../src/app/api/drafts/generate-from-topic/route.ts) | `fast` → Sonnet 4.6 | 0.7–0.85 | 2000 | JSON array | `generate-from-topic` | Draft(s) from topic + optional inspiration/patterns. Higher temp when multi-option/instructed. |
 | `POST /api/v1/drafts/generate` | [`v1/drafts/generate/route.ts:165`](../../src/app/api/v1/drafts/generate/route.ts) | `fast` | 0.8 | 2000 | JSON array | — | ⚠️ Reads raw `ai_model \|\| "openai"` — **does not honor CLAUDE_ONLY**. See [Caveats](#caveats). |
-| `POST /api/drafts/refine` | [`drafts/refine/route.ts:90`](../../src/app/api/drafts/refine/route.ts) | `PIPELINE_MODEL` → Sonnet 4.6 | default | 1200 | Plain text | `drafts/refine` | Direct `getClaude().messages.create` wrapped in `runThroughGateway`. Single-call revise; no research/pipeline. |
-| `POST /api/drafts/generate-agentic` (SSE)<br>`POST /api/qstash/llm-job` (bg) | [`ai/agentic/post-pipeline.ts`](../../src/lib/ai/agentic/post-pipeline.ts) | `PIPELINE_MODEL` → Sonnet 4.6 | default | 1500 / 1200 | Streamed text | `…:research`, `…:draft` | Multi-call pipeline — see below. |
+| `POST /api/drafts/refine` | [`drafts/refine/route.ts:85`](../../src/app/api/drafts/refine/route.ts) | `DRAFT_MODEL` → Sonnet 4.6 | default | 1200 | Plain text | `drafts/refine` | Direct `getClaude().messages.create` wrapped in `runThroughGateway`. Single-call revise. |
 
-### Agentic post pipeline (`runPostPipeline`)
-
-The richest path: **research → draft → voice-check → iterate**, all on Sonnet 4.6
-(`PIPELINE_MODEL`). Multiple model calls per request:
-
-1. **`research()`** — `messages.create` with the **`web_search_20250305` server tool**
-   (`max_uses: 4`), looped up to 5 turns to handle `pause_turn`. Through `runThroughGateway`,
-   route `drafts/generate-agentic:research`.
-2. **`streamDraftText()`** — streaming (`messages.stream`); can't use `runThroughGateway`, so
-   it calls `gatewayAdmit("claude", …)` up front and `recordUsage` from the final message.
-   Route `drafts/generate-agentic:draft`. Runs once for the draft, again per refine iteration.
-3. **Voice-check per iteration** — calls `runVoiceCheck` (see Analysis table), up to
-   `MAX_ITERATIONS`, keeping the highest-scoring draft. Most drafts get 0–1 refine passes.
+> **Retired (2026-07): the agentic post pipeline.** `runPostPipeline` (research → draft →
+> voice-check → iterate, incl. the `web_search_20250305` server tool), `POST /api/drafts/generate-agentic`,
+> and the `POST /api/qstash/llm-job` worker are gone, along with the metering routes
+> `drafts/generate-agentic:research` / `:draft` and the only web-search spend in the product.
+> Generation is now a single call per request.
 
 ## Voice editor
 
@@ -90,9 +81,9 @@ The richest path: **research → draft → voice-check → iterate**, all on Son
 
 | Endpoint / caller | Source | Tier → model | temp | max_tokens | Response | Metering route | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `voice-check` (`/api/voice/check`, `/api/v1/voice/check`, agency check, agentic pipeline, MCP) | [`analysis/voice-check.ts:77`](../../src/lib/analysis/voice-check.ts) | `fast` → Sonnet 4.6 | 0.2 | 1000 | JSON object | — | Strict 0–100 voice score. Note: the compose/editor button + publish gate were **removed** — the live assistant replaced them; this core still powers generation/MCP/agency. |
+| `voice-check` (`/api/voice/check`, `/api/v1/voice/check`, MCP `check_draft`) | [`analysis/voice-check.ts:77`](../../src/lib/analysis/voice-check.ts) | `fast` → Sonnet 4.6 | 0.2 | 1000 | JSON object | — | Strict 0–100 voice score. Note: the compose/editor button + publish gate were **removed** — the live assistant replaced them; this core still powers the API/MCP check. |
 | `live-read` (`/api/live-read`, streamed) | [`analysis/live-read.ts`](../../src/lib/analysis/live-read.ts) (`runLiveReadStream` / `runLiveRead` / `warmLiveRead`) | `cheap` → **`LIVE_READ_PROVIDER`** (dflt Cerebras `gpt-oss-120b`; else Claude Haiku 4.5) | 0.2 | 800 | **NDJSON, streamed (SSE)** | `live-read` | Writing-assistant L3: voice drift + **correctness** + missing patterns + **next-step**. Cheap tier; provider via `LIVE_READ_PROVIDER`. `{warm:true}` primes the Claude prompt cache. Falls back to one-shot for non-streamable providers. |
-| `prepublish-read` (`/api/prepublish-read`, pipeline) | [`analysis/prepublish-read.ts:267`](../../src/lib/analysis/prepublish-read.ts) | `fast` → Sonnet 4.6 | 0.1 | 800 | JSON object | — | Resemblance score vs top performers before publish. |
+| `prepublish-read` (`/api/prepublish-read`) | [`analysis/prepublish-read.ts:267`](../../src/lib/analysis/prepublish-read.ts) | `fast` → Sonnet 4.6 | 0.1 | 800 | JSON object | — | Resemblance score vs top performers before publish. |
 | `pattern-extract` (`/api/patterns/extract`, tuneup) | [`analysis/pattern-extract.ts:86`](../../src/lib/analysis/pattern-extract.ts) | `cheap` → Haiku 4.5 | 0.3 | 2000 | JSON **array** | `patterns/extract` | `jsonResponse` intentionally **off** (object-mode would fight the array contract). |
 | `niche-analyze` (`/api/niche/analyze`, tuneup) | [`analysis/niche-analyze.ts:123`](../../src/lib/analysis/niche-analyze.ts) | `cheap` → Haiku 4.5 | 0.3 | 2000 | JSON object | `niche/analyze` | Clusters top 100 posts → pillars + positioning. |
 | `analyze-inspiration` (`/api/inspiration`, `/api/inspiration/[id]`, `/api/v1/inspiration`, `/api/captured/[id]/promote`) | [`openai/analyze-inspiration.ts:59`](../../src/lib/openai/analyze-inspiration.ts) | `standard` → Sonnet 4.6 | 0.3 | default | JSON object | — | Extracts voice + format traits from an inspiration post. Callers pass `getUserProvider` → Claude; the `provider="openai"` default param is dead under CLAUDE_ONLY. |
@@ -137,10 +128,10 @@ the Live Read opts out via its own override:
 - **Unattributed metering.** Rows with `—` in the metering column still record token usage,
   but without a `route` tag: `voice-check`, `prepublish-read`, `analyze-inspiration`, and
   `v1/drafts/generate`. (`live-read` now tags route `live-read`.) Add a `route` to attribute them.
-- **Streaming bypasses `runThroughGateway`.** Both the agentic draft stream and the Live Read
-  (`stream.ts`) gate via `gatewayAdmit` + manual `recordUsage` instead — and the Live Read
-  wraps `gatewayAdmit` in try/catch (fail-open) so infra outages can't break it. Same
-  governance, different entry point — keep in sync if the gateway changes.
+- **Streaming bypasses `runThroughGateway`.** The Live Read (`stream.ts`) gates via
+  `gatewayAdmit` + manual `recordUsage` instead — wrapped in try/catch (fail-open) so infra
+  outages can't break it. Same governance, different entry point — keep in sync if the
+  gateway changes.
 - **Live Read leaves Anthropic when `LIVE_READ_PROVIDER` is non-Claude.** With Cerebras/Groq,
   user drafts are sent to a third-party inference host — confirm no-training/retention terms
   and add as subprocessors before enabling for real users.

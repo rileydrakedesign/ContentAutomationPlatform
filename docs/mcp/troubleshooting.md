@@ -12,7 +12,8 @@ plus an actionable hint. Common cases:
 | "X account not connected …" | `x_not_connected` (400) | Reconnect X in the app, then retry. `whoami` should show `x_connected: true`. |
 | Rate limit hit | `rate_limited` (429) | The client waits out `Retry-After` automatically; if persistent, slow down or upgrade (limits: Free 20 / Pro 60 / Agent 120 req/min). |
 | Daily cap hit | `daily_cap` (429) | Per-plan daily publish/generate cap — wait for rollover or upgrade. |
-| Reply rejected after `reply_allowed: true` | `x_api_error` (403/502) | `reply_allowed` is best-effort; the author may block replies or spam heuristics trip. Surface it and move on. |
+| Reply rejected after `reply_allowed: true` | — | `reply_allowed` is best-effort; the author may block replies or spam heuristics trip. The human finds out in X's composer. Surface it and move on. |
+| Publishing a reply returns 410 | `deprecated` (410) | Intentional — replies are handoff-only. Append `&text=<url-encoded reply>` to the target's `intent_url` and give the user the link. Do not look for another reply path. |
 | Thread partially posted | `x_partial_thread` (502) | **Do not** retry the whole thread. The error includes `remainingTweets` — resume with only those. |
 
 ## Auth failures
@@ -26,7 +27,7 @@ plus an actionable hint. Common cases:
 
 ## Tool missing (e.g. `find_reply_posts`)
 
-The hosted gateway always matches the repo (36 tools). If a locally-installed
+The hosted gateway always matches the repo (33 tools). If a locally-installed
 stdio package is missing a tool, it predates that tool — upgrade:
 
 ```bash

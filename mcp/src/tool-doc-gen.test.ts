@@ -22,7 +22,7 @@ describe("generated MCP tool reference", () => {
 
   it("resolves a REST endpoint and inputs for every tool", async () => {
     const docs = await collectToolDocs();
-    expect(docs).toHaveLength(36);
+    expect(docs).toHaveLength(33);
     for (const d of docs) {
       expect(d.endpoint, `${d.name} should map to a REST endpoint`).toMatch(
         /^(GET|POST|PATCH|PUT|DELETE) \/api\/v1\//

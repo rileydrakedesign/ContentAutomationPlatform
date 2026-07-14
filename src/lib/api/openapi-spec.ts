@@ -318,7 +318,7 @@ export const openApiSpec = {
         summary: "Publish immediately",
         "x-credits": "3 per tweet; 30 if the tweet contains a URL",
         "x-required-scopes": ["publish:write"],
-        description: "Publishes content to X immediately. Supports single posts (`X_POST`), threads (`X_THREAD`), and replies (`X_REPLY`). Optionally links to an existing draft (updates its status to `POSTED`).",
+        description: "Publishes content to X immediately. Supports single posts (`X_POST`) and threads (`X_THREAD`). Optionally links to an existing draft (updates its status to `POSTED`).\n\n**Replies are not publishable via the API.** `X_REPLY` is deprecated and returns `410 Gone` (`code: \"deprecated\"`). Replies go through the handoff flow: call `GET /search/reply-targets`, then open the target's `intent_url` with `&text=<url-encoded reply>` appended so the human sends it from X's own composer.",
         requestBody: {
           required: true,
           content: {
@@ -327,14 +327,13 @@ export const openApiSpec = {
                 type: "object",
                 required: ["contentType", "payload"],
                 properties: {
-                  contentType: { type: "string", enum: ["X_POST", "X_THREAD", "X_REPLY"] },
+                  contentType: { type: "string", enum: ["X_POST", "X_THREAD"] },
                   payload: {
                     type: "object",
-                    description: "X_POST: `{ text }`. X_THREAD: `{ tweets: [...] }`. X_REPLY: `{ text, inReplyToId }` (the tweet being replied to).",
+                    description: "X_POST: `{ text }`. X_THREAD: `{ tweets: [...] }`.",
                     properties: {
-                      text: { type: "string", description: "Required for X_POST and X_REPLY." },
+                      text: { type: "string", description: "Required for X_POST." },
                       tweets: { type: "array", items: { type: "string" }, description: "Required for X_THREAD." },
-                      inReplyToId: { type: "string", description: "Required for X_REPLY — the ID of the tweet being replied to." },
                     },
                     example: { text: "Hello world from the API!" },
                   },
@@ -878,7 +877,7 @@ export const openApiSpec = {
       get: {
         tags: ["Search"],
         summary: "Find posts to reply to",
-        description: "Search recent tweets and return only posts the authenticated account can reply to (reply_allowed === true). Charged per post X returns (min 5 credits) — restricted posts that get filtered out still count toward cost. Optional sort=traction ranks the repliable subset by momentum. Pro plan required.",
+        description: "Search recent tweets and return only posts the authenticated account can reply to (reply_allowed === true). Charged per post X returns (min 5 credits) — restricted posts that get filtered out still count toward cost. Optional sort=traction ranks the repliable subset by momentum. Pro plan required.\n\nEach target carries `intent_url` — the handoff target and the only sanctioned way to reply. Append `&text=<url-encoded reply>` and open it; X's composer opens pre-filled and the human sends it. Replies are never published via the API.",
         "x-credits": "1 per post returned by X (min 5)",
         "x-required-scopes": ["search:read"],
         parameters: [
@@ -894,7 +893,7 @@ export const openApiSpec = {
                 schema: {
                   type: "object",
                   properties: {
-                    tweets: { type: "array", items: { type: "object" }, description: "Only posts where reply_allowed === true, each with author + reply-eligibility fields." },
+                    tweets: { type: "array", items: { type: "object" }, description: "Only posts where reply_allowed === true, each with author + reply-eligibility fields, plus `post_url` (permalink) and `intent_url` (reply handoff target — append `&text=…`)." },
                     query: { type: "string" },
                     sort: { type: "string", enum: ["relevance", "traction"] },
                     returned_count: { type: "integer", description: "How many posts X returned (what you were charged for)." },

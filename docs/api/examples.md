@@ -64,8 +64,10 @@ curl -X POST https://app.agentsforx.com/api/v1/publish/now \
 { "posted": true, "postedIds": ["1772333000000000000"] }
 ```
 
-Publish a **thread** with `contentType: "X_THREAD"` and `payload: { "tweets": [...] }`,
-or a **reply** with `contentType: "X_REPLY"` and `payload: { "text": "...", "inReplyToId": "<tweet id>" }`.
+Publish a **thread** with `contentType: "X_THREAD"` and `payload: { "tweets": [...] }`.
+
+**Replies are not publishable.** `contentType: "X_REPLY"` returns `410 Gone`
+(`code: "deprecated"`) and charges nothing — use the handoff flow in Flow 3.
 
 ### JavaScript (fetch)
 
@@ -141,7 +143,16 @@ curl "https://app.agentsforx.com/api/v1/search/reply-targets?query=ai%20agents%2
 
 ```json
 {
-  "tweets": [ { "id": "...", "text": "...", "author": { "username": "..." }, "reply_allowed": true } ],
+  "tweets": [
+    {
+      "id": "1772333000000000000",
+      "text": "...",
+      "author": { "username": "someone" },
+      "reply_allowed": true,
+      "post_url": "https://x.com/someone/status/1772333000000000000",
+      "intent_url": "https://x.com/intent/post?in_reply_to=1772333000000000000"
+    }
+  ],
   "query": "ai agents -is:retweet",
   "sort": "traction",
   "returned_count": 10,
@@ -151,3 +162,16 @@ curl "https://app.agentsforx.com/api/v1/search/reply-targets?query=ai%20agents%2
 
 You're charged on `returned_count` (min 5). Read a single tweet's full text +
 metrics with `GET /tweets/{id}` (1 credit) before drafting a reply.
+
+### Sending the reply — the handoff (there is no reply-publish call)
+
+Write the reply (`POST /drafts/generate` with `voiceType: "reply"`, or write it
+yourself from `GET /voice/context`), optionally score it with `POST /voice/check`,
+then build the handoff URL and give it to the human:
+
+```js
+const target = data.tweets[0];
+const handoff = `${target.intent_url}&text=${encodeURIComponent(replyText)}`;
+// Open `handoff` (or hand the link to the user). X's composer opens pre-filled;
+// the human presses send. POST /publish/now with X_REPLY returns 410.
+```

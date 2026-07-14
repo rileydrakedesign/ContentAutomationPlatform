@@ -10,9 +10,9 @@ import { runThroughGateway } from "@/lib/ai/gateway";
 import {
   cleanDraft,
   splitThread,
-  PIPELINE_MODEL,
+  DRAFT_MODEL,
   type DraftType,
-} from "@/lib/ai/agentic/post-pipeline";
+} from "@/lib/ai/draft-text";
 
 export const maxDuration = 60;
 
@@ -21,9 +21,8 @@ export async function OPTIONS() {
 }
 
 // POST /api/drafts/refine
-// Lightweight, mode-agnostic refinement: take an existing draft (Quick or
-// Agent) and revise it per the user's feedback in a single Claude call. Does
-// NOT run research or the agentic pipeline. Costs 1 daily generation slot.
+// Lightweight refinement: take an existing draft and revise it per the user's
+// feedback in a single Claude call. Costs 1 daily generation slot.
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createAuthClient();
@@ -83,12 +82,12 @@ export async function POST(request: NextRequest) {
 
     const { value: response } = await runThroughGateway({
       provider: "claude",
-      model: PIPELINE_MODEL,
+      model: DRAFT_MODEL,
       estimatedTokens: Math.ceil((systemPrompt.length + userPrompt.length) / 4) + 1200,
       meta: { route: "drafts/refine", userId: user.id },
       exec: async () => {
         const r = await getClaude().messages.create({
-          model: PIPELINE_MODEL,
+          model: DRAFT_MODEL,
           max_tokens: 1200,
           system: systemPrompt,
           messages: [{ role: "user", content: userPrompt }],

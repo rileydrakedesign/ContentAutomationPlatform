@@ -4,7 +4,7 @@
 
 # MCP Tool Reference
 
-The Agents For X MCP server exposes **36 tools**. Both transports — the stdio package (`@agentsforx/mcp`) and the hosted OAuth gateway (`/api/v1/mcp`) — register this identical set via the shared `registerTools()`. Each tool maps to one v1 REST endpoint; credit costs and auth scopes are enforced server-side and are identical across transports.
+The Agents For X MCP server exposes **33 tools**. Both transports — the stdio package (`@agentsforx/mcp`) and the hosted OAuth gateway (`/api/v1/mcp`) — register this identical set via the shared `registerTools()`. Each tool maps to one v1 REST endpoint; credit costs and auth scopes are enforced server-side and are identical across transports.
 
 For narrative usage (write-yourself vs. generate, the check_draft loop, freshness), see [tools.md](./tools.md). For the REST contract, see the [OpenAPI spec](../../src/lib/api/openapi-spec.ts) / the interactive reference at `/developers`.
 
@@ -85,7 +85,7 @@ Delete a draft by ID. Free.
 
 **Find posts to reply to**
 
-Search recent tweets and return ONLY posts the user's account is allowed to reply to (reply_allowed === true) — use this instead of search_tweets when the goal is to find posts to reply to. Same X search syntax as search_tweets. Requires a Pro plan. Credits: X bills per post it returns, so this costs 1 credit per post RETURNED BY X (minimum 5), not per repliable post handed back — restricted posts still count toward cost. Keep maxResults low. Set sort='traction' ONLY when the user asks to prioritize high-momentum posts; it ranks the repliable results by engagement decayed by post age (fresh + rising above old + saturated). Default 'relevance' keeps X's order. Response includes returned_count (what X returned) and repliable_count (what you can reply to). reply_allowed is best-effort — a reply can still 403, so publish_reply must handle that gracefully.
+Search recent tweets and return ONLY posts the user's account is allowed to reply to (reply_allowed === true) — use this instead of search_tweets when the goal is to find posts to reply to. Same X search syntax as search_tweets. Requires a Pro plan. Credits: X bills per post it returns, so this costs 1 credit per post RETURNED BY X (minimum 5), not per repliable post handed back — restricted posts still count toward cost. Keep maxResults low. Set sort='traction' ONLY when the user asks to prioritize high-momentum posts; it ranks the repliable results by engagement decayed by post age (fresh + rising above old + saturated). Default 'relevance' keeps X's order. Response includes returned_count (what X returned) and repliable_count (what you can reply to). Each target carries post_url and intent_url. reply_allowed is best-effort. To reply: append `&text=<url-encoded reply>` to intent_url and open it — X's composer opens pre-filled and the HUMAN sends it. There is no API reply-publish path; do not attempt one.
 
 - **REST endpoint:** `GET /api/v1/search/reply-targets`
 - **Cost:** Credits: X bills per post it returns, so this costs 1 credit per post RETURNED BY X (minimum 5), not per repliable post handed back — restricted posts still count toward cost.
@@ -100,10 +100,10 @@ Search recent tweets and return ONLY posts the user's account is allowed to repl
 
 **Generate post drafts (server-side)**
 
-Server-side generation: the platform's configured AI model writes post or thread options in the user's POST voice. Prefer get_writing_context and writing the content yourself — it is free and usually better. Use this only when you cannot write the content directly. Returns options; does NOT save or publish. Costs 3 credits.
+Seed a draft the user will edit — not a finished post. The platform's server-side model writes post or thread options in the user's POST voice. Prefer get_writing_context and writing the content yourself: free, and usually better. Always run check_draft on the result before saving or publishing. Returns options; does NOT save or publish. Costs 3 credits.
 
 - **REST endpoint:** `POST /api/v1/drafts/generate`
-- **Cost:** Prefer get_writing_context and writing the content yourself — it is free and usually better. Costs 3 credits.
+- **Cost:** Prefer get_writing_context and writing the content yourself: free, and usually better. Costs 3 credits.
 
 | Input | Constraints | Description |
 |---|---|---|
@@ -117,10 +117,10 @@ Server-side generation: the platform's configured AI model writes post or thread
 
 **Generate reply drafts (server-side)**
 
-Server-side generation: the platform's configured AI model writes reply options in the user's REPLY voice. Prefer get_writing_context (voiceType: 'reply') and writing the reply yourself — free and usually better. Pass the target tweet's text (use get_tweet first if you only have a URL/ID). Returns options — does NOT publish. Costs 3 credits.
+Seed a reply the user will edit — not a finished reply. The platform's server-side model writes reply options in the user's REPLY voice. Prefer get_writing_context (voiceType: 'reply') and writing the reply yourself: free, and usually better. Always run check_draft on the result. Pass the target tweet's text (use get_tweet first if you only have a URL/ID). Returns options — replies are NEVER published from here; hand off via the target's intent_url. Costs 3 credits.
 
 - **REST endpoint:** `POST /api/v1/drafts/generate`
-- **Cost:** Prefer get_writing_context (voiceType: 'reply') and writing the reply yourself — free and usually better. Costs 3 credits.
+- **Cost:** Prefer get_writing_context (voiceType: 'reply') and writing the reply yourself: free, and usually better. Costs 3 credits.
 
 | Input | Constraints | Description |
 |---|---|---|
@@ -185,17 +185,6 @@ Fetch a single draft by ID. Free.
 Read the user's analyzed niche profile: summary, content pillars, topic clusters, and positioning (target audience, unique angle, positioning statement). Returns null if not yet analyzed. Free.
 
 - **REST endpoint:** `GET /api/v1/niche`
-- **Cost:** Free.
-
-_No inputs._
-
-### `get_strategy`
-
-**Get content strategy**
-
-Read the user's weekly content strategy (posts/threads/replies per week and pillar targets). Free.
-
-- **REST endpoint:** `GET /api/v1/strategy`
 - **Cost:** Free.
 
 _No inputs._
@@ -337,21 +326,6 @@ Publish a single post to X immediately. This is irreversible and public — conf
 | `text` | string, required, min 1, max 280 |  |
 | `draftId` | string, optional |  |
 
-### `publish_reply`
-
-**Publish a reply now**
-
-Publish a reply to a specific tweet immediately. Irreversible and public — confirm with the user first. inReplyToId is the ID of the tweet you are replying to. Costs 3 credits — 30 if the text contains a URL.
-
-- **REST endpoint:** `POST /api/v1/publish/now`
-- **Cost:** Costs 3 credits — 30 if the text contains a URL.
-
-| Input | Constraints | Description |
-|---|---|---|
-| `text` | string, required, min 1, max 280 |  |
-| `inReplyToId` | string, required, min 1 | ID of the tweet being replied to. |
-| `draftId` | string, optional |  |
-
 ### `publish_thread`
 
 **Publish a thread now**
@@ -397,7 +371,7 @@ Schedule a post (pass text) or thread (pass tweets) for a future time. scheduled
 
 **Search recent tweets**
 
-Search public tweets from the last 7 days (X search syntax, e.g. 'from:user', '"exact phrase"', 'topic -is:retweet'). Requires a Pro plan. Costs 1 credit per result returned (minimum 5) — keep maxResults low. Each result carries reply-eligibility fields so you can filter to repliable posts with no extra API calls: reply_allowed (boolean), reply_eligibility (open | open_mentioned | restricted | unknown), is_auth_mentioned (boolean), and the raw reply_settings from X. reply_allowed=true is best-effort, NOT a guarantee — a reply can still fail with HTTP 403 ('Reply to this conversation is not allowed') if the author blocked us or spam heuristics trip, so publish_reply must still handle that gracefully. Prefer reply_allowed but consult raw reply_settings for edge cases.
+Search public tweets from the last 7 days (X search syntax, e.g. 'from:user', '"exact phrase"', 'topic -is:retweet'). Requires a Pro plan. Costs 1 credit per result returned (minimum 5) — keep maxResults low. Each result carries reply-eligibility fields so you can filter to repliable posts with no extra API calls: reply_allowed (boolean), reply_eligibility (open | open_mentioned | restricted | unknown), is_auth_mentioned (boolean), and the raw reply_settings from X. reply_allowed=true is best-effort, NOT a guarantee — the author may still have blocked us or spam heuristics may trip. Prefer reply_allowed but consult raw reply_settings for edge cases. Replies are never published via the API: hand off to the human by opening the target's intent_url with `&text=<url-encoded reply>` appended.
 
 - **REST endpoint:** `GET /api/v1/search`
 - **Cost:** Costs 1 credit per result returned (minimum 5) — keep maxResults low.
@@ -463,22 +437,6 @@ Update a draft's content, status, or metadata. Free.
 | `content` | object (one of several shapes), optional |  |
 | `status` | enum, optional, one of `DRAFT`, `SCHEDULED`, `POSTED`, `REJECTED` |  |
 | `metadata` | object (map), optional |  |
-
-### `update_strategy`
-
-**Update content strategy**
-
-Set the user's weekly content strategy. This replaces the stored strategy — pass every field you want kept. Free.
-
-- **REST endpoint:** `PUT /api/v1/strategy`
-- **Cost:** Free.
-
-| Input | Constraints | Description |
-|---|---|---|
-| `posts_per_week` | integer, required, min 0 |  |
-| `threads_per_week` | integer, required, min 0 |  |
-| `replies_per_week` | integer, required, min 0 |  |
-| `pillar_targets` | object[], optional, default [] | Per-pillar weekly post targets. |
 
 ### `update_voice_settings`
 

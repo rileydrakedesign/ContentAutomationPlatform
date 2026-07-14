@@ -68,7 +68,7 @@ First generated/checked post or reply they recognize as their own voice. Relief,
 
 ### 6. Habit — daily in-timeline use
 Reply-finding (building stage) or drafting (distribution stage); voice-check before posting.
-- **Reply-growth job (the C2 beachhead), ✅ shipped:** `/reply` and the **Chrome extension** find **only repliable** posts (server eligibility via `findReplyTargets`, audited reply-settings mapping + graceful publish-time 403 handling), ranked by traction; reply in the **reply-voice**; **optional** voice-check before send (Post reply / Voice-check & reply). MCP: `find_reply_posts` → `generate_reply` → `[check_draft]` → `publish_reply`. API: `GET /search/reply-targets` → `POST /drafts/generate` → `[POST /voice/check]` → `POST /publish/now` (`X_REPLY`).
+- **Reply-growth job (the C2 beachhead), ✅ shipped:** `/reply` and the **Chrome extension** find **only repliable** posts (server eligibility via `findReplyTargets`, audited reply-settings mapping + graceful publish-time 403 handling), ranked by traction; reply in the **reply-voice**; **optional** voice-check before send (Post reply / Voice-check & reply). MCP: `find_reply_posts` → `generate_reply` → `[check_draft]` → **handoff via the target's `intent_url`** (there is no reply-publish tool). API: `GET /search/reply-targets` → `POST /drafts/generate` → `[POST /voice/check]` → open `intent_url` + `&text=…` (`POST /publish/now` returns 410 for `X_REPLY`).
 - **Status: ✅ Gap #3 + orphan shipped.** Account-safety is now surfaced as an explicit promise on `/reply` and in the extension picker ("human-approved, relevance-targeted, never auto-spam; only ever posts you can reply to"). The extension's Opportunity Score now uses the **canonical** weighted-engagement / age-decay formula — the same signal the server's `findReplyTargets` ranks by, so the number is consistent and improvable in one place.
 
 ### 7. Expansion — hits limits, upgrades, invests
@@ -130,12 +130,13 @@ Summary of what landed:
   voice-memo / BullMQ / niche-accounts paths were already gone (only stale copy
   remained, now fixed).
 
-### ✅ Gap #2 — agency / multi-account tier
-- An **Agency** plan (`multiAccount`) and an isolated **client-profile** model: each
-  client is a data island (their voice keyed by a distinct id), so the whole engine
-  (assembler, voice-check, tune-up) is reused per client and voices can't bleed.
-  Routes under `/api/agency/clients/*`, UI at `/agency`, ownership enforced through a
-  single service-role choke point. See [../guides/agency.md](../guides/agency.md).
+### ❌ Gap #2 — agency / multi-account tier (built, then cut)
+- An **Agency** plan (`multiAccount`) with isolated per-client voice profiles shipped
+  in 2026-06 and was **removed in the 2026-07 slim**: the module (`/agency`,
+  `/api/agency/*`, `src/lib/agency/`), the `agency` plan tier, and the `multiAccount`
+  feature flag are all gone. `PlanId` is now `free | pro | agent`. (The inert
+  `agency_clients` migration is retained — migrations are append-only.) Multi-account
+  is back on the backlog, not in the product.
 
 ### Out of scope / repel (anti-ICP)
 Casual posters, mass-reply/autopost spammers, B2B brand teams, multi-platform

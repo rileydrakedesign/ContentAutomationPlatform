@@ -1,9 +1,63 @@
 # Product Slim — cut list for the reply-first package (2026-07)
 
-> **Status:** Proposed
+> **Status:** **Tiers 1, 2, and 4 EXECUTED** (2026-07-13, branch `feat/product-slim`). Tier 3 is a freeze — nothing to do. The §3 build items and the §5.1 spike remain open.
 > **Date:** 2026-07-13 · **Owner:** Riley
 > **Evidence base:** `research/market-scan/2026-07-pmf-validation.md`, `2026-07-true-signal-addendum.md`, `2026-07-direct-competitor-scan.md`, `2026-07-algorithm-mapping-teardown.md`, `2026-07-algorithm-freshness-design.md`, `PRODUCT_FOCUS_2026-07.md`, `PRD_CORE_2026-07.md`, plus a 2026-07-13 scan of xAI/X native-feature shipping (§2.2 below).
 > **What this is:** the concrete streamlining plan — every subsystem resolved into **keep / delete / retire / freeze / slim**, mapped to the actual files, routes, and MCP/API tools that carry it. `PRODUCT_FOCUS_2026-07.md` defines what the product *is*; this doc defines what it *stops being*, and in what order.
+
+---
+
+## 0. Execution amendment (2026-07-13) — where this doc was wrong
+
+Tiers 1, 2, and 4 were executed on `feat/product-slim`. Validating the doc against the tree first
+found it **largely accurate** — the file paths exist, the 36-tool count was right, and both ⚠️ C1
+compliance flags were really in the code. But **four instructions below are wrong**, and were
+executed differently. The doc text is left intact for the record; **this section wins where they
+conflict.**
+
+1. **Strategy (§4 Tier 1) — the split is inverted. Do not execute as written.**
+   The doc says *"fold the weekly-quota fields into Settings; delete the rest."* But `pillar_targets`
+   — the field "the rest" would delete — is read by `prompt-assembler.ts:684` and injected into the
+   system prompt for the **live assistant, voice-check, every generation path, `get_writing_context`,
+   tune-up, and insights-chat**. Deleting it would have degraded output quality across the product
+   **with no compile error to catch it**. The `*_per_week` fields the doc wanted to *keep* are the
+   deletable ones — they only fed a dashboard widget and one Voice Report line.
+   **What shipped:** the `content_strategy` table, `pillar_targets`, `/api/strategy`, the v1 route,
+   the scopes, and every prompt-assembler read are **untouched**. Only the *surface* moved — the
+   `/strategy` page, its nav link, and the `StrategyProgress` widget are gone; editing now lives in a
+   Settings → Strategy tab.
+
+2. **Agentic pipeline (§4 Tier 2) — `post-pipeline.ts` could not simply be deleted.**
+   `/api/drafts/refine` — a **kept** feature — imported `cleanDraft`, `splitThread`, `PIPELINE_MODEL`,
+   and `DraftType` from it. **What shipped:** those helpers were extracted to `src/lib/ai/draft-text.ts`
+   first (with new unit tests — they had none), `PIPELINE_MODEL` renamed to `DRAFT_MODEL`, and *then*
+   the pipeline was deleted. Also: the pipeline had **no `CREDIT_COSTS` entries** (it was gated by
+   `ai_usage_log` daily slots, not credits), and the "3-slot quota logic" was a single literal `3`,
+   not a removable subsystem — the `weight` machinery is shared by 10+ kept routes.
+
+3. **`publish_reply` deprecation (§4 Tier 2) — the handoff URLs it points at did not exist.**
+   `find_reply_posts` → `/api/v1/search/reply-targets` returned `EnrichedSearchTweet`, which had **no
+   URL field at all**, and `/api/reply/handoff` is **cookie-authed** (unreachable from an API key) and
+   returns `{success:true}`, not a URL — the intent URL was built client-side only.
+   **What shipped:** `post_url` and `intent_url` were added to the reply-target shape *first*; the
+   410 `code: "deprecated"` response then points callers at `intent_url` (append
+   `&text=<url-encoded reply>`). The doc also **missed a second `X_REPLY` branch** in the dashboard
+   `POST /api/publish/now` — it had zero callers and was deleted outright.
+
+4. **Unsolicited-mention guard (§4 Tier 2) — DEFERRED, not built.** Owner decision. The guard needs to
+   know whether an account is "conversant," and **no conversation graph exists**: there is no
+   mentions-timeline call in `src/lib/x-api/client.ts` and no table recording who has replied to the
+   user. "Has this account talked to me" is unanswerable from anything we store — the only available
+   signal is one-directional (handles the user has replied to, parsable out of
+   `extension_replies.replied_to_post_url`). A real guard needs **net-new X API integration plus a new
+   table**; it is not the lookup this doc assumes. The C1 mention-audit for
+   `publish_post`/`publish_thread` therefore **stays open**. The reply-publishing half of C1 — the
+   actual compliance exposure — **is closed**.
+
+Also note: **the `agency_clients` migration was kept** (append-only, inert), as §4 says — but the doc's
+agency file list was incomplete. `src/components/agency/AgencyClientsPage.tsx` (~590 lines, the actual
+UI), `docs/guides/agency.md`, and a fourth exhaustive `Record<PlanId, …>` in `src/lib/api/limiter-config.ts`
+all had to go with it.
 
 ---
 

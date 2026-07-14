@@ -9,13 +9,13 @@ const EXPECTED_TOOLS = [
   // identity & config
   "whoami", "health", "get_credits",
   "get_voice_settings", "update_voice_settings",
-  "get_strategy", "update_strategy", "get_niche",
+  "get_niche",
   // generation & tuning
   "get_writing_context", "check_draft", "run_tuneup", "generate_post", "generate_reply", "send_feedback",
   // drafts
   "list_drafts", "get_draft", "create_draft", "update_draft", "delete_draft",
   // publishing
-  "publish_post", "publish_thread", "publish_reply", "schedule_post",
+  "publish_post", "publish_thread", "schedule_post",
   // queue
   "list_queue", "cancel_scheduled", "list_published",
   // analysis
@@ -69,7 +69,27 @@ describe("tool registry", () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([...EXPECTED_TOOLS].sort());
-    expect(names).toHaveLength(36);
+    expect(names).toHaveLength(33);
+  });
+
+  // Replies are handoff-only (PRODUCT_SLIM_2026-07 §4 Tier 2) and Strategy is no
+  // longer an agent-facing surface. Re-registering any of these is a regression,
+  // not a feature — publish_reply in particular is a compliance decision.
+  it("does not expose reply-publishing or strategy tools", async () => {
+    const { tools } = await client.listTools();
+    const names = tools.map((t) => t.name);
+    for (const gone of ["publish_reply", "get_strategy", "update_strategy"]) {
+      expect(names).not.toContain(gone);
+    }
+  });
+
+  // These descriptions are prose shipped to the model. If they still tell an
+  // agent to call publish_reply, the agent will try to.
+  it("never mentions publish_reply in any tool description", async () => {
+    const { tools } = await client.listTools();
+    for (const tool of tools) {
+      expect(tool.description ?? "").not.toContain("publish_reply");
+    }
   });
 
   it("steers agents to client-side writing over server-side generation", async () => {
@@ -98,7 +118,7 @@ describe("tool registry", () => {
 
   it("publish tools warn about irreversibility", async () => {
     const { tools } = await client.listTools();
-    for (const name of ["publish_post", "publish_thread", "publish_reply"]) {
+    for (const name of ["publish_post", "publish_thread"]) {
       const tool = tools.find((t) => t.name === name);
       expect(tool?.description).toMatch(/irreversible/i);
       expect(tool?.description).toMatch(/confirm/i);
@@ -176,18 +196,6 @@ describe("schema hardening", () => {
 });
 
 describe("call routing", () => {
-  it("publish_reply posts the right payload", async () => {
-    await client.callTool({
-      name: "publish_reply",
-      arguments: { text: "nice post", inReplyToId: "12345" },
-    });
-    expect(api.post).toHaveBeenCalledWith("/api/v1/publish/now", {
-      contentType: "X_REPLY",
-      payload: { text: "nice post", inReplyToId: "12345" },
-      draftId: undefined,
-    });
-  });
-
   it("toggle_pattern patches the pattern endpoint", async () => {
     await client.callTool({
       name: "toggle_pattern",
@@ -195,24 +203,6 @@ describe("call routing", () => {
     });
     expect(api.patch).toHaveBeenCalledWith("/api/v1/patterns/abc", {
       is_enabled: false,
-    });
-  });
-
-  it("update_strategy puts the full strategy", async () => {
-    await client.callTool({
-      name: "update_strategy",
-      arguments: {
-        posts_per_week: 5,
-        threads_per_week: 1,
-        replies_per_week: 10,
-        pillar_targets: [{ pillar: "AI", posts_per_week: 2 }],
-      },
-    });
-    expect(api.put).toHaveBeenCalledWith("/api/v1/strategy", {
-      posts_per_week: 5,
-      threads_per_week: 1,
-      replies_per_week: 10,
-      pillar_targets: [{ pillar: "AI", posts_per_week: 2 }],
     });
   });
 

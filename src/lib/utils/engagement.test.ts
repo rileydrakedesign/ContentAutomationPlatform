@@ -57,6 +57,8 @@ describe("opportunity score parity (server ranking ↔ extension pill)", () => {
     is_auth_mentioned: false,
     reply_allowed: true,
     reply_eligibility: "open",
+    post_url: null,
+    intent_url: `https://x.com/intent/post?in_reply_to=${id}`,
   });
 
   it("server tractionScore ordering === canonical opportunityTraction ordering", () => {

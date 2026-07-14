@@ -14,7 +14,8 @@ There are two ways to produce content; prefer the first.
    inference, so this costs **no credits** and is usually higher quality.
 2. **Server-side generation (3 credits, fallback).** `generate_post` /
    `generate_reply` run the platform's configured model with the same voice
-   context. Use only when the agent can't write directly.
+   context. They **seed a draft the user will edit**, not a finished post. Use
+   only when the agent can't write directly.
 
 Posts use the `post` voice; replies use the `reply` voice — pass the matching
 `voiceType`.
@@ -33,17 +34,24 @@ You can `publish_*` directly. When you do want a voice score first:
 This mirrors the dashboard, where every publish surface offers a direct **Post**
 and a secondary **Voice-check first** — voice-check is offered, never mandatory.
 
-## Replying to a post
+## Replying to a post (handoff-only)
+
+**Replies are never published through MCP or the API.** There is no reply-publish
+tool, and `POST /api/v1/publish/now` with `contentType: "X_REPLY"` returns
+`410 Gone`. The reply is handed to the human, who sends it from X's own composer.
 
 1. If you only have a URL or ID, `get_tweet` (1 credit) to fetch the full text +
    metrics — that text is the reply context.
 2. To *find* posts worth replying to, `find_reply_posts` (Pro) returns only posts
    the account can actually reply to; add `sort=traction` to prioritize momentum.
+   Each target carries `post_url` (permalink) and `intent_url` (the handoff
+   target).
 3. Write the reply yourself from `get_writing_context(voiceType: "reply")`, or
    `generate_reply` as a fallback. `check_draft(voiceType: "reply")`.
-4. `publish_reply` with `inReplyToId` set to the target tweet — **after** the user
-   confirms. `reply_allowed` is best-effort; a reply can still 403, so handle that
-   gracefully (see [troubleshooting.md](troubleshooting.md)).
+4. **Hand off:** append `&text=<url-encoded reply>` to the target's `intent_url`
+   and give the user the link. X's composer opens pre-filled and the user sends
+   it. `reply_allowed` is best-effort, so a target can still turn out to be
+   un-repliable (see [troubleshooting.md](troubleshooting.md)).
 
 ## Freshness & run_tuneup
 
@@ -69,7 +77,7 @@ alignment). See [../guides/voice-tuneup.md](../guides/voice-tuneup.md).
 ## Spending wisely
 
 - `whoami` / `get_credits` before expensive batches.
-- Free tools (`get_writing_context`, drafts, queue, patterns, strategy, niche,
-  voice settings, feedback) are unmetered — lean on them.
+- Free tools (`get_writing_context`, drafts, queue, patterns, niche, voice
+  settings, feedback) are unmetered — lean on them.
 - URL posts cost **30** not 3; mention the surcharge if the user includes a link.
 - Search is billed on results **returned** (min 5), so keep `maxResults` low.

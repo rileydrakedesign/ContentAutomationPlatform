@@ -1,6 +1,6 @@
 # MCP & Public API — Source of Truth
 
-> The agent/integration surface: a hosted **MCP server** (36 tools) and a **public v1 REST API**, both over one backend with shared scopes, rate limits, and credit metering. **Status (2026-06-26): live in production.** Both transports ship from `registerTools()`; the OpenAPI spec is drift-tested against the route tree.
+> The agent/integration surface: a hosted **MCP server** (33 tools) and a **public v1 REST API**, both over one backend with shared scopes, rate limits, and credit metering. **Status (2026-06-26): live in production.** Both transports ship from `registerTools()`; the OpenAPI spec is drift-tested against the route tree. **Replies are handoff-only on this surface** (§2).
 >
 > User-facing guides already exist and are maintained — **do not duplicate them here.** REST: [`docs/api/`](../api/getting-started.md). MCP: [`docs/mcp/`](../mcp/overview.md). Generated per-tool reference: [`docs/mcp/tools.generated.md`](../mcp/tools.generated.md). This doc is the engineering index that ties the surface to the code.
 
@@ -26,7 +26,7 @@ The MCP code lives in `mcp/` and is built so the **same tool layer serves two tr
 
 | File | Role |
 | --- | --- |
-| `mcp/src/tools.ts` | `registerTools(server, api)` — all 36 Zod tool defs. No transport assumptions; each tool calls one REST endpoint via `ApiClient`. |
+| `mcp/src/tools.ts` | `registerTools(server, api)` — all 33 Zod tool defs. No transport assumptions; each tool calls one REST endpoint via `ApiClient`. |
 | `mcp/src/client.ts` | `ApiClient` — HTTP client: bearer auth, 30s timeout, retries/backoff, 429 handling, credit-header capture (`x-credits-charged` / `-remaining`, `client.ts:172`), typed `ApiError` + actionable hints (`client.ts:43`). No MCP imports. |
 | `mcp/src/server.ts` | `buildServer()` — constructs `McpServer` with `INSTRUCTIONS` + `registerTools`. |
 | `mcp/src/stdio.ts` | stdio entrypoint (npm package). Reads `CONTENT_API_KEY` / `CONTENT_API_URL`; startup health ping. |
@@ -38,19 +38,31 @@ Both transports register the identical set, so the tool list, inputs, costs, and
 
 ### The philosophy: `get_writing_context` → you write → `check_draft`
 
-The server's `INSTRUCTIONS` (`mcp/src/server.ts:9-29`) are the product's editorial stance, in priority order:
+The server's `INSTRUCTIONS` (`mcp/src/server.ts`) are the product's editorial stance, in priority order. The tour they open with is **`get_writing_context` → `check_draft` → `find_reply_posts`**:
 
-1. **Write it yourself (preferred, free):** `get_writing_context` returns the user's assembled voice system prompt + proven patterns + platform rules; the agent writes the post/reply directly. "You are the best available writer; this is free." (`server.ts:12`, `tools.ts:197`).
-2. **Generation is the fallback (3 credits):** `generate_post` / `generate_reply` run the platform's server-side model with the same voice context — "use only if you cannot write directly" (`server.ts:13`, `tools.ts:242`, `:284`).
-3. **Tune the draft (3 credits):** `check_draft` scores 0-100 against the tuned voice + patterns, returns what matches / where it deviates / a suggested edit; iterate before saving or publishing (`server.ts:16`, `tools.ts:213`).
-4. **Re-analyze when stale (5 credits):** `whoami` / `get_writing_context` return `context_freshness`; when `retune_recommended` is true, suggest `run_tuneup` (`server.ts:18`, `tools.ts:231`, freshness assembled in `src/app/api/v1/me/route.ts:34-61`).
-5. **Publish only after explicit user confirmation** — irreversible and public (`server.ts:28`).
+1. **Write it yourself (preferred, free):** `get_writing_context` returns the user's assembled voice system prompt + proven patterns + platform rules; the agent writes the post/reply directly. "You are the best available writer; this is free."
+2. **Generation only seeds a draft (3 credits):** `generate_post` / `generate_reply` run the platform's server-side model with the same voice context — described as "seed a draft you'll edit," to be used only if the agent cannot write directly.
+3. **Tune the draft (3 credits):** `check_draft` scores 0-100 against the tuned voice + patterns, returns what matches / where it deviates / a suggested edit; iterate before saving or publishing.
+4. **Reply by handoff, never by publish:** `find_reply_posts` surfaces repliable targets; the agent appends `&text=<url-encoded reply>` to the target's `intent_url` and gives the user the link. There is **no reply-publish tool** (§2, "Replies are handoff-only").
+5. **Re-analyze when stale (5 credits):** `whoami` / `get_writing_context` return `context_freshness`; when `retune_recommended` is true, suggest `run_tuneup` (freshness assembled in `src/app/api/v1/me/route.ts:34-61`).
+6. **Publish an original post only after explicit user confirmation** — irreversible and public.
 
-This get-context → write → check loop is the assistant model; generation is a backstop. See §6 for how the *catalog* still lags this framing.
+This get-context → write → check loop is the assistant model; generation is a backstop.
 
-### Tool catalog (36 tools, grouped as in `tools.ts`)
+### Replies are handoff-only (C1 audit, closed 2026-07)
 
-Identity/config: `whoami`, `health`, `get_credits`, `get_voice_settings`, `update_voice_settings`, `get_strategy`, `update_strategy`, `get_niche`. Generation/tuning: `get_writing_context`, `check_draft`, `run_tuneup`, `generate_post`, `generate_reply`, `send_feedback`. Drafts: `list_drafts`, `get_draft`, `create_draft`, `update_draft`, `delete_draft`. Publishing: `publish_post`, `publish_thread`, `publish_reply`, `schedule_post`. Queue: `list_queue`, `cancel_scheduled`, `list_published`. Analysis: `get_analytics`, `get_best_times`, `sync_analytics`, `get_tweet`, `search_tweets`, `find_reply_posts`. Patterns/inspiration: `list_patterns`, `toggle_pattern`, `list_inspiration`, `add_inspiration`.
+Programmatic replies are outside what the product will do (X's Feb-2026 rules), so the reply path on this surface is a **handoff**, not a publish:
+
+- **`publish_reply` was removed** from the MCP catalog.
+- **`POST /api/v1/publish/now` with `contentType: "X_REPLY"` returns `410 Gone`** with `code: "deprecated"` — the check runs **before** the token lookup, the daily cap, and the credit debit, so a deprecated call never charges (`src/app/api/v1/publish/now/route.ts:30-48`). `X_REPLY` is still *recognized* so old callers get a purposeful 410 instead of a validation error.
+- **`GET /api/v1/search/reply-targets`** (MCP `find_reply_posts`) returns, per target, **`post_url`** (permalink) and **`intent_url`** (`https://x.com/intent/post?in_reply_to=<id>`, `src/lib/x-api/search-mapping.ts:138-141`). Callers append `&text=<url-encoded reply>` and open it: X's composer opens pre-filled and the **human** sends it.
+- Both schedule routes already rejected replies.
+
+### Tool catalog (33 tools, grouped as in `tools.ts`)
+
+Identity/config: `whoami`, `health`, `get_credits`, `get_voice_settings`, `update_voice_settings`, `get_niche`. Generation/tuning: `get_writing_context`, `check_draft`, `run_tuneup`, `generate_post`, `generate_reply`, `send_feedback`. Drafts: `list_drafts`, `get_draft`, `create_draft`, `update_draft`, `delete_draft`. Publishing: `publish_post`, `publish_thread`, `schedule_post`. Queue: `list_queue`, `cancel_scheduled`, `list_published`. Analysis: `get_analytics`, `get_best_times`, `sync_analytics`, `get_tweet`, `search_tweets`, `find_reply_posts`. Patterns/inspiration: `list_patterns`, `toggle_pattern`, `list_inspiration`, `add_inspiration`.
+
+> **No strategy tools.** `get_strategy` / `update_strategy` were removed with the 2026-07 slim; the weekly strategy is edited in the app (Settings → Strategy) and still feeds every assembled prompt. The v1 REST route `GET/PUT /strategy` and the `strategy:read` / `strategy:write` scopes remain.
 
 > **Do not document tool inputs/types/costs here.** That reference is **generated** from the Zod schemas via `cd mcp && npm run gen-docs` (generator: `mcp/src/tool-doc-gen.ts`) into [`docs/mcp/tools.generated.md`](../mcp/tools.generated.md) — **never hand-edit it.** A narrative tour is in [`docs/mcp/tools.md`](../mcp/tools.md).
 
@@ -72,18 +84,18 @@ All routes live under `src/app/api/v1/`. Every route is wrapped by `withApiAuth(
 | Voice | `/voice/context` | GET | `voice:read` | free | Assembled writing prompt (powers `get_writing_context`) |
 | Voice | `/voice/check` | POST | **`voice:read`** | 3 | Note: read-scope, not write |
 | Insights | `/insights/tuneup` | POST | `voice:write` | 5 | Full re-analysis → Voice Report |
-| Publishing | `/publish/now` | POST | `publish:write` | 3 / 30·url | Daily publish cap; partial-thread refund + `x_partial_thread` |
+| Publishing | `/publish/now` | POST | `publish:write` | 3 / 30·url | `X_POST` / `X_THREAD` only. Daily publish cap; partial-thread refund + `x_partial_thread`. **`X_REPLY` → 410 `deprecated`** (before any debit) |
 | Publishing | `/publish/schedule` | POST | `publish:write` | 3 / 30·url | **Pro plan** (`plan_limit`); debit at schedule, refund on cancel |
 | Publishing | `/publish` | GET | `publish:read` | free | Scheduled-post history (all states) |
 | Queue | `/queue`, `/queue/{id}` | GET/DELETE | `publish:read` / `publish:write` | free | Cancel refunds |
 | Analytics | `/analytics`, `/analytics/best-times` | GET | `analytics:read` | 1 | |
 | Analytics | `/analytics/sync` | POST | `analytics:read` | 15 | **Pro plan**; delta timeline sync |
 | Tweets | `/tweets/{id}` | GET | `analytics:read` | 1 | Fetch tweet by id/URL |
-| Search | `/search`, `/search/reply-targets` | GET | `search:read` | 1·per-post (min 5) | **Pro plan**; charges per post X returns |
+| Search | `/search`, `/search/reply-targets` | GET | `search:read` | 1·per-post (min 5) | **Pro plan**; charges per post X returns. Reply targets carry `post_url` + `intent_url` (handoff) |
 | Patterns | `/patterns`, `/patterns/{id}` | GET/PATCH | `patterns:read` / `patterns:write` | free | |
 | Inspiration | `/inspiration`, `/inspiration/{id}` | GET/POST/DELETE | `inspiration:read` / `inspiration:write` | 3 on create | Auto-analyzed in background |
 | Niche | `/niche` | GET | `niche:read` | free | |
-| Strategy | `/strategy` | GET/PUT | `strategy:read` / `strategy:write` | free | PUT replaces stored strategy |
+| Strategy | `/strategy` | GET/PUT | `strategy:read` / `strategy:write` | free | PUT replaces stored strategy. **No MCP tool** — edited in-app (Settings → Strategy) |
 | Feedback | `/feedback` | POST | `drafts:write` | free | like/dislike on generations |
 
 Two routes under `/api/v1` are **not** part of the REST contract and are excluded from the drift test: `/openapi.json` (serves the spec) and `/mcp` (the OAuth gateway, §4) — see `src/lib/api/openapi-spec.test.ts:21`.
@@ -138,9 +150,11 @@ Per-action pricing for end users lives in [`docs/api/credits.md`](../api/credits
 
 ## 6. Pivot alignment
 
-`server.ts` centers the **assistant loop** — `get_writing_context` (free, agent writes) → `check_draft` (tune) — over server-side generation, which reads as a labeled "fallback" in both the instructions and the generation tools' descriptions (`mcp/src/server.ts:9-29`, `tools.ts:~199`, `:~244`). This matches the product pivot toward a writing assistant.
+`server.ts` centers the **assistant loop** — `get_writing_context` (free, agent writes) → `check_draft` (tune) → `find_reply_posts` (where the growth is) — over server-side generation, whose tools are described as seeding "a draft you'll edit." This matches the product pivot toward a writing assistant.
 
-**Catalog reframed (2026-07):** the tool grouping and framing now foreground the write→check loop — the generation section comment is retitled *"Writing & voice-check (the write → check loop)"*, and the vestigial `ai_model` input (OpenAI/Claude/Grok) was removed from `update_voice_settings` after the model picker was retired app-wide (Claude is baked). Tool *names* (`generate_post`, `generate_reply`, the `publish_*` family) are unchanged on purpose — they are stable public API / OAuth-scope identifiers, so generation is subordinated via grouping, ordering, and description weighting rather than renames.
+**Catalog reframed (2026-07):** the tool grouping and framing now foreground the write→check loop — the generation section comment is retitled *"Writing & voice-check (the write → check loop)"*, and the vestigial `ai_model` input (OpenAI/Claude/Grok) was removed from `update_voice_settings` after the model picker was retired app-wide (Claude is baked). The surviving tool *names* (`generate_post`, `generate_reply`, `publish_post`, `publish_thread`) are unchanged on purpose — they are stable public API / OAuth-scope identifiers, so generation is subordinated via grouping, ordering, and description weighting rather than renames.
+
+**Catalog slimmed (2026-07): 36 → 33 tools.** Removed exactly three: `publish_reply` (replies are handoff-only), `get_strategy` and `update_strategy` (strategy is edited in the app; the REST route and scopes remain).
 
 ---
 
@@ -149,7 +163,7 @@ Per-action pricing for end users lives in [`docs/api/credits.md`](../api/credits
 | Path | Role |
 | --- | --- |
 | `mcp/src/server.ts` | MCP server build + `INSTRUCTIONS` (the philosophy) |
-| `mcp/src/tools.ts` | 36 tool defs (Zod) → one REST endpoint each |
+| `mcp/src/tools.ts` | 33 tool defs (Zod) → one REST endpoint each |
 | `mcp/src/client.ts` | Transport-agnostic HTTP client (auth, retries, credit headers) |
 | `mcp/src/stdio.ts` | stdio npm-package entrypoint |
 | `mcp/src/tool-doc-gen.ts` | Generates `docs/mcp/tools.generated.md` (`npm run gen-docs`) |
@@ -176,7 +190,8 @@ Per-action pricing for end users lives in [`docs/api/credits.md`](../api/credits
 - **Manual sync points (no test enforces these):**
   - `CREDIT_COSTS` (`credits.ts`) vs. the per-tool prices written into tool descriptions (`tools.ts`) and the OpenAPI `x-credits` extensions — three hand-maintained copies of the same numbers.
   - `docs/mcp/tools.generated.md` must be regenerated (`npm run gen-docs`) after any `tools.ts` change, or the published reference drifts. A locally-installed `@agentsforx/mcp` can also lag the hosted gateway until upgraded.
-- **Catalog framing reframed** (§6): grouping/descriptions now foreground the write→check loop and the dead `ai_model` input was removed; tool *names* intentionally unchanged (stable public API / OAuth identifiers).
+- **Catalog framing reframed and slimmed to 33** (§6): grouping/descriptions foreground the write→check loop, the dead `ai_model` input was removed, and `publish_reply` / `get_strategy` / `update_strategy` are gone. Surviving tool *names* intentionally unchanged (stable public API / OAuth identifiers).
+- **Deprecated-but-recognized surface:** `POST /publish/now` still accepts `contentType: "X_REPLY"` in its parser purely to return a 410 `deprecated`. It is in the OpenAPI spec as such — do not "fix" it by re-adding a reply path.
 - **Scope nuance to watch:** `/voice/check` requires `voice:read` (not `voice:write`) — intentional (checking doesn't mutate) but easy to misjudge when granting keys.
 
 ---

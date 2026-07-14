@@ -54,7 +54,7 @@ function NumberStepper({
   );
 }
 
-export function StrategyPage() {
+export function StrategyTab() {
   const [strategy, setStrategy] = useState<Strategy>({
     posts_per_week: 5,
     threads_per_week: 1,
@@ -158,33 +158,24 @@ export function StrategyPage() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto py-8 px-4 animate-fade-in">
-        <div className="h-7 skeleton w-40 mb-2" />
-        <div className="h-4 skeleton w-64 mb-8" />
-        <div className="space-y-4">
-          <div className="h-48 skeleton" />
-          <div className="h-48 skeleton" />
-        </div>
+      <div className="max-w-2xl space-y-4">
+        <div className="h-48 skeleton" />
+        <div className="h-48 skeleton" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-8 px-4 animate-fade-in">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-            Content Strategy
-          </h1>
-          {saving && (
-            <span className="text-xs text-[var(--color-text-muted)] animate-pulse">
-              Saving...
-            </span>
-          )}
-        </div>
+    <div className="max-w-2xl">
+      <div className="mb-4 flex items-center gap-3">
         <p className="text-sm text-[var(--color-text-secondary)]">
-          Set your weekly posting targets to stay consistent
+          Your weekly posting targets, and the topics your writing is steered toward.
         </p>
+        {saving && (
+          <span className="text-xs text-[var(--color-text-muted)] animate-pulse">
+            Saving...
+          </span>
+        )}
       </div>
 
       {/* Weekly Targets by Format */}

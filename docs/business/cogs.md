@@ -19,11 +19,10 @@
 
 | # | Cost driver | Why it's an outlier | Lever |
 |---|---|---|---|
-| 🔴 1 | **Agentic "deep draft" pipeline** (`src/lib/ai/agentic/post-pipeline.ts`) | 3 chained Sonnet calls **+ web search** ≈ **$0.105/run** — 5× a normal generation. Unlimited on Pro. Now the single largest per-action cost. | Cap/meter deep-draft runs; downgrade research step; cache. |
-| 🔴 2 | **Web search server tool** in the pipeline (`post-pipeline.ts:265`) | ~$0.01/search, billed separately from tokens — easy to miss. 2–4 searches/run. | Bound `max_uses`; cache results. |
-| 🔴 3 | **URL posts** ($0.20 X API each) & **analytics.sync** ($0.10–0.50) | 13× and 5–15× the cost of a normal action. Already surcharged in credits — keep it that way. | Keep the 30-credit URL surcharge; `since_id` deltas on sync. |
-| 🔴 4 | **L3 deep check runs on Sonnet 4.6** (`src/lib/analysis/live-read.ts`) | Was 🔴 #1 (per-pause); now **low-volume** (rare/on-demand + read-first cached). Still ~3× Haiku per call, so Haiku is a cheap, uncontroversial win on this now-explanatory-only path. | Route L3 → **Haiku 4.5**. Far lower stakes than before. |
-| 🔴 5 | **No prompt-cache verification** on the LLM paths | If the voice context isn't caching, every L3/generation call pays full input price (~+30%) and nobody would notice. | Log `cache_read_input_tokens`. |
+| 🟢 — | ~~**Agentic "deep draft" pipeline**~~ (3 chained Sonnet calls + web search ≈ **$0.105/run**) | **RESOLVED (2026-07):** the pipeline is **retired** — the route, the worker, and the `web_search_20250305` server-tool spend are gone. Generation is one call (~$0.03). | n/a — removed. |
+| 🔴 1 | **URL posts** ($0.20 X API each) & **analytics.sync** ($0.10–0.50) | 13× and 5–15× the cost of a normal action. Already surcharged in credits — keep it that way. | Keep the 30-credit URL surcharge; `since_id` deltas on sync. |
+| 🔴 2 | **L3 deep check runs on Sonnet 4.6** (`src/lib/analysis/live-read.ts`) | Was 🔴 #1 (per-pause); now **low-volume** (rare/on-demand + read-first cached). Still ~3× Haiku per call, so Haiku is a cheap, uncontroversial win on this now-explanatory-only path. | Route L3 → **Haiku 4.5**. Far lower stakes than before. |
+| 🔴 3 | **No prompt-cache verification** on the LLM paths | If the voice context isn't caching, every L3/generation call pays full input price (~+30%) and nobody would notice. | Log `cache_read_input_tokens`. |
 | 🟢 — | ~~Live Read per-pause loop on Sonnet~~ | **RESOLVED** by the L0–L3 re-architecture: the per-pause loop is now L2 embeddings (~$0), not the LLM. | n/a — shipped. |
 
 **The one variable that used to decide everything** — non-cached Live Reads per active user per month — **no longer dominates.** The per-pause loop is now embeddings (~$0). The remaining LLM variable is **L3 deep-checks per active user per month** (a much smaller number, bounded by the on-demand/idle triggers). Instrument it before locking pricing (see §7).
@@ -59,7 +58,7 @@ Cost formula: `(input×in_rate + output×out_rate) / 1e6`. Cached input bills at
 
 | Tool | Cost | Where used |
 |---|---|---|
-| **Web search** (`web_search_20250305`) | ~$0.01 / search ($10/1k) | `post-pipeline.ts:265` (research step) 🔴 |
+| **Web search** (`web_search_20250305`) | ~$0.01 / search ($10/1k) | **No longer used** — the only caller (the agentic research step) was retired in 2026-07 |
 | **Embeddings** (`text-embedding-3-small`, OpenAI, 1536-d) | **$0.02 / 1M input tokens** | `src/lib/ai/embeddings.ts` → `vectors.ts` (L2 score + centroid refresh + calibration) ✅ **now wired** |
 
 **Embeddings are a separate provider (OpenAI, not Claude)** — `CLAUDE_ONLY` does not apply; uses `OPENAI_API_KEY`. A tweet-sized draft ≈ 70 tokens, so:
@@ -92,10 +91,9 @@ Token shapes are ⚠️ estimates (char/4 heuristic); output uses a typical valu
 | **Generate from topic** | `api/drafts/generate-from-topic/route.ts:184-202` | Sonnet (fast) | ~3,000 | ~1,400 (2,000) | **$0.0300** | $0.0233 | **$0.0100** | $0.0078 |
 | Voice check (agent surface) | `analysis/voice-check.ts:77-87` | Sonnet (fast) | ~2,000 | ~700 (1,000) | $0.0165 | $0.0125 | $0.0055 | $0.0042 |
 | Prepublish read (agent surface) | `analysis/prepublish-read.ts:293-303` | Sonnet (fast), temp 0.1 | ~2,000 | ~600 (800) | $0.0150 | $0.0113 | $0.0050 | $0.0038 |
-| **Agentic pipeline — research** | `ai/agentic/post-pipeline.ts:262-265` | Sonnet + **web_search** | ~2,500 | ~1,200 (1,500) | **$0.0555** 🔴 | — | $0.0385 | — |
-| Agentic pipeline — draft | `post-pipeline.ts:346-347` | Sonnet | ~3,000 | ~1,000 (1,200) | $0.0240 | — | $0.0080 | — |
-| Agentic pipeline — iterate | `post-pipeline.ts:380-381` | Sonnet | ~3,500 | ~1,000 (1,200) | $0.0255 | — | $0.0085 | — |
-| **= Agentic pipeline TOTAL** | (3 calls + search) | Sonnet | — | — | **≈ $0.105 / run** 🔴 | — | ≈ $0.055 / run | — |
+| Refine (single revise) | `api/drafts/refine/route.ts:85` | Sonnet (`DRAFT_MODEL`) | ~3,000 | ~900 (1,200) | ~$0.0225 | — | ~$0.0075 | — |
+
+> The **agentic pipeline rows are gone (2026-07)** — the ~$0.105/run research→draft→iterate chain and its web-search spend were retired with the pipeline. The most expensive generation action is now a single ~$0.03 call.
 
 ### 2b. Embedding & cache calls — the new always-on loop (✅ now wired)
 
@@ -109,7 +107,7 @@ Token shapes are ⚠️ estimates (char/4 heuristic); output uses a typical valu
 **Reading the table:**
 - **The always-on loop is now L2 embeddings, not the LLM.** It fires on every ~1s pause but costs ~$0.0000014/call — even 3,000 scores/user/mo ≈ **$0.004**. The old "Live Read is the volume driver / #1 line item" is no longer true.
 - **L3 (the LLM) is now the rare path** — it runs only on panel-open / low-score-idle / explicit "why?", and a **read-first cache** (`assistant_live_reads`) means an identical draft re-check costs $0. Aggregate L3 cost = (deep-checks/mo) × ($/call), where deep-checks/mo is now a small number (tens–low-hundreds, not 1,500).
-- **The agentic pipeline is now the spike** — one "Research a draft" costs ~$0.105, vs $0.03 for a plain generation. Web search alone (~$0.03) is over half the research step. Pipeline input also grows step-to-step (research brief carried forward), so caching helps less here.
+- **The generation spike is gone** — the ~$0.105 "Research a draft" pipeline was retired (2026-07). A plain generation (~$0.03) is now the ceiling for a single in-app AI action.
 - L3 still merges what were two agent-surface calls (voice-check + prepublish-read) into one; the displayed 0–100 scores now come from L2 embeddings, and L3 returns a calibration-only score that tunes the cheap L2 number over time.
 
 ---
@@ -133,7 +131,7 @@ Credit map: `src/lib/billing/credits.ts:11-22`. 1 credit = $0.01. "Margin" = (re
 
 **Notes:**
 - 🔴 **`analytics.sync` can go negative** if it fetches 100 posts at the standard read rate ($0.50). The mitigation is mandatory: `since_id` deltas so steady-state syncs pull ~10–30 posts (`MCP_PROD_READINESS_PLAN.md §B2`). Verify the implementation honors this.
-- The credit map assumes a single **generation** call (~$0.024 on Sonnet), **not** the agentic pipeline ($0.105). The pipeline is only reachable in-app (subscription-absorbed), not via the metered `drafts.generate`. Confirm an agent can't trigger the full pipeline for 3 credits.
+- The credit map assumes a single **generation** call (~$0.024 on Sonnet) — which is now the only kind. (The old caveat about the metered `drafts.generate` being cheaper than the in-app agentic pipeline is moot: the pipeline is retired.)
 - Switching generation calls to Haiku would roughly **double every generation margin** — but test output quality first; generation is the quality-sensitive path where Sonnet may be worth keeping.
 
 ---
@@ -174,8 +172,7 @@ LLM (Anthropic) ── src/lib/ai/providers/claude.ts:14-19   ← model tier →
   ├─ generate-topic    src/app/api/drafts/generate-from-topic/route.ts:184
   ├─ voice-check       src/lib/analysis/voice-check.ts:77
   ├─ prepublish-read   src/lib/analysis/prepublish-read.ts:293
-  └─ agentic pipeline  src/lib/ai/agentic/post-pipeline.ts:25 (PIPELINE_MODEL), 262/346/380
-       └─ web_search   post-pipeline.ts:265                   ← 🔴 $0.01/search server tool
+  └─ refine            src/app/api/drafts/refine/route.ts:85 (DRAFT_MODEL → src/lib/ai/draft-text.ts:11)
 
 Embeddings (OpenAI) ─ src/lib/ai/embeddings.ts                ← text-embedding-3-small, $0.02/1M tok
   └─ L2 vectors        src/lib/analysis/assistant/vectors.ts  ← scoreDraft / refreshVoiceVectors / recordCalibrationSample

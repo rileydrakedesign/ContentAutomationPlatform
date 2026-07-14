@@ -33,6 +33,8 @@ function target(over: {
     is_auth_mentioned: false,
     reply_allowed: true,
     reply_eligibility: "open",
+    post_url: "https://x.com/a/status/t1",
+    intent_url: "https://x.com/intent/post?in_reply_to=t1",
   };
 }
 

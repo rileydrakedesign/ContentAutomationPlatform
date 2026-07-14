@@ -13,13 +13,6 @@ import { HighlightedTextarea } from "@/components/compose/HighlightedTextarea";
 import { AssistantScorePanel, AssistantSuggestionList } from "@/components/assistant/AssistantPanel";
 import { useAssistant } from "@/components/assistant/useAssistant";
 import { useVoiceGuardrails } from "@/components/assistant/useVoiceGuardrails";
-import {
-  AgenticChain,
-  type ChainStepView,
-  type ChainSource,
-  type ChainScore,
-  type ChainRead,
-} from "./AgenticChain";
 import { InspirationPost } from "@/types/inspiration";
 import {
   FileText,
@@ -38,7 +31,6 @@ import {
   Trash2,
   RefreshCw,
   Zap,
-  Bot,
 } from "lucide-react";
 import { useSubscription } from "@/components/auth/SubscriptionProvider";
 import { AiUsageCounter } from "@/components/ui/AiUsageCounter";
@@ -68,8 +60,6 @@ interface GeneratedDraft {
     patterns_applied?: string[];
   };
 }
-
-type GenMode = "quick" | "agent";
 
 // The exact inputs of a generation, saved so Regenerate can replay them verbatim.
 interface GenQuery {
@@ -125,18 +115,8 @@ export function CreatePage() {
   const [inspirationPost, setInspirationPost] = useState<InspirationPost | null>(null);
   const [loadingInspiration, setLoadingInspiration] = useState(false);
   const [feedbackMap, setFeedbackMap] = useState<Record<number, 'like' | 'dislike' | null>>({});
-  // Agentic chain view (live SSE): step timeline, sources, voice scores, and
-  // the streaming draft text. Ephemeral per run — not persisted.
-  const [chainSteps, setChainSteps] = useState<ChainStepView[]>([]);
-  const [chainSources, setChainSources] = useState<ChainSource[]>([]);
-  const [chainScores, setChainScores] = useState<ChainScore[]>([]);
-  const [chainRead, setChainRead] = useState<ChainRead | null>(null);
-  const [liveDraft, setLiveDraft] = useState("");
-  const [chainActive, setChainActive] = useState(false);
-  // Generation mode: "quick" (one-shot) vs "agent" (research + refine pipeline).
-  const [mode, setMode] = usePersistentState<GenMode>("create:mode", "agent");
-  // The last query run, so Regenerate replays it exactly (same mode + inputs).
-  const [lastQuery, setLastQuery] = useState<{ mode: GenMode; query: GenQuery } | null>(null);
+  // The last query run, so Regenerate replays it exactly.
+  const [lastQuery, setLastQuery] = useState<GenQuery | null>(null);
   const [refining, setRefining] = useState(false);
   const [inspirationList, setInspirationList] = useState<Array<{ id: string; raw_content: string; author_handle: string | null; created_at: string }>>([]);
   const [inspirationPickerOpen, setInspirationPickerOpen] = useState(false);
@@ -231,17 +211,6 @@ export function CreatePage() {
     router.replace(`/create?${params.toString()}`);
   };
 
-  // Merge a step event into the chain, keyed by step + iteration so a step's
-  // running→done transition updates in place rather than appending a row.
-  const upsertStep = (prev: ChainStepView[], ev: ChainStepView): ChainStepView[] => {
-    const key = (s: ChainStepView) => `${s.step}:${s.iteration ?? 0}`;
-    const idx = prev.findIndex((s) => key(s) === key(ev));
-    if (idx === -1) return [...prev, ev];
-    const next = [...prev];
-    next[idx] = ev;
-    return next;
-  };
-
   // Apply a finished option to the variation list — append (regenerate/refine)
   // or replace (fresh generate) — and focus it.
   const applyOption = (option: GeneratedDraft, append: boolean) => {
@@ -254,146 +223,6 @@ export function CreatePage() {
     } else {
       setGeneratedDrafts([option]);
       setCurrentVariation(0);
-    }
-  };
-
-  // Apply a chain progress event shared by the streaming and polled paths
-  // (step / research / voice_score). draft_delta, complete and error are handled
-  // by each path directly since they differ (live text vs. final result).
-  const applyAgenticEvent = (ev: Record<string, unknown>) => {
-    switch (ev.type) {
-      case "step":
-        setChainSteps((prev) =>
-          upsertStep(prev, {
-            step: ev.step as ChainStepView["step"],
-            status: ev.status as ChainStepView["status"],
-            label: String(ev.label),
-            iteration: ev.iteration as number | undefined,
-          })
-        );
-        break;
-      case "research":
-        setChainSources((ev.sources as ChainSource[]) || []);
-        break;
-      case "voice_score": {
-        const sc: ChainScore = {
-          iteration: (ev.iteration as number) ?? 0,
-          score: (ev.score as number) ?? 0,
-        };
-        setChainScores((prev) =>
-          [...prev.filter((s) => s.iteration !== sc.iteration), sc].sort(
-            (a, b) => a.iteration - b.iteration
-          )
-        );
-        break;
-      }
-    }
-  };
-
-  // Poll an async (QStash-queued) agentic job and drive the same chain UI from
-  // its accumulated progress. Used when generate-agentic returns mode:"async".
-  const consumeAgenticJob = async (jobId: string, append: boolean) => {
-    let applied = 0;
-    for (let i = 0; i < 200; i++) {
-      await new Promise((r) => setTimeout(r, 1500));
-      let res: Response;
-      try {
-        res = await fetch(`/api/drafts/generation-jobs/${jobId}`);
-      } catch {
-        continue;
-      }
-      if (!res.ok) continue;
-      const job = await res.json();
-      const events: Array<Record<string, unknown>> = Array.isArray(job.progress) ? job.progress : [];
-      for (; applied < events.length; applied++) applyAgenticEvent(events[applied]);
-      if (job.status === "done") {
-        const option = job.result?.option as GeneratedDraft | undefined;
-        if (option) applyOption(option, append);
-        return;
-      }
-      if (job.status === "failed") {
-        setError(String(job.error || "Generation failed"));
-        return;
-      }
-    }
-    setError("Generation timed out. Please try again.");
-  };
-
-  // Read the agentic SSE stream and drive the chain UI. On `complete`, fold the
-  // option into the variation history so the existing result card renders it.
-  const consumeAgenticStream = async (
-    body: ReadableStream<Uint8Array>,
-    append: boolean
-  ) => {
-    const reader = body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let liveText = "";
-    let liveIter = -1;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const frames = buffer.split("\n\n");
-      buffer = frames.pop() || "";
-
-      for (const frame of frames) {
-        const dataLine = frame.split("\n").find((l) => l.startsWith("data:"));
-        if (!dataLine) continue;
-        const payload = dataLine.slice(5).trim();
-        if (!payload) continue;
-
-        let ev: Record<string, unknown>;
-        try {
-          ev = JSON.parse(payload);
-        } catch {
-          continue;
-        }
-
-        switch (ev.type) {
-          case "draft_delta": {
-            const iter = (ev.iteration as number) ?? 0;
-            if (iter !== liveIter) {
-              liveIter = iter;
-              liveText = "";
-            }
-            liveText += String(ev.text);
-            setLiveDraft(liveText);
-            break;
-          }
-          case "voice_score": {
-            const sc: ChainScore = {
-              iteration: (ev.iteration as number) ?? 0,
-              score: (ev.score as number) ?? 0,
-            };
-            setChainScores((prev) =>
-              [...prev.filter((s) => s.iteration !== sc.iteration), sc].sort(
-                (a, b) => a.iteration - b.iteration
-              )
-            );
-            break;
-          }
-          case "read":
-            setChainRead((ev.read as ChainRead) || null);
-            break;
-          case "complete": {
-            const option = ev.option as GeneratedDraft;
-            // The read also rides in metadata so it survives a reload of the
-            // finished option, not just the live stream.
-            const read = (option as { metadata?: { prepublish_read?: ChainRead } })?.metadata
-              ?.prepublish_read;
-            if (read) setChainRead(read);
-            applyOption(option, append);
-            break;
-          }
-          case "error":
-            setError(String(ev.message || "Generation failed"));
-            break;
-          default:
-            applyAgenticEvent(ev);
-        }
-      }
     }
   };
 
@@ -448,48 +277,8 @@ export function CreatePage() {
     applyOption(newOptions[0], append);
   };
 
-  // Agent mode: streamed research → draft → voice-check → refine pipeline.
-  const runAgent = async (q: GenQuery, append: boolean) => {
-    setChainSteps([]);
-    setChainSources([]);
-    setChainScores([]);
-    setChainRead(null);
-    setLiveDraft("");
-    setChainActive(true);
-    try {
-      const res = await fetch("/api/drafts/generate-agentic", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bodyFromQuery(q)),
-      });
-      if (!res.ok) {
-        await setGenError(res, "Failed to generate drafts");
-        return;
-      }
-      // Async (QStash-queued) mode returns JSON with a jobId to poll; the
-      // synchronous mode streams Server-Sent Events.
-      const contentType = res.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        const data = await res.json();
-        if (data.mode === "async" && data.jobId) {
-          await consumeAgenticJob(data.jobId, append);
-        } else {
-          setError(String(data.error || "Failed to generate drafts"));
-        }
-        return;
-      }
-      if (!res.body) {
-        await setGenError(res, "Failed to generate drafts");
-        return;
-      }
-      await consumeAgenticStream(res.body, append);
-    } finally {
-      setChainActive(false);
-    }
-  };
-
-  // Fresh generation in the selected mode. Records the exact query so a later
-  // Regenerate replays it verbatim.
+  // Fresh generation. Records the exact query so a later Regenerate replays it
+  // verbatim.
   const handleGenerate = async () => {
     if (!topic.trim() || topic.length < 3) {
       setError("Please enter a topic (at least 3 characters)");
@@ -500,15 +289,9 @@ export function CreatePage() {
     setError(null);
     setGeneratedDrafts([]);
     setFeedbackMap({});
-    setChainSteps([]);
-    setChainSources([]);
-    setChainScores([]);
-    setChainRead(null);
-    setLiveDraft("");
-    setLastQuery({ mode, query: q });
+    setLastQuery(q);
     try {
-      if (mode === "agent") await runAgent(q, false);
-      else await runQuick(q, false);
+      await runQuick(q, false);
       refetchSubscription();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate");
@@ -517,15 +300,14 @@ export function CreatePage() {
     }
   };
 
-  // Regenerate: replay the last query exactly (same mode + inputs), appending a
-  // new variation. No feedback, no steering — a fresh attempt at the same ask.
+  // Regenerate: replay the last query exactly, appending a new variation. No
+  // feedback, no steering — a fresh attempt at the same ask.
   const handleRegenerate = async () => {
     if (!lastQuery) return;
     setRegenerating(true);
     setError(null);
     try {
-      if (lastQuery.mode === "agent") await runAgent(lastQuery.query, true);
-      else await runQuick(lastQuery.query, true);
+      await runQuick(lastQuery, true);
       refetchSubscription();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to regenerate");
@@ -923,50 +705,6 @@ export function CreatePage() {
                 </CardContent>
               </Card>
 
-              {/* Generation mode: Quick vs Agent */}
-              <Card>
-                <CardContent className="py-3">
-                  <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
-                    Mode
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => setMode("quick")}
-                      className={`relative p-3 rounded-xl border-2 transition-colors duration-100 cursor-pointer text-left ${
-                        mode === "quick"
-                          ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/10"
-                          : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
-                      }`}
-                    >
-                      <Zap className={`w-5 h-5 mb-1.5 ${mode === "quick" ? "text-[var(--color-accent-400)]" : "text-[var(--color-text-secondary)]"}`} />
-                      <p className={`text-sm font-medium ${mode === "quick" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
-                        Quick
-                      </p>
-                      <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                        One-shot draft · 1 generation
-                      </p>
-                    </button>
-
-                    <button
-                      onClick={() => setMode("agent")}
-                      className={`relative p-3 rounded-xl border-2 transition-colors duration-100 cursor-pointer text-left ${
-                        mode === "agent"
-                          ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/10"
-                          : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)]"
-                      }`}
-                    >
-                      <Bot className={`w-5 h-5 mb-1.5 ${mode === "agent" ? "text-[var(--color-accent-400)]" : "text-[var(--color-text-secondary)]"}`} />
-                      <p className={`text-sm font-medium ${mode === "agent" ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"}`}>
-                        Agent
-                      </p>
-                      <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                        Research + refine · 3 generations
-                      </p>
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* AI Usage + Generate Button */}
               <AiUsageCounter className="mb-2" />
               <Button
@@ -975,19 +713,15 @@ export function CreatePage() {
                 disabled={!topic.trim() || aiLimitReached}
                 fullWidth
                 glow
-                icon={mode === "agent" ? <Bot className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
+                icon={<Zap className="w-5 h-5" />}
                 className="h-14 text-base"
               >
                 {aiLimitReached
                   ? "Daily Limit Reached"
                   : generating
-                  ? mode === "agent"
-                    ? "Running agent…"
-                    : "Generating…"
+                  ? "Generating…"
                   : generatedDrafts.length > 0
                   ? "Start Over"
-                  : mode === "agent"
-                  ? "Generate with Agent"
                   : "Generate Post"}
               </Button>
 
@@ -1001,20 +735,6 @@ export function CreatePage() {
               )}
             </div>
           </div>
-
-          {/* Agentic pipeline — live chain while generating, persists after */}
-          {(chainActive || chainSteps.length > 0) && (
-            <div className="mt-8">
-              <AgenticChain
-                steps={chainSteps}
-                sources={chainSources}
-                scores={chainScores}
-                liveDraft={liveDraft}
-                active={chainActive}
-                read={chainRead}
-              />
-            </div>
-          )}
 
           {/* Generated Post — single full view with regenerate + history */}
           {generatedDrafts.length > 0 && (() => {

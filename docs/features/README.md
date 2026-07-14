@@ -12,10 +12,10 @@ its **current state & gaps**. Audience: builders. For the *why*, see the
 | Doc | What it covers |
 |---|---|
 | ⭐ [writing-assistant.md](writing-assistant.md) | The real-time assistant — L0–L3 engine, scoring, anchoring, the three surfaces |
-| [generation.md](generation.md) | AI on-ramps: Quick, Agentic pipeline, Refine, reply gen; seeding the editor |
+| [generation.md](generation.md) | AI on-ramps: single-shot generation, Refine, reply gen; seeding the editor |
 | [voice-engine.md](voice-engine.md) | The wedge: dials, guardrails, examples, patterns, niche, prompt assembly, tune-up |
 | [analysis-and-insights.md](analysis-and-insights.md) | Analytics ingest, weightedEngagement, X-algorithm model, prepublish read, insights |
-| [publishing-and-scheduling.md](publishing-and-scheduling.md) | Publish/thread/reply, queue, scheduled cron, media, retry |
+| [publishing-and-scheduling.md](publishing-and-scheduling.md) | Publish post/thread (replies are handoff-only), queue, scheduled cron, media, retry |
 | [reply-finder.md](reply-finder.md) | Reply target discovery, opportunity score, in-voice reply gen, account safety |
 | [billing-plans-and-credits.md](billing-plans-and-credits.md) | Plans, quota slots, credits, gating primitives, Stripe |
 | [chrome-extension.md](chrome-extension.md) | In-X surface: injection, shared engine bundle, orb/underlines, opportunity pill |

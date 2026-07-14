@@ -20,8 +20,8 @@
  * N likes." Multipliers inform the explanation ("associated with higher
  * engagement"), they don't compute a number.
  *
- * Shares the shape/role of runVoiceCheck (voice-check.ts) and is used by the
- * agentic pipeline (post-pipeline.ts) and POST /api/prepublish-read.
+ * Shares the shape/role of runVoiceCheck (voice-check.ts) and is used by
+ * POST /api/prepublish-read.
  */
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
