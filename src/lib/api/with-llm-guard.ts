@@ -44,7 +44,7 @@ export interface LlmGuardOptions {
   userId: string;
   /** Pass if the caller already loaded the subscription, to skip a DB round-trip. */
   plan?: PlanId;
-  /** Token cost of this action — heavier actions (agentic) use >1. */
+  /** Token cost of this action — heavier actions use >1. */
   cost?: number;
   /** Also apply the per-IP tier (extension / high-volume surfaces). */
   ip?: string;

@@ -15,8 +15,7 @@ export async function OPTIONS() {
 // resembles the user's top performers + how X's algorithm will treat it
 // (reply-driving? link-penalized? dwell-worthy?). The honest answer to "predict
 // engagement before I post" — a resemblance + algorithm-fit read, not a like
-// forecast. Dashboard (cookie) and Chrome extension (Bearer); the agentic
-// pipeline runs the same read inline.
+// forecast. Dashboard (cookie) and Chrome extension (Bearer).
 export async function POST(request: NextRequest) {
   try {
     const { user, supabase } = await getDualAuthUser(request);
