@@ -3,7 +3,6 @@ import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { postTweet, getValidAccessToken } from "@/lib/x-api";
-import { isReplyForbiddenError } from "@/lib/x-api/search-mapping";
 import {
   publishCreditCost,
   containsUrl,
@@ -28,8 +27,27 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
 
   const { contentType, payload, draftId } = body;
 
-  if (!contentType || !["X_POST", "X_THREAD", "X_REPLY"].includes(contentType)) {
-    return apiError("contentType must be X_POST, X_THREAD, or X_REPLY", "validation_error", 400);
+  // C1 audit (2026-07) — CLOSED: deprecated. The Feb-2026 X rules put
+  // programmatic replies in the enforcement blast radius, so the handoff (web
+  // intent → extension assist → copy) is the only sanctioned reply route.
+  // X_REPLY is still *recognized* so existing callers get a purposeful 410
+  // rather than a confusing validation error. Returns before the token lookup,
+  // the daily cap, and the credit debit — a deprecated call must never charge.
+  // Do not re-add an API reply path (PRODUCT_SLIM_2026-07 §4 Tier 2).
+  if (contentType === "X_REPLY") {
+    return apiError(
+      "Reply publishing via the API is deprecated. Replies must go through the handoff flow.",
+      "deprecated",
+      410,
+      {
+        handoff:
+          "Call find_reply_posts (GET /api/v1/search/reply-targets), then open the target's intent_url with `&text=<url-encoded reply>` appended.",
+      }
+    );
+  }
+
+  if (!contentType || !["X_POST", "X_THREAD"].includes(contentType)) {
+    return apiError("contentType must be X_POST or X_THREAD", "validation_error", 400);
   }
 
   if (!payload || typeof payload !== "object") {
@@ -61,24 +79,10 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
     );
   }
 
-  // ⚠️ COMPLIANCE FLAG (C1 audit, 2026-07): X_REPLY here is an API
-  // reply-publish path (also reached via MCP publish_reply). Per the Feb-2026
-  // X rules + PRD_CORE §4.4, replies should go through the handoff (web intent
-  // → extension assist → copy), never the API; deprecating this public surface
-  // is a flagged product decision. X_POST/X_THREAD may keep using the API only
-  // where the Feb-2026 unsolicited-mention/quote rules permit — that audit is
-  // open. Do not add new reply callers.
-  if (contentType === "X_POST" || contentType === "X_REPLY") {
+  if (contentType === "X_POST") {
     const text = String(payload.text || "").trim();
     if (!text) {
       return apiError("Missing text in payload", "validation_error", 400);
-    }
-
-    const inReplyToId = contentType === "X_REPLY"
-      ? String(payload.inReplyToId || payload.inReplyToStatusId || "").trim()
-      : "";
-    if (contentType === "X_REPLY" && !inReplyToId) {
-      return apiError("X_REPLY requires payload.inReplyToId (the tweet being replied to)", "validation_error", 400);
     }
 
     // Debit before the X call; refund below if X rejects it.
@@ -93,11 +97,7 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
 
     let posted: { id_str: string };
     try {
-      posted = await postTweet(
-        accessToken,
-        text,
-        inReplyToId ? { inReplyToStatusId: inReplyToId } : undefined
-      );
+      posted = await postTweet(accessToken, text);
     } catch (e) {
       const detail = e instanceof Error ? e.message : "unknown error";
       // Log server-side: the MCP client may swallow or truncate this, and
@@ -107,15 +107,6 @@ export const POST = withApiAuth(["publish:write"], async ({ auth, request }) => 
       );
       Sentry.captureException(e, { tags: { route: "v1/publish/now" } });
       await refundCredits(auth.userId, charge.charged, "refund.publish_failed", draftId);
-      // Reply restrictions are undetectable pre-flight; give the agent a clear,
-      // actionable message (credits already refunded above) instead of a raw body.
-      if (isReplyForbiddenError(detail)) {
-        return apiError(
-          "X won't allow a reply here — the author limited who can reply to this post. Credits were refunded.",
-          "reply_forbidden",
-          403
-        );
-      }
       return apiError(`X rejected the post: ${detail}`, "x_api_error", 502);
     }
 

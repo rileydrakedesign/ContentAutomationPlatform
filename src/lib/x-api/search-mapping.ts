@@ -20,6 +20,15 @@ export interface EnrichedSearchTweet {
   is_auth_mentioned: boolean;
   reply_allowed: boolean;
   reply_eligibility: ReplyEligibility;
+  /** Canonical permalink. Null when the author isn't resolvable from includes. */
+  post_url: string | null;
+  /**
+   * Reply handoff target — the ONLY sanctioned way to reply (replies are never
+   * published via the API; see PRODUCT_SLIM_2026-07 §4 Tier 2). Callers append
+   * `&text=<url-encoded reply>` and open it; X's composer opens pre-filled with
+   * the human in control of the send.
+   */
+  intent_url: string;
 }
 
 // Derive reply eligibility from the author's reply_settings + whether our
@@ -103,6 +112,10 @@ export function mapSearchResults(
       isAuthMentioned
     );
 
+    const authorUsername = tweet.author_id
+      ? users.get(tweet.author_id)?.username ?? null
+      : null;
+
     return {
       id: tweet.id,
       // Long-form posts: prefer the full note_tweet body over the truncated
@@ -112,7 +125,7 @@ export function mapSearchResults(
       metrics: tweet.public_metrics ?? null,
       author: tweet.author_id
         ? {
-            username: users.get(tweet.author_id)?.username ?? null,
+            username: authorUsername,
             name: users.get(tweet.author_id)?.name ?? null,
             followers_count:
               users.get(tweet.author_id)?.public_metrics?.followers_count ?? null,
@@ -122,6 +135,10 @@ export function mapSearchResults(
       is_auth_mentioned: isAuthMentioned,
       reply_allowed,
       reply_eligibility,
+      post_url: authorUsername
+        ? `https://x.com/${authorUsername}/status/${tweet.id}`
+        : null,
+      intent_url: `https://x.com/intent/post?in_reply_to=${encodeURIComponent(tweet.id)}`,
     };
   });
 }

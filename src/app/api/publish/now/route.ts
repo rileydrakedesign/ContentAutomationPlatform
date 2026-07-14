@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createAuthClient } from "@/lib/supabase/server";
 import { postTweet, getValidAccessToken } from "@/lib/x-api";
-import { isReplyForbiddenError } from "@/lib/x-api/search-mapping";
 import { parseAttachedMedia, resolveMediaIdsForPublish } from "@/lib/x-api/media";
 import { pollForPublish } from "@/lib/x-api/poll";
 
-type ContentType = "X_POST" | "X_THREAD" | "X_REPLY";
+type ContentType = "X_POST" | "X_THREAD";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,73 +27,8 @@ export async function POST(request: NextRequest) {
     const payload = body?.payload;
     const draftId = body?.draftId ? String(body.draftId) : null;
 
-    if (!contentType || !["X_POST", "X_THREAD", "X_REPLY"].includes(contentType)) {
+    if (!contentType || !["X_POST", "X_THREAD"].includes(contentType)) {
       return NextResponse.json({ error: "Invalid contentType" }, { status: 400 });
-    }
-
-    // ⚠️ COMPLIANCE FLAG (C1 audit, 2026-07): API reply-publish path. Per the
-    // Feb-2026 X rules + PRD_CORE §4.4, replies go through the handoff (web
-    // intent → extension assist → copy) — the dashboard Reply finder no longer
-    // calls this branch (it uses /api/reply/handoff). Kept only for existing
-    // v1-API/MCP callers; deprecation is a flagged product decision. Do not
-    // add new callers.
-    //
-    // Reply — post in reply to a target tweet and log it to the reply pool so it
-    // feeds the reply voice (same store the extension uses).
-    if (contentType === "X_REPLY") {
-      const text = String(payload?.text || "").trim();
-      const inReplyToId = String(payload?.inReplyToId || payload?.inReplyToStatusId || "").trim();
-      if (!text) return NextResponse.json({ error: "Missing text" }, { status: 400 });
-      if (!inReplyToId) {
-        return NextResponse.json(
-          { error: "X_REPLY requires payload.inReplyToId (the tweet being replied to)" },
-          { status: 400 }
-        );
-      }
-
-      // Optional media on the reply. Immediate publish → the just-uploaded
-      // media_id is still valid (no re-upload needed).
-      const replyMedia = parseAttachedMedia(payload?.media);
-      const replyMediaIds = replyMedia.length
-        ? await resolveMediaIdsForPublish(supabase, accessToken, replyMedia, { forceReupload: false })
-        : [];
-
-      let posted: { id_str: string };
-      try {
-        posted = await postTweet(accessToken, text, {
-          inReplyToStatusId: inReplyToId,
-          mediaIds: replyMediaIds.length ? replyMediaIds : undefined,
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to post reply";
-        // Undetectable-pre-flight reply restriction → clean 403 the UI can act
-        // on (clear message + drop the post), not a raw 500.
-        if (isReplyForbiddenError(message)) {
-          return NextResponse.json(
-            {
-              error:
-                "X won't allow a reply here — the author limited who can reply to this post.",
-              reply_forbidden: true,
-            },
-            { status: 403 }
-          );
-        }
-        throw err;
-      }
-
-      try {
-        await supabase.from("extension_replies").insert({
-          user_id: user.id,
-          reply_text: text,
-          replied_to_post_id: inReplyToId,
-          replied_to_post_url: payload?.inReplyToUrl ? String(payload.inReplyToUrl) : null,
-          sent_at: new Date().toISOString(),
-        });
-      } catch (e) {
-        console.warn("publish now: failed to log reply to reply pool", e);
-      }
-
-      return NextResponse.json({ success: true, postedIds: [posted.id_str] });
     }
 
     // Publish
