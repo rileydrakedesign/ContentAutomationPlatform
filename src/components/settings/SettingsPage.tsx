@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/Badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { ApiKeysTab } from "./ApiKeysTab";
 import { BillingTab } from "./BillingTab";
+import { StrategyTab } from "./StrategyTab";
 import { formatRelativeTime } from "@/lib/utils/formatting";
-import { Key, CreditCard } from "lucide-react";
+import { Key, CreditCard, Target } from "lucide-react";
 import { useSubscription } from "@/components/auth/SubscriptionProvider";
 import { UpgradePrompt } from "@/components/ui/UpgradePrompt";
 
@@ -184,6 +185,9 @@ export function SettingsPage() {
           >
             X Account
           </TabsTrigger>
+          <TabsTrigger value="strategy" icon={<Target className="w-4 h-4" />}>
+            Strategy
+          </TabsTrigger>
           <TabsTrigger value="api-keys" icon={<Key className="w-4 h-4" />}>
             API Keys
           </TabsTrigger>
@@ -307,6 +311,10 @@ export function SettingsPage() {
               </div>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="strategy" className="mt-4">
+          <StrategyTab />
         </TabsContent>
 
         <TabsContent value="api-keys" className="mt-4">

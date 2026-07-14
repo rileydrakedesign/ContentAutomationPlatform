@@ -6,7 +6,6 @@ import { ConsistencyTracker } from "./ConsistencyTracker";
 import { ContentSidebar } from "./ContentSidebar";
 import { InsightsHub } from "./InsightsHub";
 import { BoostOpportunitiesCard } from "./BoostOpportunitiesCard";
-import { StrategyProgress } from "./StrategyProgress";
 import { VoiceHealthCard, RetuneBanner } from "./VoiceHealthCard";
 import { NextBestAction } from "./NextBestAction";
 import { FirstRunAnalysis } from "./FirstRunAnalysis";
@@ -161,8 +160,6 @@ export function HomePage() {
           <VoiceHealthCard />
 
           <OutcomeAttributionCard />
-
-          <StrategyProgress />
 
           <BoostOpportunitiesCard days={7} limit={3} />
 
