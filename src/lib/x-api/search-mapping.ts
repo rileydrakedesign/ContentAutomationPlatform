@@ -105,7 +105,9 @@ export function mapSearchResults(
 
     return {
       id: tweet.id,
-      text: tweet.text,
+      // Long-form posts: prefer the full note_tweet body over the truncated
+      // ~280-char `text` (which ends in a "… https://t.co/…" stub).
+      text: tweet.note_tweet?.text || tweet.text,
       created_at: tweet.created_at ?? null,
       metrics: tweet.public_metrics ?? null,
       author: tweet.author_id

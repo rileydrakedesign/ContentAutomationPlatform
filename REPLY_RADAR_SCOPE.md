@@ -73,6 +73,8 @@ User-defined sweep+alert for a specific search (e.g., "AI chat apps that help st
 
 ### 3.3 Reply Desk
 
+> *Shipped shape (2026-07-10):* the Desk is a **two-pane surface** — left rail = watches + New/Snoozed/Replied filters + the bounded queue (row click is the one primary action); right pane = the desk below. Skip requires a reason (wrong topic / too late / not my crowd). Replied rows are the future per-reply outcomes surface (see PRD R3.1 amendment). Manual search is a collapsed "Hunt manually" section feeding the same rail.
+
 Click a target → composer opens with:
 - **Live assistant in reply mode** (fix G6: wire `voice_type:"reply"` + parent context into the extension assistant; dashboard already supports it).
 - **Context card:** *why this target* — every Opportunity 2.0 factor legible ("your score, explained" — same positioning stance as against SuperX's black-box simulator), and *what angle fits you* from the user's own extracted patterns.

@@ -5,6 +5,7 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SubscriptionProvider } from "@/components/auth/SubscriptionProvider";
 import { SidebarProvider, Sidebar } from "@/components/sidebar";
 import { OnboardingGate } from "@/components/onboarding";
+import { MainContainer } from "@/components/layout/MainContainer";
 
 // GALLEY: monospace everywhere. JetBrains Mono drives --font-heading/body/mono
 // (see globals.css). The writing surface adds iA Writer Quattro via --font-writer.
@@ -37,7 +38,7 @@ export default function RootLayout({
               <div className="flex min-h-screen">
                 <Sidebar />
                 <main className="flex-1 px-6 py-8 overflow-auto">
-                  <div className="max-w-5xl mx-auto">{children}</div>
+                  <MainContainer>{children}</MainContainer>
                 </main>
               </div>
             </OnboardingGate>
