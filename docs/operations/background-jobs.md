@@ -48,13 +48,13 @@ stay fast and survive cold starts.
 
 | Route | Purpose |
 |---|---|
-| `/api/qstash/llm-job` | Run a queued LLM job (e.g. async agentic generation; see [generation](../features/generation.md)) |
 | `/api/qstash/publish` | Process a queued publish |
 | `/api/qstash/failure` | QStash failure callback (dead-letter handling) |
 
-The agentic generation route (`/api/drafts/generate-agentic`) can return `{ mode: "async",
-jobId }`; the client polls `/api/drafts/generation-jobs/[id]` for progress (vs the SSE
-streaming path).
+> **Removed (2026-07):** `/api/qstash/llm-job`, the async worker for agentic generation.
+> The agentic pipeline and its `generate-agentic` / `generation-jobs` routes are retired
+> ([generation](../features/generation.md)); generation is now a single synchronous call.
+> Publishing is the only QStash workload.
 
 ## 3. Rate limiting / burst guards
 

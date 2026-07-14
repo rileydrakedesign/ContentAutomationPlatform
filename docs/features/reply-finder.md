@@ -111,8 +111,8 @@ Separate from the opportunity score and from generation. `POST /api/voice/check`
 - Search box + a relevance/traction toggle (`:238-255`) → `GET /api/search/reply-targets?...&max_results=25` (`:83-85`).
 - Results show only repliable posts, each badged `repliable` / `you're mentioned` from `reply_eligibility` (`:298-302`), with a transparency line "_N of M posts are repliable — the rest restrict replies and are hidden_" (`:263-268`).
 - "Reply in my voice" opens a one-at-a-time composer → `generateReplies` calls `/api/generate-reply` (`:110-137`) → user picks/edits an option.
-- **Post path is human-gated.** Primary "Post reply" ships immediately via `POST /api/publish/now` with `contentType: "X_REPLY"` (`:154-161`); secondary "Voice-check & reply" runs the optional check first (`:404-413`). Both require non-empty text the user typed/approved.
-- Handles the un-detectable-pre-flight 403 ("author limited who can reply to this conversation") as a clean outcome — clear message + drop the post (`:163-181`).
+- **Post path is a handoff, never an API publish.** The reply leaves the app via the extension → X web intent (pre-filled composer) → copy + open post (`src/components/reply/useHandoff.ts`); the human sends it from X. The dashboard `POST /api/publish/now` no longer accepts `X_REPLY` at all.
+- Conversation-level reply limits are undetectable pre-flight; because the send happens in X's own UI, the user simply sees X reject it there.
 - Search/draft state persists across navigation via `usePersistentState` (`:50-65`).
 
 ### 4b. Chrome extension — opportunity pill + inline reply
@@ -124,7 +124,14 @@ Separate from the opportunity score and from generation. `POST /api/voice/check`
 
 ### 4c. MCP / agent — `find_reply_posts`
 
-`mcp/src/tools.ts:639-667`. Wraps `GET /api/v1/search/reply-targets`. The tool description is doing real safety work: it tells the agent to use this instead of `search_tweets` when the goal is replying, that `reply_allowed` is **best-effort not a guarantee** (publish can still 403), that credits bill per post X returns (not per repliable post), and to only set `sort='traction'` when the user asks for momentum (`:644-657`). Sibling `search_tweets` (`:622`) returns raw eligibility fields without filtering. Actual posting is a separate, explicit tool (`publish_reply`).
+`find_reply_posts` in `mcp/src/tools.ts` wraps `GET /api/v1/search/reply-targets`. The tool description is doing real safety work: it tells the agent to use this instead of `search_tweets` when the goal is replying, that `reply_allowed` is **best-effort not a guarantee**, that credits bill per post X returns (not per repliable post), and to only set `sort='traction'` when the user asks for momentum. Sibling `search_tweets` returns raw eligibility fields without filtering.
+
+**There is no agent reply-publish path (2026-07).** `publish_reply` was removed from the catalog, and `POST /api/v1/publish/now` with `contentType: "X_REPLY"` returns `410 Gone` (`code: "deprecated"`) *before* any credit debit. Instead, every reply target now carries two handoff fields (`src/lib/x-api/search-mapping.ts:138-141`):
+
+- **`post_url`** — the permalink (`https://x.com/<author>/status/<id>`; `null` when the author username is unknown).
+- **`intent_url`** — `https://x.com/intent/post?in_reply_to=<id>`. The caller appends `&text=<url-encoded reply>` and opens it; X's composer opens pre-filled and the **human** sends it.
+
+This is the same handoff the dashboard uses (`useHandoff.ts`), expressed as data for agents.
 
 ---
 
@@ -133,9 +140,9 @@ Separate from the opportunity score and from generation. `POST /api/voice/check`
 The architecture is "human-in-the-loop is the architecture," realized as layered guards:
 
 1. **Never surface an un-repliable post.** Server filters to `reply_allowed` (`reply-targets.ts:43`) with an allow-list eligibility model (`search-mapping.ts:41-65`); the extension applies a DOM eligibility gate before any pill (`content.js:429`). No keyword-spray surface exists.
-2. **Generation ≠ posting.** Every surface separates "generate options" from "post." Nothing auto-posts: the dashboard requires the user to pick/edit and click Post (`ReplyFinderPage.tsx:394-403`); MCP requires a distinct `publish_reply` call; the extension posts through X's own UI.
+2. **Nothing posts a reply programmatically.** Replies are **handoff-only** everywhere: the dashboard hands off to the extension, X's web intent, or copy+open (`useHandoff.ts`); the extension posts through X's own UI; MCP/the API have **no reply-publish path at all** (`publish_reply` removed; `X_REPLY` → 410). Generation, where used, only seeds text the human edits and sends.
 3. **Voice is the anti-spam signal.** Replies are written from the user's tuned reply voice (§3) and an optional Voice Match check, so they read as the person, not a bot.
-4. **Graceful 403 handling.** Conversation-level reply limits are undetectable pre-flight, so the publish path detects X's "not allowed to reply" 403 (`isReplyForbiddenError` `search-mapping.ts:72-81`; dashboard `ReplyFinderPage.tsx:168-181`) and treats it as expected — drop the post, no error spam.
+4. **Graceful 403 handling.** Conversation-level reply limits are undetectable pre-flight. Since replies now leave via the handoff, X itself rejects the send in its own composer; the `isReplyForbiddenError` helper (`search-mapping.ts:85`) survives for any X-API path that can still hit that 403.
 5. **Rate-limit + quota + Pro gating.** `generate-reply` runs `guardLlmRoute` + daily AI-generation quota; search is `xApiSync` Pro-gated and per-post metered. These cap volume independent of intent.
 
 ---
@@ -160,7 +167,8 @@ The architecture is "human-in-the-loop is the architecture," realized as layered
 | Extension eligibility gate | `chrome-extension/src/content/content.js:322` |
 | Extension reply generation | `chrome-extension/src/background/background.js:244` |
 | Extension reply logging route | `src/app/api/extension/replies/route.ts:12` |
-| MCP tool | `mcp/src/tools.ts:639` (`find_reply_posts`) |
+| MCP tool | `mcp/src/tools.ts` (`find_reply_posts`) |
+| Reply handoff (dashboard) | `src/components/reply/useHandoff.ts` |
 | **Tables** | `user_voice_settings` (`voice_type='reply'`), `user_voice_examples` (`content_type='reply'`), `inspiration_posts` (`include_in_reply_voice`), `generation_feedback` (`generation_type='reply'`), `extension_replies` |
 
 ---

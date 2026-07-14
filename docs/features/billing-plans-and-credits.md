@@ -24,23 +24,22 @@ Retail anchor: **1 credit = $0.01** (`src/lib/billing/credits.ts:7`). Business e
 
 ## 2. Plans & limits
 
-Source: `src/types/subscription.ts:31` (`PLANS`). Four plans; `agent` and `agency` are hidden until their Stripe price-id env var is set (`isPlanAvailable`, `src/types/subscription.ts:144`).
+Source: `src/types/subscription.ts:29` (`PLANS`). Three plans (`PlanId = "free" | "pro" | "agent"`); `agent` is hidden until its Stripe price-id env var is set (`isPlanAvailable`, `src/types/subscription.ts:111`). The **`agency` tier and the `multiAccount` feature flag were removed** with the agency module (2026-07).
 
-| Limit | free | pro | agent | agency |
-|-------|------|-----|-------|--------|
-| Price / mo | $0 | $29 | $79 | $199 |
-| `stripePriceId` | `null` | `NEXT_PUBLIC_STRIPE_PRO_PRICE_ID` | `NEXT_PUBLIC_STRIPE_AGENT_PRICE_ID` | `NEXT_PUBLIC_STRIPE_AGENCY_PRICE_ID` |
-| `aiGenerationsPerDay` | 5 | ∞ | ∞ | ∞ |
-| `writingAssistant` | **true** | true | true | true |
-| `xApiSync` | false | true | true | true |
-| `scheduling` | false | true | true | true |
-| `patternExtraction` | false | true | true | true |
-| `insightsChat` | false | true | true | true |
-| `multiAccount` | false | false | false | **true** |
-| `monthlyCredits` | 100 | 2000 | 7500 | 7500 |
-| `apiRateLimit` (req/min/key) | 20 | 60 | 120 | 120 |
-| `apiPublishPerDay` | 5 | 200 | 600 | 600 |
-| `apiGeneratePerDay` | 20 | 1000 | 3000 | 3000 |
+| Limit | free | pro | agent |
+|-------|------|-----|-------|
+| Price / mo | $0 | $29 | $79 |
+| `stripePriceId` | `null` | `NEXT_PUBLIC_STRIPE_PRO_PRICE_ID` | `NEXT_PUBLIC_STRIPE_AGENT_PRICE_ID` |
+| `aiGenerationsPerDay` | 5 | ∞ | ∞ |
+| `writingAssistant` | **true** | true | true |
+| `xApiSync` | false | true | true |
+| `scheduling` | false | true | true |
+| `patternExtraction` | false | true | true |
+| `insightsChat` | false | true | true |
+| `monthlyCredits` | 100 | 2000 | 7500 |
+| `apiRateLimit` (req/min/key) | 20 | 60 | 120 |
+| `apiPublishPerDay` | 5 | 200 | 600 |
+| `apiGeneratePerDay` | 20 | 1000 | 3000 |
 
 Notes:
 - `aiGenerationsPerDay: Infinity` on all paid plans → `checkAiGenerationLimit` short-circuits to "allowed, unlimited" and never queries `ai_usage_log` (`src/lib/stripe/subscription.ts:65`).
@@ -64,8 +63,8 @@ All in `src/lib/stripe/gate.ts` and `src/lib/billing/credits.ts`. Each returns e
 | `checkDailyActionCap(userId, "publish"\|"generate")` | `credits.ts:213` | Abuse backstop counted from today's ledger debits | None (read) | caller returns `429 daily_cap` |
 
 Decision rule:
-- **Entitlement, no per-use cost** (assistant scoring, X sync, scheduling, pattern extraction, insights chat, multi-account) → `requireFeature`.
-- **In-app, costs the user a generation** → `requireAiGeneration` (default weight 1; Agent pipeline weight 3).
+- **Entitlement, no per-use cost** (assistant scoring, X sync, scheduling, pattern extraction, insights chat) → `requireFeature`.
+- **In-app, costs the user a generation** → `requireAiGeneration` (weight 1 everywhere; the weight-3 agentic route is retired).
 - **API/MCP request** → `requireCredits` (+ optional `requireFeature` for plan-gated capability + `checkDailyActionCap`).
 
 `requireFeature` and `requireAiGeneration` can stack: e.g. `/api/insights-chat` requires the `insightsChat` entitlement AND spends a generation slot (`src/app/api/insights-chat/route.ts:40,43`); `/api/insights/tuneup` requires `patternExtraction` AND a slot (`route.ts:33,47`).
@@ -98,9 +97,9 @@ In-app AI generation keeps a **daily slot** model (mechanism 2). `requireAiGener
 2. If `remaining < weight` → `429 AI_LIMIT` with `{ remaining, limit, upgrade_url }`.
 3. Otherwise `logAiGeneration` inserts `weight` rows (one insert, `weight` rows) so heavier actions consume more of the quota.
 
-Weights observed in code: default **1**; the agentic draft pipeline is **3** (`src/app/api/drafts/generate-agentic/route.ts:42`). Quota is **time-based daily**, reset implicitly by the `created_at >= today` window — there is no cron for generation slots.
+Weights observed in code: **1** everywhere — the only weight-3 caller (the agentic draft pipeline) was retired in 2026-07, though the `weight` parameter remains. Quota is **time-based daily**, reset implicitly by the `created_at >= today` window — there is no cron for generation slots.
 
-Routes using `requireAiGeneration` (in-app generation surface): `drafts/generate-agentic` (w=3), `drafts/refine`, `drafts/generate-from-topic`, `generate-reply`, `prepublish-read`, `niche/analyze`, `insights/tuneup`, `insights-chat`, `voice/chat`, `voice/preview`, `voice/check`, `inspiration` (create + reanalyze), `captured/[id]/promote`. (Grep `requireAiGeneration` across `src`.)
+Routes using `requireAiGeneration` (in-app generation surface): `drafts/refine`, `drafts/generate-from-topic`, `generate-reply`, `prepublish-read`, `niche/analyze`, `insights/tuneup`, `insights-chat`, `voice/chat`, `voice/preview`, `voice/check`, `inspiration` (create + reanalyze), `captured/[id]/promote`. (Grep `requireAiGeneration` across `src`.)
 
 A separate per-route LLM rate guard (`src/lib/api/with-llm-guard.ts`) runs **alongside** the quota — it is a burst limiter, not a billing mechanism.
 
@@ -213,8 +212,8 @@ RPCs (Postgres): `ensure_user_credits`, `debit_credits`, `grant_credits`, `reset
 ## 10. Current state, open decisions & gaps
 
 - **Free gets the full live assistant, unmetered.** `free.writingAssistant = true` (`subscription.ts:49`). The lever to gate free to L0-only is a one-line flip; routes already enforce it. **Not pulled.** (§4)
-- **`agent` and `agency` tiers are hidden** until their `NEXT_PUBLIC_STRIPE_*_PRICE_ID` env vars are set (`isPlanAvailable`). Pricing UI and checkout both filter on this.
-- **`resolvePlanId` accepts only `free`/`pro`/`agent` from metadata fallback** (`webhook/route.ts:50`) — `agency` is not in that metadata allowlist. Agency resolves correctly via `getPlanByPriceId` (its price id), but a metadata-only fallback (e.g. portal/dashboard-created sub) would miss it. Minor gap.
+- **The `agent` tier is hidden** until `NEXT_PUBLIC_STRIPE_AGENT_PRICE_ID` is set (`isPlanAvailable`). Pricing UI and checkout both filter on this.
+- **The `agency` tier is gone** (2026-07, with the agency module): `PlanId` is now `"free" | "pro" | "agent"` and the `multiAccount` flag no longer exists. Any live Stripe subscription on a legacy agency price id would fall back to Free via `resolvePlanId` — check Stripe before shipping if any exist.
 - **Generation quota is global per user, not per-endpoint.** All `requireAiGeneration` calls share the same daily `ai_usage_log` pool; weights differentiate cost, not category.
 - **No proration/credit on mid-cycle upgrade for generation slots** — slots are purely daily; credits reset monthly via cron.
 - **Credit costs are duplicated** between `src/lib/billing/credits.ts` and `docs/archive/MCP_PROD_READINESS_PLAN.md §B2` (noted in-code as the source pair to keep in sync).

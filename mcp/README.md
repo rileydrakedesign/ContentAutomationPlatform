@@ -3,9 +3,9 @@
 An [MCP](https://modelcontextprotocol.io) server for **Agents For X — the
 real-time writing assistant for X**. It lets Claude (and other MCP clients) fetch
 your voice context and write posts and replies **in your voice**, voice-check
-drafts against what actually performs for you, then draft, schedule, and publish —
-plus read your analytics and manage your patterns, inspiration, and strategy, all
-through your Agents For X account.
+drafts against what actually performs for you, then draft, schedule, and publish
+original posts — plus read your analytics and manage your patterns, inspiration,
+and niche, all through your Agents For X account.
 
 The preferred loop is **write → check**: the agent calls `get_writing_context`
 and writes the post itself in your voice, then `check_draft` scores it against

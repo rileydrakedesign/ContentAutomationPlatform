@@ -1,6 +1,6 @@
 # Publishing & Scheduling — Source of Truth
 
-> How a draft becomes a live tweet/thread/reply on X — immediately or on a schedule — plus the queue, media, char-counting, credit cost, and failure/retry machinery behind it. **Status (2026-06-26): shipped and in production.**
+> How a draft becomes a live tweet/thread on X — immediately or on a schedule (replies are handoff-only, never published) — plus the queue, media, char-counting, credit cost, and failure/retry machinery behind it. **Status (2026-06-26): shipped and in production.**
 >
 > This is the *engineering reference* (files, schema, jobs, CAS invariants). For the higher-level lifecycle narrative read [`docs/architecture/publishing.md`](../architecture/publishing.md) first — this doc does not re-tell that story, it grounds it in code.
 
@@ -21,11 +21,13 @@ Both call the same low-level `postTweet`, `executeScheduledPost`, `enqueuePublis
 
 ---
 
-## 2. Publish now (post / thread / reply) — flow + X API
+## 2. Publish now (post / thread) — flow + X API
 
 In-app entrypoint `POST /api/publish/now` ([`now/route.ts`](../../src/app/api/publish/now/route.ts)); agent equivalent `POST /api/v1/publish/now` ([`v1/publish/now/route.ts`](../../src/app/api/v1/publish/now/route.ts)).
 
-Body: `{ contentType: "X_POST"|"X_THREAD"|"X_REPLY", payload, draftId? }`.
+Body: `{ contentType: "X_POST"|"X_THREAD", payload, draftId? }`.
+
+> **Replies are never published from here (2026-07).** `X_REPLY` was removed outright from the in-app route, and the v1 route still *recognizes* it only to return **`410 Gone`** (`code: "deprecated"`) — before the token lookup, the daily cap, and any credit debit ([`v1/publish/now/route.ts:30-48`](../../src/app/api/v1/publish/now/route.ts)). Replies go through the handoff (X web intent / extension / copy); see [reply-finder.md](reply-finder.md). Both schedule routes already rejected replies. Do not re-add a reply publish path.
 
 **Shared mechanics (both surfaces):**
 1. Resolve a valid X token via `getValidAccessToken(userId)` — refreshes the OAuth2 token race-safely, throws if the connection is stale ([`client.ts:157`](../../src/lib/x-api/client.ts)). v1 maps that throw to a clean `400 x_not_connected` ([`v1/publish/now/route.ts:45`](../../src/app/api/v1/publish/now/route.ts)).
@@ -41,7 +43,6 @@ Body: `{ contentType: "X_POST"|"X_THREAD"|"X_REPLY", payload, draftId? }`.
 
 **Per-type behavior:**
 - **X_POST** — single `postTweet`. A poll suppresses media ([`now/route.ts:99`](../../src/app/api/publish/now/route.ts)); `pollForPublish` normalizes the poll payload.
-- **X_REPLY** — requires `payload.inReplyToId`; also logs the reply into `extension_replies` so it feeds the reply voice pool ([`now/route.ts:79`](../../src/app/api/publish/now/route.ts)). An undetectable-pre-flight reply restriction is caught via `isReplyForbiddenError` and returned as `403 reply_forbidden` rather than a raw 500.
 - **X_THREAD** — loop over `payload.tweets` (or `posts`), each `postTweet` replies to the previous `id_str`. **Mid-thread failure keeps the posted prefix** and returns it so the caller can resume — never blind-retry the whole thread ([`now/route.ts:173`](../../src/app/api/publish/now/route.ts)):
   - in-app: `500` with `{ postedIds, failedAtIndex, remainingTweets }`.
   - v1: `502 x_partial_thread` with the same shape; the **un-posted remainder's credits are refunded** ([`v1/publish/now/route.ts:189`](../../src/app/api/v1/publish/now/route.ts)).
@@ -131,7 +132,7 @@ Two *different* URL detectors live here — keep them distinct:
 - **Retry** — `POST /api/publish/retry` ([`publish/retry/route.ts`](../../src/app/api/publish/retry/route.ts)): only `failed` rows, CAS `failed→scheduled`, clears `error`, **leaves `posted_post_ids` intact** (thread resumes from first unposted), re-enqueues with `notBefore = now+5s`.
 - **Cancel** — `POST /api/publish/cancel` ([`publish/cancel/route.ts`](../../src/app/api/publish/cancel/route.ts)): CAS over `scheduled`/`failed`, best-effort cancels the QStash message, reverts the draft to `DRAFT`; a row mid-`publishing` returns `409`. Agent `DELETE /api/v1/queue/:id` additionally **refunds `credits_charged`** exactly once via the CAS guard ([`v1/queue/[id]/route.ts:68`](../../src/app/api/v1/queue/[id]/route.ts)).
 - **Delete** — `POST /api/publish/delete` ([`publish/delete/route.ts`](../../src/app/api/publish/delete/route.ts)): hard-removes the row (vs cancel which keeps it), refuses while `publishing` (`409`), cancels QStash, frees the draft.
-- **QStash LLM jobs** — a separate worker `POST /api/qstash/llm-job` runs agentic generation into `generation_jobs` (not publishing); `?failure=1` is its dead-letter callback ([`qstash/llm-job/route.ts`](../../src/app/api/qstash/llm-job/route.ts)). Same QStash signature + idempotent-claim pattern as publish.
+- **QStash LLM jobs (removed 2026-07)** — the `POST /api/qstash/llm-job` worker that ran async agentic generation into `generation_jobs` is gone with the pipeline. `/api/qstash/publish` (+ `/api/qstash/failure`) is now the only QStash worker.
 
 ---
 
@@ -141,7 +142,7 @@ Two *different* URL detectors live here — keep them distinct:
 
 | Route | File | Purpose |
 |---|---|---|
-| `POST /api/publish/now` | [`publish/now/route.ts`](../../src/app/api/publish/now/route.ts) | In-app immediate publish (post/thread/reply) |
+| `POST /api/publish/now` | [`publish/now/route.ts`](../../src/app/api/publish/now/route.ts) | In-app immediate publish (post/thread) |
 | `POST /api/publish/schedule` | [`publish/schedule/route.ts`](../../src/app/api/publish/schedule/route.ts) | In-app schedule (Pro) |
 | `GET /api/publish/list` | [`publish/list/route.ts`](../../src/app/api/publish/list/route.ts) | Queue list for the UI |
 | `POST /api/publish/{cancel,delete,retry}` | [`cancel`](../../src/app/api/publish/cancel/route.ts) / [`delete`](../../src/app/api/publish/delete/route.ts) / [`retry`](../../src/app/api/publish/retry/route.ts) | Queue mutations |
@@ -161,14 +162,14 @@ Two *different* URL detectors live here — keep them distinct:
 | `scheduled_posts` | `status` (`scheduled\|publishing\|posted\|failed\|cancelled`), `content_type` (`X_POST\|X_THREAD`), `payload jsonb`, `scheduled_for`, `posted_post_ids jsonb`, `error`, `credits_charged` (default 0), `qstash_message_id`, `job_id`, `draft_id` | `credits_charged` added [`20260610_scheduled_posts_credits_charged.sql`](../../supabase/migrations/20260610_scheduled_posts_credits_charged.sql); `job_id` is legacy BullMQ; `qstash_message_id` added via dashboard (not in migrations) |
 | `drafts` | `status` (`DRAFT\|SCHEDULED\|POSTED`), `type`, `content jsonb` (incl. `media`) | [`drafts/route.ts`](../../src/app/api/drafts/route.ts); publish transitions are best-effort |
 | `captured_posts` | `x_post_id`, `is_own_post`, `afx_assisted`, `metrics` | Backfilled on every publish — the loop into analytics/voice |
-| `extension_replies` | `reply_text`, `replied_to_post_id` | Logged on X_REPLY to feed reply voice |
+| `extension_replies` | `reply_text`, `replied_to_post_id` | Logged by the extension (`POST /api/extension/replies`) when the user sends a reply on X; feeds the reply voice |
 | `credit_ledger` / `user_credits` | — | Debits, refunds, daily-cap counting (`checkDailyActionCap`) |
 
 ---
 
 ## 8. Current state & gaps
 
-- ✅ Post / thread / reply, polls, reply-audience, media (image/GIF/video + alt text), schedule + queue + retry/cancel/delete, exact-time QStash delivery with cron safety net, partial-thread resume, credit metering on the agent surface.
+- ✅ Post / thread, polls, reply-audience, media (image/GIF/video + alt text), schedule + queue + retry/cancel/delete, exact-time QStash delivery with cron safety net, partial-thread resume, credit metering on the agent surface.
 - ⚠️ **In-app publish is unmetered** — no credit debit or daily cap on `/api/publish/now` (subscription covers it). Only the v1/MCP surface meters. If the daily-cap/credit backstop should apply to web publishes too, that's a deliberate gap.
 - ⚠️ **`media.write` scope not yet granted** ([`client.ts:69`](../../src/lib/x-api/client.ts)) — media upload returns `reconnect_required` 403 until the X portal scope is enabled and the scope string re-includes it.
 - ⚠️ Media/poll attach to the **first tweet of a thread only**; no per-tweet thread media.

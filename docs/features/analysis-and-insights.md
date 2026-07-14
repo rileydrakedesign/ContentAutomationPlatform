@@ -61,7 +61,7 @@ quote-aware line parsing, and date parsing (ISO or `M/D/YYYY h:mm AM/PM`,
 `storeAnalyticsCsv` (`csv-import.ts:179`) merge-stores by `post_id` (new rows
 overwrite — fresher metrics), caps by recency, and returns a summary
 (`newly_added`/`updated_metrics`). `GET /api/analytics/csv` returns the latest
-stored row. The same parser backs the agency per-client import (different id).
+stored row.
 
 ### 2c. Browser-scrape sync → `captured_posts`
 `POST /api/x/analytics-sync` (`src/app/api/x/analytics-sync/route.ts:37`) takes
@@ -217,8 +217,9 @@ green-flag drafts actually outperform baseline?" validation loop; failure
 
 **Route.** `POST /api/prepublish-read` (`src/app/api/prepublish-read/route.ts:20`)
 — dual-auth (dashboard cookie + extension Bearer, `:22`), `requireAiGeneration`
-gate (`:28`), min 5 chars (`:39`), `maxDuration = 60` (`:4`). The agentic
-pipeline (`post-pipeline.ts`) runs the same read inline.
+gate (`:28`), min 5 chars (`:39`), `maxDuration = 60` (`:4`). It survives the
+2026-07 slim: the retired agentic pipeline used to run the same read inline, but
+`prepublish-read.ts` itself is unchanged and still serves the app.
 
 ---
 
@@ -298,7 +299,7 @@ Tolerates a missing `extension_replies` table (`:80`).
 | `BoostOpportunitiesCard.tsx` | `/api/analytics/boost-opportunities` | Amplify candidates |
 | `ConsistencyTracker.tsx` | `/api/activity/consistency` (prefers `activityDays`; legacy CSV `posts` prop) | Weekly grid (`:9-17`) |
 | `VoiceHealthCard.tsx` | `/api/insights/voice-health` | Freshness + counts |
-| `TopPostsCard.tsx`, `PatternInsightsSection.tsx`, `StrategyProgress.tsx`, `InsightsHub.tsx` | mixed | Voice/strategy surfaces |
+| `TopPostsCard.tsx`, `PatternInsightsSection.tsx`, `InsightsHub.tsx` | mixed | Voice surfaces (the dashboard `StrategyProgress` widget and `GET /api/strategy/progress` were removed in 2026-07; strategy is edited in Settings → Strategy) |
 
 Insights-page components live in `src/components/insights/*` (`PerformanceTab`,
 `BestTimesSection`, `BoostOpportunitiesPanel`, `TopPostsSection`,

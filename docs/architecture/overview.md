@@ -19,7 +19,7 @@ everywhere.
                │                 │            │ @agentsforx/mcp  │  /api/v1/mcp
                │                 │            │ (API key)        │  (mcp_at_ token)
                │                 │            └────────┬─────────┘
-               │                 │       registerTools │ (36 tools, shared)
+               │                 │       registerTools │ (33 tools, shared)
                ▼                 ▼                     ▼
         ┌───────────────────────────────────────────────────────────┐
         │            v1 route handlers  (src/app/api/v1/**)          │

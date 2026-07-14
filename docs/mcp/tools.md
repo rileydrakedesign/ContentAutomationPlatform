@@ -1,6 +1,6 @@
 # MCP tools — a guided tour
 
-This is the narrative tour of the 36 tools, grouped by what they're for. For the
+This is the narrative tour of the 33 tools, grouped by what they're for. For the
 exhaustive per-tool reference (every input, type, constraint, credit cost, and
 REST mapping), see the generated **[tools.generated.md](tools.generated.md)** —
 it is produced from the Zod schemas in [`mcp/src/tools.ts`](../../mcp/src/tools.ts)
@@ -17,10 +17,12 @@ Costs below are in credits (1 credit = $0.01); see [../api/credits.md](../api/cr
 - **`get_voice_settings`** / **`update_voice_settings`** — read or partially
   update the voice dials, guardrails, and AI model for the `post` or `reply`
   voice. Confirm material voice changes with the user first.
-- **`get_strategy`** / **`update_strategy`** — read or replace the weekly content
-  strategy (posts/threads/replies per week + pillar targets).
 - **`get_niche`** — the analyzed niche profile (summary, pillars, clusters,
   positioning).
+
+There is no strategy tool. The weekly content strategy is edited by the user in
+the app (Settings → Strategy); it still shapes every prompt the platform
+assembles. See [../guides/strategy.md](../guides/strategy.md).
 
 ## Writing & tuning
 
@@ -28,7 +30,8 @@ Costs below are in credits (1 credit = $0.01); see [../api/credits.md](../api/cr
   system prompt, proven patterns, and platform rules so the **agent writes the
   content itself**. Cheapest and usually best.
 - **`generate_post`** / **`generate_reply`** *(3 credits, fallback)* — server-side
-  generation in your `post` / `reply` voice. Returns options; never publishes.
+  generation in your `post` / `reply` voice. These **seed a draft you'll edit**,
+  not a finished post. Returns options; never publishes.
 - **`check_draft`** *(3 credits)* — score a draft 0-100 against your tuned voice +
   patterns; returns matches, deviations, and a suggested edit. Run before saving
   or publishing and iterate.
@@ -55,9 +58,13 @@ final text with the user first.
 - **`publish_post`** *(3 / 30 with a URL)* — one post.
 - **`publish_thread`** *(3 per tweet)* — a thread; on partial failure, resume with
   the remaining tweets only (don't retry the whole thread).
-- **`publish_reply`** *(3 / 30 with a URL)* — a reply to `inReplyToId`.
 - **`schedule_post`** *(Pro; debited now, refunded on cancel)* — schedule a post
   or thread for a future ISO-8601 time.
+
+**There is no reply-publish tool.** Replies are handoff-only: append
+`&text=<url-encoded reply>` to a target's `intent_url` and give the user the
+link — X's composer opens pre-filled and the human sends it. The underlying REST
+route returns `410 Gone` for `contentType: "X_REPLY"`.
 
 ## Queue & history (free)
 
@@ -77,7 +84,8 @@ final text with the user first.
   each result carries reply-eligibility fields.
 - **`find_reply_posts`** *(1/post returned, min 5, Pro)* — search and return
   **only** repliable posts; `sort=traction` ranks by momentum. Use this when the
-  goal is to find posts to reply to.
+  goal is to find posts to reply to. Each target carries `post_url` (permalink)
+  and `intent_url` (the reply handoff target).
 
 ## Patterns & inspiration (free)
 

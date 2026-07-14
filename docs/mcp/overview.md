@@ -3,18 +3,23 @@
 The Agents For X **MCP** (Model Context Protocol) server brings **the real-time
 writing assistant for X** to Claude and other AI agents: the agent fetches your
 voice context and writes posts and replies **in your voice**, voice-checks them
-against what performs for you, then drafts, schedules, and publishes — plus reads
-your analytics and manages your patterns, inspiration, niche, and strategy, all
-through your Agents For X account.
+against what performs for you, then drafts, schedules, and publishes original
+posts — plus reads your analytics and manages your patterns, inspiration, and
+niche, all through your Agents For X account.
 
-The preferred loop is **write → check**: `get_writing_context` returns your voice
-settings, examples, and proven patterns so the agent writes in your style, then
-`check_draft` scores the draft against them. Server-side generation stays as a
-labeled fallback for when the agent can't write directly.
+The core loop is **`get_writing_context` → `check_draft` → `find_reply_posts`**:
+`get_writing_context` returns your voice settings, examples, and proven patterns
+so the agent writes in your style, `check_draft` scores the draft against them,
+and `find_reply_posts` surfaces posts worth replying to. Server-side generation
+stays as a labeled fallback that only **seeds a draft you'll edit**.
+
+**Replies are never published through MCP.** There is no reply-publish tool;
+the agent hands the finished reply to you as an `intent_url` link that opens
+X's composer pre-filled, and you send it.
 
 ## Two transports, one tool set
 
-Both surfaces register the **identical 36 tools** via the shared
+Both surfaces register the **identical 33 tools** via the shared
 [`registerTools()`](../../mcp/src/tools.ts), and both enforce the same scopes,
 rate limits, and credit metering as the [REST API](../api/getting-started.md):
 
@@ -50,13 +55,16 @@ The server ships **instructions** that steer agents to the cheapest, best path:
 1. `whoami` — confirm the X account is connected and check credits.
 2. **Write it yourself:** `get_writing_context` (free) returns your assembled
    voice prompt + proven patterns + rules; the agent writes the post/reply
-   directly. Server-side `generate_post` / `generate_reply` (3 credits) are a
-   fallback.
+   directly. Server-side `generate_post` / `generate_reply` (3 credits) only
+   seed a draft you'll edit.
 3. `check_draft` (3 credits) — score the draft 0-100 against your tuned voice;
    apply the suggested edit and iterate.
-4. Save (`create_draft`), schedule (`schedule_post`), or publish
-   (`publish_post`/`publish_reply`/`publish_thread`) **after explicit user
-   confirmation** — publishing is irreversible.
+4. `find_reply_posts` — repliable targets; the agent writes the reply, checks it,
+   then hands it back as `intent_url` + `&text=<url-encoded reply>` for you to
+   send. **Replies are never published by the server.**
+5. Save (`create_draft`), schedule (`schedule_post`), or publish an original post
+   (`publish_post`/`publish_thread`) **after explicit user confirmation** —
+   publishing is irreversible.
 
 See [workflows.md](workflows.md) for the detailed patterns and
 [setup.md](setup.md) to connect.

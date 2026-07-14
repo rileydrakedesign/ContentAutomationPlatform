@@ -25,9 +25,9 @@
 
 | Feature | Status | Notes | SoT |
 |---|---|---|---|
-| Quick generation (topic → draft) | ✅ | 1 quota slot; seeds the editor | [generation](../features/generation.md) |
-| Agentic generation (research → draft → voice-check → refine) | ✅ | 3 slots; SSE chain + async QStash path | ↑ |
-| Refine (feedback-driven revise) | ✅ | Lightweight, no pipeline | ↑ |
+| Single-shot generation (topic → draft) | ✅ | 1 quota slot; seeds the editor | [generation](../features/generation.md) |
+| Agentic generation (research → draft → voice-check → refine) | ❌ | Retired 2026-07 (pipeline, SSE route, async QStash worker all removed) | ↑ |
+| Refine (feedback-driven revise) | ✅ | Lightweight, single call | ↑ |
 | Reply generation | ✅ | In-voice, reply guidelines | [reply-finder](../features/reply-finder.md) |
 | Seed-the-editor handoff | ✅ | `draft:new:seed` → `/drafts/new`, no DB write until saved | [generation](../features/generation.md) |
 | From-inspiration on-ramp | ✅ | `?inspiration=` routes to AI Generate | ↑ |
@@ -43,7 +43,7 @@
 | Niche profile | ✅ | `user_niche_profile` | ↑ |
 | Voice check (0–100 + deviations) | ✅ | `voice_check_results`; feeds calibration | ↑ |
 | Tune-up loop (refresh examples/patterns/niche) | ✅ | Retune recommendation | ↑ |
-| Content strategy / progress | ✅ | `/strategy` | — |
+| Content strategy (weekly cadence + pillar targets) | ✅ | Settings → Strategy tab; feeds the assembled prompt. The `/strategy` page + dashboard progress widget were removed 2026-07 | [strategy guide](../guides/strategy.md) |
 
 ## Analytics & insights
 
@@ -61,7 +61,7 @@
 
 | Feature | Status | Notes | SoT |
 |---|---|---|---|
-| Publish now (post / thread / reply) | ✅ | In-house X client | [publishing-and-scheduling](../features/publishing-and-scheduling.md) |
+| Publish now (post / thread) | ✅ | In-house X client. **Replies are handoff-only** — `X_REPLY` returns 410 on v1 | [publishing-and-scheduling](../features/publishing-and-scheduling.md) |
 | Schedule + queue | ✅ | Cron sweep + QStash | ↑ |
 | Media upload | ✅ | Chunked; durable re-upload | [x-integration](../features/x-integration.md) |
 | Failure handling / retry / cancel | ✅ | | [publishing-and-scheduling](../features/publishing-and-scheduling.md) |
@@ -81,7 +81,7 @@
 |---|---|---|---|
 | Chrome extension (orb + underlines + pill on X) | ✅ | Tier-0 client-side; shared TS engine | [chrome-extension](../features/chrome-extension.md) |
 | In-X fuzzy (LLM) underlines | 🟡 | Deterministic-only on X today; fuzzy → panel | ↑ |
-| MCP server (~36 tools) | ✅ | write+check loop; catalog still gen-heavy | [mcp-and-public-api](../features/mcp-and-public-api.md) |
+| MCP server (33 tools) | ✅ | Slimmed 2026-07 (dropped `publish_reply`, `get_strategy`, `update_strategy`); tour leads with get_writing_context → check_draft → find_reply_posts | [mcp-and-public-api](../features/mcp-and-public-api.md) |
 | Public v1 REST API + OpenAPI/Scalar | ✅ | `/developers`; drift test | ↑ |
 | X OAuth / account connect | ✅ | PKCE | [x-integration](../features/x-integration.md) |
 
@@ -89,7 +89,7 @@
 
 | Feature | Status | Notes | SoT |
 |---|---|---|---|
-| Plans (Free/Pro/Agent/Agency) + Stripe | ✅ | Webhook idempotency | [billing-plans-and-credits](../features/billing-plans-and-credits.md) |
+| Plans (Free/Pro/Agent) + Stripe | ✅ | Webhook idempotency; the Agency tier was removed with the agency module (2026-07) | [billing-plans-and-credits](../features/billing-plans-and-credits.md) |
 | Assistant entitlement (unmetered) | ✅ | `requireFeature("writingAssistant")` | ↑ |
 | Generation daily quota | ✅ | `ai_usage_log` | ↑ |
 | API/MCP monthly credits + packs | ✅ | `credit_ledger`, `user_credits` | ↑ |

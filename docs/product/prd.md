@@ -99,9 +99,9 @@ assistant keeps it on-voice and on-algorithm.*
 5. Each finding is a card: *what · why (grounded) · Accept (one-click fix) · Dismiss.*
 6. A single **Post Score** (blend of voice + performance + reach) the user learns to push up.
 
-**On-ramps (generation, demoted):** "Start blank," "Give me a starting point" (Quick),
-"Research a draft" (Agentic chain), "From an inspiration post" — each **seeds the editor**,
-never a separate destination.
+**On-ramps (generation, demoted):** "Start blank," "Give me a starting point" (single-shot
+generation), "From an inspiration post" — each **seeds the editor**, never a separate
+destination. (The multi-step "Research a draft" agentic chain was retired in 2026-07.)
 
 ## 7. Feature scope
 
@@ -110,7 +110,7 @@ Each subsystem has an engineering source-of-truth doc in [`docs/features/`](../f
 | Area | Doc |
 |---|---|
 | Real-time writing assistant (L0–L3 engine) ⭐ | [writing-assistant.md](../features/writing-assistant.md) |
-| Generation on-ramps (Quick / Agentic / Refine) | [generation.md](../features/generation.md) |
+| Generation on-ramps (single-shot / Refine) | [generation.md](../features/generation.md) |
 | Voice engine (dials, examples, patterns, niche, tune-up) | [voice-engine.md](../features/voice-engine.md) |
 | Analytics & insights (sync, attribution, X-algorithm model) | [analysis-and-insights.md](../features/analysis-and-insights.md) |
 | Publishing & scheduling | [publishing-and-scheduling.md](../features/publishing-and-scheduling.md) |
@@ -126,10 +126,10 @@ Each subsystem has an engineering source-of-truth doc in [`docs/features/`](../f
 |---|---|---|
 | **Tier-0 deterministic checks** | Always free, always on | Pure client-side JS, $0 |
 | **Live LLM assistant (L2/L3)** | Subscription entitlement, **unmetered** | `requireFeature("writingAssistant")` — never consumes generation quota |
-| **Generation (Quick/Agentic)** | Metered, daily quota slots | `requireAiGeneration` (Quick=1, Agent=3); Free 5/day, paid unlimited |
+| **Generation** | Metered, daily quota slots | `requireAiGeneration` (1 slot per generation); Free 5/day, paid unlimited |
 | **API/MCP surface** | Monthly credits | `CREDIT_COSTS` ledger |
 
-Plans: **Free · Pro $29 · Agent $79 · Agency $199**. Detail + the one open lever
+Plans: **Free · Pro $29 · Agent $79** (the Agency tier was removed with the agency module, 2026-07). Detail + the one open lever
 (`writingAssistant` is currently `true` on *all* plans incl. free; gating free to Tier-0-only
 is available but not pulled) in [billing-plans-and-credits.md](../features/billing-plans-and-credits.md).
 

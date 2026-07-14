@@ -4,9 +4,12 @@ How content goes from a draft to a live post on X, immediately or on a schedule.
 
 ## Draft → publish (immediate)
 
-`POST /publish/now` (MCP `publish_post` / `publish_thread` / `publish_reply`):
+`POST /publish/now` (MCP `publish_post` / `publish_thread`):
 
-1. Validate `contentType` (`X_POST` | `X_THREAD` | `X_REPLY`) and `payload`.
+1. Validate `contentType` (`X_POST` | `X_THREAD`) and `payload`. **`X_REPLY` is deprecated:**
+   the v1 route returns `410 Gone` (`code: "deprecated"`) before any credit debit, and
+   the in-app route rejects it outright. Replies are handoff-only — see
+   [../guides/reply.md](../guides/reply.md).
 2. Resolve a valid X access token (refreshing if needed); a stale connection
    returns `400 x_not_connected`.
 3. Enforce the daily publish cap (abuse backstop on top of credits).

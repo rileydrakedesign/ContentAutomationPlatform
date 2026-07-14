@@ -2,8 +2,14 @@
 
 Replying to high-momentum posts in your voice is the second growth engine
 (alongside original posts). The reply engine is the same on every surface — it
-finds posts you can **actually** reply to, ranks them by traction, generates a
-reply in your **reply-voice**, and voice-checks it before it ships.
+finds posts you can **actually** reply to, ranks them by traction, writes a reply
+in your **reply-voice**, and voice-checks it.
+
+> **Replies are handoff-only. Nothing here posts a reply for you.** The finished
+> reply is handed to X's own composer (pre-filled) and **you** send it. There is no
+> `publish_reply` MCP tool, and `POST /api/v1/publish/now` with
+> `contentType: "X_REPLY"` returns **`410 Gone`** (`code: "deprecated"`) before any
+> credit is charged. This is a deliberate account-safety / ToS decision.
 
 ## Find repliable, high-traction posts
 
@@ -20,6 +26,10 @@ saturated). The response includes `returned_count` (what X returned) and
   posts X restricts, so you're never pointed at a non-repliable post.
 - **API:** `GET /api/v1/search/reply-targets` (Pro, per-post credits).
 - **MCP:** `find_reply_posts`.
+
+Each target carries **`post_url`** (the permalink) and **`intent_url`**
+(`https://x.com/intent/post?in_reply_to=<id>`) — the handoff target you use to
+deliver the reply.
 
 ### Eligibility mapping (audited)
 
@@ -45,15 +55,11 @@ share `findReplyTargets`, so the rule is fixed once.
 ### Graceful residual 403s
 
 Some restrictions are **undetectable pre-flight** — an author can limit who
-replies to a *specific* conversation. X only rejects at publish time with a 403
-("Reply to this conversation is not allowed…"). `isReplyForbiddenError`
-([`search-mapping.ts`](../../src/lib/x-api/search-mapping.ts)) recognizes this, and:
-
-- **Dashboard** (`/api/publish/now`, `X_REPLY`): returns a clean 403; the reply
-  finder shows "X won't allow a reply here — the author limited who can reply" and
-  **removes that post from the list** (not a raw error).
-- **v1 / MCP** (`/api/v1/publish/now`): **refunds the charged credits**, then
-  returns a `reply_forbidden` 403 with the same clear message.
+replies to a *specific* conversation. Because the reply is sent by you from X's own
+composer, X simply rejects it there; nothing in the product needs to unwind a
+charge. (`isReplyForbiddenError` in
+[`search-mapping.ts`](../../src/lib/x-api/search-mapping.ts) still recognizes the
+403 for any X-API path that can hit it.)
 
 ## Generate a reply in your voice
 
@@ -64,24 +70,26 @@ angle subordinate to your voice.
 - **Web app / extension:** `POST /generate-reply` (cookie or extension Bearer).
 - **API / MCP:** `POST /api/v1/drafts/generate` (reply) / `generate_reply`.
 
-## Publish — voice-check optional
+## Send — the handoff (voice-check optional)
 
-Voice-check (`voice_type: "reply"`) is **offered, not required**:
+Voice-check (`voice_type: "reply"`) is **offered, not required**. The send itself
+always happens in X:
 
-- **Web app `/reply`:** two actions — **Post reply** (ships immediately via
-  `POST /api/publish/now`, `X_REPLY`) and **Voice-check & reply** (runs the
-  3-credit check, surfaces the score, then you post). The sent reply is logged to
-  the reply pool so it feeds your reply-voice.
+- **Web app `/reply`:** the reply is handed off — extension assist (X's reply
+  composer, pre-filled) → X web intent in a new tab → copy + open post as the last
+  fallback. You press send on X. Replies you send are logged to the reply pool so
+  they feed your reply-voice.
 - **Extension:** the picker has an on-demand voice-check; "Use this reply" injects
   it into X's native composer.
-- **API / MCP:** `check_draft` is a separate, optional tool — call it before
-  `publish_reply` if you want a score, or publish directly.
+- **API / MCP:** `check_draft` is a separate, optional tool. To deliver the reply,
+  append `&text=<url-encoded reply>` to the target's `intent_url` and give the user
+  that link.
 
 ## The full path
 
 ```
-find_reply_posts  →  generate_reply  →  [check_draft]  →  publish_reply
-(repliable+traction)  (reply-voice)    (optional score)   (X_REPLY)
+find_reply_posts  →  generate_reply  →  [check_draft]  →  intent_url + &text=…
+(repliable+traction)  (reply-voice)    (optional score)   (the human sends it on X)
 ```
 
 This is identical on the dashboard, the extension, the API, and MCP — see the
