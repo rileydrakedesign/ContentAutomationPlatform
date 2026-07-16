@@ -18,6 +18,7 @@ import { searchRecentTweets, getValidAccessToken } from "@/lib/x-api";
 import { mapSearchResults } from "@/lib/x-api/search-mapping";
 import { assessOpportunity, type MetricsSnapshot } from "@/lib/x-api/opportunity";
 import { compileWatchQueries } from "@/lib/x-api/watch-queries";
+import { isRadarUnlimitedUser } from "@/lib/radar/flag";
 
 export interface SweepSummary {
   units_swept: number;
@@ -154,6 +155,10 @@ export async function sweepUser(
   summary.expired = await expireStaleQueueItems(supabase, userId);
   summary.seeded_watches = await seedWatchesFromNiche(supabase, userId);
 
+  // Budget-exempt (dev + testing allowlist): sweep every unit regardless of
+  // its daily read count, so the queue can be exercised repeatedly.
+  const unlimited = isRadarUnlimitedUser(userId);
+
   const { data: unitsRaw } = await supabase
     .from("sweep_units")
     .select("id, owner_user_id, watch_id, query, since_id, daily_read_budget, reads_today, reads_date, reads_total, status")
@@ -179,7 +184,7 @@ export async function sweepUser(
 
     // Roll the daily budget window.
     const readsToday = unit.reads_date === today ? unit.reads_today : 0;
-    if (readsToday >= unit.daily_read_budget) {
+    if (!unlimited && readsToday >= unit.daily_read_budget) {
       if (unit.status !== "paused_budget") {
         await supabase
           .from("sweep_units")
@@ -190,11 +195,10 @@ export async function sweepUser(
       continue;
     }
 
-    // X requires max_results >= 10; the daily budget still caps actuals.
-    const pageSize = Math.max(
-      10,
-      Math.min(SWEEP_PAGE_SIZE, unit.daily_read_budget - readsToday)
-    );
+    // X requires max_results >= 10; the daily budget still caps actuals
+    // (a full page for budget-exempt users).
+    const remaining = unlimited ? SWEEP_PAGE_SIZE : unit.daily_read_budget - readsToday;
+    const pageSize = Math.max(10, Math.min(SWEEP_PAGE_SIZE, remaining));
 
     let result: Awaited<ReturnType<typeof searchRecentTweets>>;
     try {
@@ -224,7 +228,7 @@ export async function sweepUser(
         reads_date: today,
         reads_total: (unit.reads_total || 0) + reads,
         last_swept_at: new Date().toISOString(),
-        status: readsToday + reads >= unit.daily_read_budget ? "paused_budget" : "active",
+        status: !unlimited && readsToday + reads >= unit.daily_read_budget ? "paused_budget" : "active",
       })
       .eq("id", unit.id);
 
