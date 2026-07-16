@@ -121,6 +121,8 @@ One implementation, server-side, shared verbatim with the extension (same "one s
 | Traction | canonical `weightedEngagement` (`engagement.ts` weights — the single source) | exists |
 | Repliability | `reply_allowed` allow-list (exists) + already-replied dedup (G7) | `search-mapping.ts` + queue states |
 
+**Opportunity 3.0 Tier 1 (shipped 2026-07-13, `opportunity.ts`):** ranking alone let zero-engagement minutes-old posts flood the queue (since_id sweeps only see new posts; ÷age amplifies noise). Now **admission precedes scoring** (`admitToQueue`, sweeps only — manual search bypasses): hard gates (author <300 followers, following/followers >20, spam-bait text) then proof-of-distribution — in-band author (10k–100k), engagement above an age-scaled floor (`10 + 5×ageHours` weighted, or ≥1k views), or measured velocity between snapshots. Screened posts stay in the pool (`summary.screened_out`). Scoring adds: age-divisor floor (0.5h), zero-view boost removed, sub-1k author mult 0.6, discussion/question boost 1.15× (engage-back proxy — X's open-sourced ranker weights `reply_engaged_by_author` at 75 vs 0.5 for a like; engage-back is the design anchor). **Tier 2 (planned):** probation re-checks via batch tweet lookups to bring velocity to first-sighting candidates (budget-capped), cached author reply-rate as a real engage-back predictor, topic-fit embeddings, Phase-3 learned per-user re-weighting.
+
 ### 4.4 Sweep runner & cadence
 
 - Cron-driven (existing `daily-ops` / cron patterns): watchlist units every 15–30 min; cluster units 2–4×/day; trackers per their tier.

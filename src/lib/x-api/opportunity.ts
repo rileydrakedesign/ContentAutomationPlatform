@@ -39,7 +39,8 @@ function authorBandFactor(t: EnrichedSearchTweet): { mult: number; reason: strin
     return { mult: 0.7, reason: `${compact} followers — big account, replies get buried fast` };
   }
   if (followers < 1000) {
-    return { mult: 0.85, reason: null };
+    // Sub-1k reach rarely moves the needle even when the post itself climbs.
+    return { mult: 0.6, reason: null };
   }
   return { mult: 1, reason: null };
 }
@@ -56,8 +57,21 @@ function competitionFactor(t: EnrichedSearchTweet): { mult: number; reason: stri
       reason: `Early — ${replies} ${replies === 1 ? "reply" : "replies"} on ${views.toLocaleString()} views`,
     };
   }
-  if (views === 0 && replies < 5) {
-    return { mult: 1.1, reason: "Low reply competition" };
+  // Zero views is NOT low competition — it's zero distribution. Neutral;
+  // admission (below) demands proof before a card is queued at all.
+  return { mult: 1, reason: null };
+}
+
+// Author engage-back is X's own strongest ranking lever (the open-sourced
+// heavy ranker weighted reply_engaged_by_author at 75 vs 0.5 for a like).
+// Posts that ask the crowd have structurally higher engage-back odds.
+const DISCUSSION_PHRASES =
+  /(what do you think|what am i missing|thoughts\?|agree\?|am i wrong|unpopular opinion|hot take|change my mind|who else|anyone else)/i;
+
+function discussionFactor(t: EnrichedSearchTweet): { mult: number; reason: string | null } {
+  const text = t.text.replace(/https?:\/\/\S+/g, "");
+  if (/\?/.test(text) || DISCUSSION_PHRASES.test(text)) {
+    return { mult: 1.15, reason: "Invites discussion — engage-back friendly" };
   }
   return { mult: 1, reason: null };
 }
@@ -70,11 +84,17 @@ function competitionFactor(t: EnrichedSearchTweet): { mult: number; reason: stri
 // weightedEngagement/tractionScore stay untouched everywhere else.
 const REPLY_HEAT_CAP = 30;
 
+// Floor the age divisor: minutes-old posts otherwise get near-infinite
+// amplification exactly where the evidence is thinnest (one reply at minute
+// six would outrank a proven post from two hours ago).
+const MIN_AGE_HOURS = 0.5;
+
 function opportunityBase(t: EnrichedSearchTweet, nowMs: number): number {
   const pm = t.metrics;
   if (!pm) return 0;
   const createdMs = t.created_at ? Date.parse(t.created_at) : NaN;
-  const ageHours = Number.isFinite(createdMs) ? (nowMs - createdMs) / 3_600_000 : 1;
+  const rawAge = Number.isFinite(createdMs) ? (nowMs - createdMs) / 3_600_000 : 1;
+  const ageHours = Math.max(MIN_AGE_HOURS, rawAge);
   return opportunityTraction(
     {
       likes: pm.like_count,
@@ -152,6 +172,7 @@ export function assessOpportunity(
   const base = opportunityBase(t, nowMs);
   const band = authorBandFactor(t);
   const competition = competitionFactor(t);
+  const discussion = discussionFactor(t);
   const velocity =
     extras.prevMetrics && extras.prevSweptAtMs && t.metrics
       ? velocityFactor(t.metrics, extras.prevMetrics, extras.prevSweptAtMs, nowMs)
@@ -161,11 +182,104 @@ export function assessOpportunity(
   if (velocity.reason) reasons.push(velocity.reason);
   if (band.reason) reasons.push(band.reason);
   if (competition.reason) reasons.push(competition.reason);
+  if (discussion.reason) reasons.push(discussion.reason);
   const fresh = freshnessReason(t, nowMs);
   if (fresh) reasons.push(fresh);
 
   return {
-    score: base * band.mult * competition.mult * velocity.mult,
+    score: base * band.mult * competition.mult * discussion.mult * velocity.mult,
     reasons,
   };
+}
+
+// ── Queue admission (Opportunity 3.0 Tier 1) ────────────────────────────────
+//
+// Scoring ranks what's IN the queue; admission decides what EARNS a slot.
+// First principles: a reply buys a seat on the parent's FUTURE distribution,
+// so a card must show proof that distribution is coming — an in-band author
+// (their posts get distributed), demonstrated engagement for its age, or
+// measured velocity between snapshots. Zero engagement at minute five isn't
+// early detection, it's no information. Manual search results bypass this
+// (the user asked for them); only sweeps consult it.
+
+const AUTHOR_FLOOR = 300;
+const FOLLOW_RATIO_MAX = 20;
+// Tight on purpose — false positives here silently hide real posts.
+const SPAM_BAIT =
+  /\b(giveaway|air ?drop|white ?list|rt to win|retweet to win|tag \d+ friends|drop your wallet|link in bio to claim|pre[- ]?sale live|1000x gem)\b/i;
+// X has distributed the post to a real audience.
+const DISTRIBUTION_VIEWS_MIN = 1000;
+
+export type AdmissionRule =
+  | "gate:author-floor"
+  | "gate:follow-ratio"
+  | "gate:spam-bait"
+  | "proof:author-band"
+  | "proof:distribution"
+  | "proof:velocity"
+  | "no-proof";
+
+export interface QueueAdmission {
+  admit: boolean;
+  /** Which rule decided — telemetry/tuning, never shown on cards. */
+  rule: AdmissionRule;
+}
+
+export function admitToQueue(
+  t: EnrichedSearchTweet,
+  nowMs: number,
+  extras: { prevMetrics?: MetricsSnapshot | null; prevSweptAtMs?: number | null } = {}
+): QueueAdmission {
+  const followers = t.author?.followers_count ?? null;
+  const following = t.author?.following_count ?? null;
+
+  // Hard gates: accounts and posts that should never spend the user's session.
+  if (followers != null && followers < AUTHOR_FLOOR) {
+    return { admit: false, rule: "gate:author-floor" };
+  }
+  if (
+    followers != null &&
+    following != null &&
+    followers > 0 &&
+    following / followers > FOLLOW_RATIO_MAX
+  ) {
+    return { admit: false, rule: "gate:follow-ratio" };
+  }
+  if (SPAM_BAIT.test(t.text)) {
+    return { admit: false, rule: "gate:spam-bait" };
+  }
+
+  // Proof 1 — author band: in-band authors' posts reliably get distribution
+  // and engage-back; admit on sight (this is the early-detection lane).
+  if (followers != null && followers >= BAND_MIN && followers <= BAND_MAX) {
+    return { admit: true, rule: "proof:author-band" };
+  }
+
+  // Proof 2 — demonstrated distribution: engagement above an age-scaled floor
+  // (older posts must have shown more), or X already served it widely.
+  const pm = t.metrics;
+  if (pm) {
+    const createdMs = t.created_at ? Date.parse(t.created_at) : NaN;
+    const ageHours = Number.isFinite(createdMs)
+      ? Math.max(0, (nowMs - createdMs) / 3_600_000)
+      : 1;
+    const weighted = weightedEngagement({
+      likes: pm.like_count,
+      retweets: pm.retweet_count,
+      replies: pm.reply_count,
+      bookmarks: pm.bookmark_count,
+      impressions: pm.impression_count,
+    });
+    if ((pm.impression_count ?? 0) >= DISTRIBUTION_VIEWS_MIN || weighted >= 10 + 5 * ageHours) {
+      return { admit: true, rule: "proof:distribution" };
+    }
+
+    // Proof 3 — velocity: seen twice and climbing (pool snapshots).
+    if (extras.prevMetrics && extras.prevSweptAtMs) {
+      const v = velocityFactor(pm, extras.prevMetrics, extras.prevSweptAtMs, nowMs);
+      if (v.mult > 1) return { admit: true, rule: "proof:velocity" };
+    }
+  }
+
+  return { admit: false, rule: "no-proof" };
 }

@@ -16,7 +16,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { searchRecentTweets, getValidAccessToken } from "@/lib/x-api";
 import { mapSearchResults } from "@/lib/x-api/search-mapping";
-import { assessOpportunity, type MetricsSnapshot } from "@/lib/x-api/opportunity";
+import { admitToQueue, assessOpportunity, type MetricsSnapshot } from "@/lib/x-api/opportunity";
 import { compileWatchQueries } from "@/lib/x-api/watch-queries";
 import { isRadarUnlimitedUser } from "@/lib/radar/flag";
 
@@ -28,6 +28,8 @@ export interface SweepSummary {
   queued: number;
   seeded_watches: number;
   expired: number;
+  /** Fetched but not queued: failed a gate or showed no distribution proof. */
+  screened_out: number;
 }
 
 interface SweepUnitRow {
@@ -150,6 +152,7 @@ export async function sweepUser(
     queued: 0,
     seeded_watches: 0,
     expired: 0,
+    screened_out: 0,
   };
 
   summary.expired = await expireStaleQueueItems(supabase, userId);
@@ -288,20 +291,31 @@ export async function sweepUser(
 
     const queueRows = repliable
       .filter((t) => !repliedSet.has(t.id))
-      .map((t) => {
+      .flatMap((t) => {
         const prior = existing.get(t.id);
-        const assessment = assessOpportunity(t, nowMs, {
+        const extras = {
           prevMetrics: (prior?.metrics as MetricsSnapshot) ?? null,
           prevSweptAtMs: prior?.last_swept_at ? Date.parse(prior.last_swept_at) : null,
-        });
-        return {
-          user_id: userId,
-          candidate_post_id: t.id,
-          watch_id: unit.watch_id,
-          score: assessment.score,
-          reasons: assessment.reasons,
-          state: QUEUE_STATE_NEW,
         };
+        // Admission before scoring: a card must show proof of coming
+        // distribution (in-band author / engagement-for-age / velocity) and
+        // pass the bot/bait gates. Screened posts stay in the candidate pool.
+        const admission = admitToQueue(t, nowMs, extras);
+        if (!admission.admit) {
+          summary.screened_out++;
+          return [];
+        }
+        const assessment = assessOpportunity(t, nowMs, extras);
+        return [
+          {
+            user_id: userId,
+            candidate_post_id: t.id,
+            watch_id: unit.watch_id,
+            score: assessment.score,
+            reasons: assessment.reasons,
+            state: QUEUE_STATE_NEW,
+          },
+        ];
       });
 
     if (queueRows.length > 0) {

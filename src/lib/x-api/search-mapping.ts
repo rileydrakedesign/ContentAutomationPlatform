@@ -15,6 +15,7 @@ export interface EnrichedSearchTweet {
     username: string | null;
     name: string | null;
     followers_count?: number | null;
+    following_count?: number | null;
   } | null;
   reply_settings: string | null;
   is_auth_mentioned: boolean;
@@ -116,6 +117,8 @@ export function mapSearchResults(
             name: users.get(tweet.author_id)?.name ?? null,
             followers_count:
               users.get(tweet.author_id)?.public_metrics?.followers_count ?? null,
+            following_count:
+              users.get(tweet.author_id)?.public_metrics?.following_count ?? null,
           }
         : null,
       reply_settings: replySettings,
