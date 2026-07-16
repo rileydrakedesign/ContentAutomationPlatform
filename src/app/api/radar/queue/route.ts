@@ -5,6 +5,10 @@ import { isRadarBetaUser } from "@/lib/radar/flag";
 
 // The bound is the product promise: a curated session, never a feed.
 const QUEUE_BOUND = 15;
+// Actionable cards older than this never render — the queue is today's
+// edition. Sweeps hard-delete them (expireStaleQueueItems); this filter
+// covers the read path in between.
+const QUEUE_MAX_AGE_HOURS = 24;
 // Replied history is a review surface, not a session — bounded separately.
 // (It will grow outcome badges; pagination comes with the outcome loop.)
 const SETTLED_BOUND = 50;
@@ -47,6 +51,10 @@ export async function GET(request: NextRequest) {
             .select(select)
             .eq("user_id", user.id)
             .in("state", actionable)
+            .gte(
+              "created_at",
+              new Date(Date.now() - QUEUE_MAX_AGE_HOURS * 3600 * 1000).toISOString()
+            )
             .order("score", { ascending: false })
             .limit(QUEUE_BOUND)
         : Promise.resolve({ data: [], error: null }),

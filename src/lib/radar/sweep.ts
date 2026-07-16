@@ -26,6 +26,7 @@ export interface SweepSummary {
   candidates_upserted: number;
   queued: number;
   seeded_watches: number;
+  expired: number;
 }
 
 interface SweepUnitRow {
@@ -43,6 +44,31 @@ interface SweepUnitRow {
 
 const SWEEP_PAGE_SIZE = 25; // per pass; the daily budget is the real cap
 const QUEUE_STATE_NEW = "new";
+// The queue is today's edition (PRD §3.4): an un-triaged card that sat a full
+// day is stale — its reply window closed, and its score (frozen at sweep time,
+// when it WAS fresh) would forever outrank genuinely fresh finds. Age it out.
+// Deleted rows can't resurrect: since_id cursors never re-fetch old posts.
+const QUEUE_MAX_AGE_HOURS = 24;
+
+/** Retire un-triaged queue cards older than the reply window. */
+export async function expireStaleQueueItems(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<number> {
+  const cutoff = new Date(Date.now() - QUEUE_MAX_AGE_HOURS * 3600 * 1000).toISOString();
+  const { data: expired, error } = await supabase
+    .from("user_target_queue")
+    .delete()
+    .eq("user_id", userId)
+    .eq("state", QUEUE_STATE_NEW)
+    .lt("created_at", cutoff)
+    .select("id");
+  if (error) {
+    console.warn("radar sweep: stale-queue expiry failed:", error.message);
+    return 0;
+  }
+  return (expired || []).length;
+}
 
 /** Numeric string compare for tweet IDs (longer = larger; then lexicographic). */
 export function maxTweetId(a: string | null, b: string): string {
@@ -122,8 +148,10 @@ export async function sweepUser(
     candidates_upserted: 0,
     queued: 0,
     seeded_watches: 0,
+    expired: 0,
   };
 
+  summary.expired = await expireStaleQueueItems(supabase, userId);
   summary.seeded_watches = await seedWatchesFromNiche(supabase, userId);
 
   const { data: unitsRaw } = await supabase

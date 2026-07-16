@@ -66,6 +66,7 @@ A standing, **system-seeded, user-trimmed** watch producing a bounded daily queu
   - **Real-time alerts** (push/extension badge) only for high-urgency windows on watchlist accounts — fresh post from a watched account, accelerating velocity, low reply competition.
   - Queue states: new / snoozed / replied / skipped (feeds the outcome loop).
 - **Explicitly NOT:** an infinite feed. The bound is the product promise (anti-vigil), and it also bounds COGS.
+- **Freshness (2026-07-13):** un-triaged `new` cards age out after 24h — scores are frozen at sweep time, so without expiry, yesterday's high scorers permanently outrank today's finds. Sweeps hard-delete stale cards (`expireStaleQueueItems`); the queue GET also filters reads to the 24h window. The queue is *today's edition*.
 
 ### 3.2 Custom trackers (add-on, same pipeline)
 
